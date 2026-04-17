@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Tour de introducción",
+  "skip": "Omitir tour",
+  "skipAria": "Omitir tour de introducción",
+  "next": "Siguiente",
+  "done": "Listo",
+  "nextAria": "Siguiente paso ({{current}} de {{total}})",
+  "finishAria": "Finalizar tour de introducción",
+  "stepProgress": "Paso {{current}} de {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Crea tu billetera",
+      "description": "¡Bienvenido a Veiled! Comienza creando una nueva billetera o importando una existente. Tu billetera asegura tu identidad en el mercado."
+    },
+    "nodeSync": {
+      "title": "Sincroniza con la blockchain",
+      "description": "Tu nodo descargará y sincronizará con la blockchain Cardano. Esta es una configuración única que toma 10-20 minutos. Puedes continuar en segundo plano."
+    },
+    "marketplace": {
+      "title": "Explora el mercado",
+      "description": "La pestaña Mercado muestra todos los anuncios de datos cifrados disponibles. Explora categorías, revisa precios y encuentra datos que quieras comprar."
+    },
+    "firstBid": {
+      "title": "Haz tu primera oferta",
+      "description": "¿Encontraste algo interesante? Haz clic en un anuncio para ver los detalles, luego haz una oferta con el precio que desees. El vendedor puede aceptar tu oferta para completar el intercambio."
+    }
+  }
+}

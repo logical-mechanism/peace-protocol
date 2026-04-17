@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Настройка ноды",
+    "bootstrapping": "Загрузка снимка",
+    "starting": "Запуск ноды",
+    "syncing": "Синхронизация цепочки",
+    "synced": "Нода готова",
+    "error": "Ошибка ноды"
+  },
+  "network": {
+    "preprod": "Сеть Preprod",
+    "mainnet": "Сеть Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Начальная загрузка",
+    "starting": "Запуск",
+    "syncing": "Синхронизация",
+    "ready": "Готово"
+  },
+  "progressLabel": "Прогресс синхронизации",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Воспроизведение реестра...",
+      "description": "Проверяет блоки блокчейна Cardano и поддерживает локальную копию реестра."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Подключение...",
+      "description": "Преобразует данные ноды в протокол WebSocket для построения и отправки транзакций."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Запуск...",
+      "description": "Индексирует UTxO по адресам контрактов и кошельков для быстрых запросов баланса и объявлений."
+    },
+    "states": {
+      "waiting": "Ожидание...",
+      "starting": "Запуск...",
+      "ready": "Готово",
+      "error": "Ошибка"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Сервер бэкенда",
+    "syncing": "Синхронизация {{percent}}%",
+    "indexing": "Индексация {{percent}}%",
+    "disconnected": "Отключено",
+    "stalled": "Зависло",
+    "starting": "Запуск...",
+    "waiting": "Ожидание...",
+    "synced": "Синхронизировано"
+  },
+  "syncInfo": {
+    "block": "Блок {{height}} — {{percent}}%",
+    "epoch": "Эпоха {{epoch}} ({{era}})",
+    "slot": "Слот {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Данные блокчейна не найдены. Загрузите снимок, чтобы начать.",
+    "stopped": "Инфраструктура ноды остановлена.",
+    "bootstrapDownloading": "Загрузка снимка: {{current}} / {{total}} файлов",
+    "bootstrapLedgerState": "Загрузка состояния реестра: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Подготовка к загрузке снимка блокчейна...",
+    "bootstrapGeneric": "Загрузка снимка...",
+    "startingNode": "Запуск ноды Cardano...",
+    "waitingChainBridge": "Ожидание моста к цепочке...",
+    "connectingNetwork": "Подключение к сети...",
+    "fullySyncedStartingBackend": "Полная синхронизация, запуск серверных служб...",
+    "fullySynced": "Полная синхронизация с сетью {{network}}",
+    "nodeSyncedWaitingKupo": "Нода синхронизирована, ожидание Kupo Indexer...",
+    "syncing": "Синхронизация с сетью {{network}}...",
+    "syncedAtBlock": "Полная синхронизация с сетью {{network}} на блоке {{height}}",
+    "genericError": "Произошла ошибка"
+  },
+  "stuckMessage": "Последние несколько блоков занимают больше времени, так как нода проверяет недавние транзакции. Это нормально. Последние несколько процентов могут занять 5–15 минут, пока нода проверяет недавние блоки.",
+  "diskSpace": {
+    "low": "Мало места на диске: доступно {{available}} ГБ, необходимо ~{{required}} ГБ для {{network}}. Синхронизация может завершиться неудачно, если место на диске закончится.",
+    "unknown": "Не удалось проверить свободное место на диске. Убедитесь, что у вас есть не менее 10 ГБ свободного пространства перед синхронизацией."
+  },
+  "actions": {
+    "starting": "Запуск...",
+    "downloadSnapshot": "Загрузить снимок и запустить",
+    "startNode": "Запустить ноду",
+    "retry": "Повторить",
+    "continueDashboard": "Перейти к панели управления",
+    "continueBackground": "Продолжить в фоне",
+    "stop": "Остановить"
+  },
+  "console": {
+    "show": "Показать вывод консоли ({{count}} строк)",
+    "hide": "Скрыть вывод консоли ({{count}} строк)",
+    "copyLogs": "Копировать логи",
+    "copyLogsAria": "Копировать логи в буфер обмена",
+    "noLogsTitle": "Нет логов",
+    "noLogsBody": "Нет строк логов для копирования.",
+    "copiedTitle": "Логи скопированы",
+    "copiedBody": "Вывод консоли скопирован в буфер обмена.",
+    "copyFailedTitle": "Ошибка копирования",
+    "copyFailedBody": "Не удалось скопировать логи в буфер обмена."
+  },
+  "errorDetails": {
+    "summary": "Подробности",
+    "copyAria": "Копировать подробности ошибки",
+    "errorFallback": "Ошибка"
+  },
+  "wasm": {
+    "checkingSetup": "Проверка файлов настройки SNARK...",
+    "checkingExist": "Проверка наличия файлов настройки...",
+    "proverReady": "SNARK-доказатель готов",
+    "setupFound": "Файлы настройки найдены",
+    "decompressing": "Распаковка файлов настройки SNARK...",
+    "decompressingDetail": "Распаковка pk.bin и ccs.bin (~500 МБ)...",
+    "decompressed": "Файлы настройки распакованы"
+  },
+  "firstTimeSetup": {
+    "title": "Первоначальная настройка",
+    "description": "Будет загружен снимок Mithril для начальной загрузки ноды Cardano. Это занимает примерно 10-20 минут в зависимости от скорости вашего соединения. Снимок проверяется криптографически перед использованием."
+  }
+}

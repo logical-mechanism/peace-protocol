@@ -9,7 +9,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
-import { formatPrice, getCategoryLabel } from '../utils/formatListing';
+import { formatPrice } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 import type { CardSize } from '../hooks/useTabFilterState';
 
@@ -112,15 +112,15 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={t('card.filterByCategory', { category: getCategoryLabel(encryption.category) })}
-                aria-label={t('card.filterByCategoryAria', { category: getCategoryLabel(encryption.category) })}
+                title={t('card.filterByCategory', { category: t(`common:categories.${encryption.category || 'text'}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${encryption.category || 'text'}`) })}
                 className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
               >
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${encryption.category || 'text'}`)}
               </button>
             ) : (
               <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${encryption.category || 'text'}`)}
               </span>
             )}
             {encryption.nsfw && (
@@ -222,15 +222,15 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={t('card.filterByCategory', { category: getCategoryLabel(encryption.category) })}
-                aria-label={t('card.filterByCategoryAria', { category: getCategoryLabel(encryption.category) })}
+                title={t('card.filterByCategory', { category: t(`common:categories.${encryption.category || 'text'}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${encryption.category || 'text'}`) })}
                 className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${encryption.category || 'text'}`)}
               </button>
             ) : (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${encryption.category || 'text'}`)}
               </span>
             )}
             {bidCount > 0 ? (

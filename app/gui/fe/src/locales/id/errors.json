@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Terjadi Kesalahan",
+    "action": "Coba lagi. Jika masalah berlanjut, mulai ulang aplikasi."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo Tidak Tersedia",
+    "message": "Pengindeks UTxO sedang memulai atau tidak dapat dijangkau.",
+    "action": "Tunggu hingga node selesai menyinkronkan, lalu coba lagi."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo Tidak Tersedia",
+    "message": "Pengindeks UTxO tidak merespons.",
+    "action": "Tunggu hingga node selesai menyinkronkan, atau periksa Pengaturan untuk status proses."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Permintaan Ogmios Habis Waktu",
+    "message": "Layanan transaksi tidak merespons tepat waktu. Koneksi node mungkin terganggu.",
+    "action": "Coba mulai ulang node dari Pengaturan, atau tunggu hingga node sepenuhnya tersinkronkan."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Tidak Dapat Menjangkau Ogmios",
+    "message": "Layanan transaksi tidak dapat dijangkau di port yang diharapkan.",
+    "action": "Pastikan node sedang berjalan, atau mulai ulang dari Pengaturan."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios Tidak Tersedia",
+    "message": "Layanan pengiriman transaksi tidak merespons.",
+    "action": "Tunggu hingga node selesai menyinkronkan, atau periksa Pengaturan untuk status proses."
+  },
+  "network": {
+    "title": "Kesalahan Jaringan",
+    "message": "Tidak dapat terhubung ke layanan yang diperlukan.",
+    "action": "Periksa koneksi internet Anda dan pastikan node sedang berjalan."
+  },
+  "noCollateral": {
+    "title": "Tidak Ada Kolateral",
+    "message": "Dompet Anda memerlukan UTxO kolateral khusus sebesar 5 ADA untuk transaksi kontrak pintar.",
+    "action": "Buka Pengaturan > Dompet dan klik \"Tetapkan Kolateral\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Dana Tidak Mencukupi untuk Kolateral",
+    "message": "Dompet Anda tidak memiliki cukup ADA untuk membuat UTxO kolateral.",
+    "action": "Kirim setidaknya 10 ADA ke alamat dompet Anda."
+  },
+  "collateralInsufficient": {
+    "title": "Kolateral Tidak Mencukupi",
+    "message": "Transaksi memerlukan kolateral lebih banyak dari yang tersedia.",
+    "action": "Pastikan dompet Anda memiliki UTxO yang ditetapkan sebagai kolateral. Coba perbarui saldo dompet Anda."
+  },
+  "insufficientBalance": {
+    "title": "Saldo Tidak Mencukupi",
+    "message": "Dompet Anda tidak memiliki cukup ADA untuk transaksi ini.",
+    "action": "Tambahkan lebih banyak ADA ke dompet Anda dan coba lagi."
+  },
+  "iagonAuth": {
+    "title": "Autentikasi Iagon Gagal",
+    "message": "Kunci API Iagon Anda tidak valid atau kedaluwarsa.",
+    "action": "Buka Pengaturan \u2192 Lapisan Data dan autentikasi ulang."
+  },
+  "iagonFileTooLarge": {
+    "title": "Berkas Terlalu Besar untuk Iagon",
+    "message": "Iagon tidak mendukung pengunggahan berkas sebesar ini.",
+    "action": "Pilih berkas di bawah 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Penyimpanan Iagon Penuh",
+    "message": "Kuota penyimpanan akun Iagon Anda penuh.",
+    "action": "Periksa penggunaan penyimpanan akun Iagon Anda."
+  },
+  "iagonGeneric": {
+    "title": "Kesalahan Layanan Penyimpanan",
+    "message": "Tidak dapat menjangkau layanan penyimpanan terdesentralisasi Iagon.",
+    "action": "Periksa koneksi internet Anda. Iagon mungkin sedang tidak tersedia sementara."
+  },
+  "timeout": {
+    "title": "Permintaan Habis Waktu",
+    "message": "Operasi memerlukan waktu terlalu lama untuk diselesaikan.",
+    "action": "Coba lagi. Jika masalah berlanjut, layanan mungkin sedang sibuk."
+  },
+  "mnemonicChecksum": {
+    "title": "Frasa Pemulihan Tidak Valid",
+    "message": "Frasa pemulihan memiliki checksum yang tidak valid. Satu atau lebih kata mungkin salah.",
+    "action": "Periksa kembali setiap kata dengan cadangan tertulis Anda dan coba lagi."
+  },
+  "passwordTooShort": {
+    "title": "Kata Sandi Terlalu Pendek",
+    "message": "Kata sandi harus minimal 12 karakter.",
+    "action": "Pilih kata sandi yang lebih panjang yang memenuhi semua persyaratan yang ditampilkan."
+  },
+  "walletGeneric": {
+    "title": "Kesalahan Dompet",
+    "message": "Ada masalah dengan operasi dompet.",
+    "action": "Coba buka kunci dompet Anda lagi. Jika masalah berlanjut, mulai ulang aplikasi."
+  },
+  "incorrectPassword": {
+    "title": "Kata Sandi Salah",
+    "message": "Kata sandi yang Anda masukkan salah.",
+    "action": "Periksa kembali kata sandi Anda dan coba lagi."
+  },
+  "snarkOom": {
+    "title": "Memori Tidak Cukup",
+    "message": "Pembuatan bukti kehabisan memori.",
+    "action": "Tutup aplikasi lain untuk membebaskan memori dan coba lagi."
+  },
+  "snarkSetupMissing": {
+    "title": "Berkas Pengaturan SNARK Tidak Ditemukan",
+    "message": "Berkas pengaturan SNARK yang diperlukan tidak dapat ditemukan.",
+    "action": "Buka Pengaturan untuk mengunduh ulang berkas pengaturan SNARK."
+  },
+  "snarkInProgress": {
+    "title": "Bukti Sudah Berjalan",
+    "message": "Bukti zero-knowledge sudah sedang dibuat.",
+    "action": "Tunggu hingga bukti saat ini selesai sebelum memulai yang lain."
+  },
+  "snarkGeneric": {
+    "title": "Kesalahan Pembuatan Bukti",
+    "message": "SNARK prover mengalami kesalahan.",
+    "action": "Coba lagi. Jika masalah berlanjut, periksa apakah berkas pengaturan terinstal dengan benar."
+  },
+  "scriptValidation": {
+    "title": "Validasi Skrip Gagal",
+    "message": "Skrip kontrak pintar gagal saat validasi.",
+    "action": "Status on-chain mungkin telah berubah. Perbarui dan coba lagi."
+  },
+  "txConflict": {
+    "title": "Konflik Transaksi",
+    "message": "Satu atau lebih input sudah digunakan oleh transaksi lain.",
+    "action": "Orang lain mungkin telah bertindak pada daftar ini. Perbarui halaman dan coba lagi."
+  },
+  "feeError": {
+    "title": "Kesalahan Biaya Transaksi",
+    "message": "Biaya transaksi dihitung terlalu rendah.",
+    "action": "Coba lagi. Jika masalah berlanjut, mulai ulang aplikasi untuk memperbarui parameter biaya."
+  },
+  "txFailed": {
+    "title": "Transaksi Gagal",
+    "message": "Transaksi tidak dapat dikirim ke blockchain.",
+    "action": "Status on-chain mungkin telah berubah. Perbarui dan coba lagi."
+  },
+  "accessDenied": {
+    "title": "Akses Ditolak",
+    "message": "Permintaan diblokir oleh server.",
+    "action": "Ini mungkin masalah konfigurasi. Coba mulai ulang aplikasi."
+  },
+  "diskFull": {
+    "title": "Disk Penuh",
+    "message": "Tidak ada cukup ruang disk untuk menyelesaikan operasi ini.",
+    "action": "Bebaskan ruang disk dan coba lagi. Periksa Pengaturan > Penyimpanan untuk opsi pembersihan."
+  },
+  "portConflict": {
+    "title": "Konflik Port",
+    "message": "Port yang diperlukan sudah digunakan oleh proses lain.",
+    "action": "Tutup aplikasi lain yang mungkin menggunakan port tersebut, atau mulai ulang aplikasi."
+  }
+}

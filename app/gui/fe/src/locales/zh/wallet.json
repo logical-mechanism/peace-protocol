@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Cardano 上的加密数据市场",
+    "chooseCreateTitle": "创建新钱包",
+    "chooseCreateSubtitle": "生成新的 24 个助记词",
+    "chooseImportTitle": "导入现有钱包",
+    "chooseImportSubtitle": "通过 24 个助记词恢复钱包",
+    "back": "返回",
+    "steps": {
+      "backup": "备份",
+      "verify": "验证",
+      "password": "密码",
+      "recoveryPhrase": "助记词"
+    },
+    "create": {
+      "recoveryPhraseTitle": "助记词",
+      "verifyTitle": "验证助记词",
+      "passwordTitle": "设置密码",
+      "warning": "请按顺序写下这 24 个单词。这是恢复钱包的唯一方式。切勿与他人分享。",
+      "copyToClipboard": "复制到剪贴板",
+      "copied": "已复制！",
+      "wroteItDown": "我已记录",
+      "verifyInstructions": "通过输入以下单词来验证您的助记词。开始输入并选择匹配的单词。",
+      "continue": "继续"
+    },
+    "import": {
+      "enterTitle": "输入助记词",
+      "passwordTitle": "设置密码",
+      "instructions": "输入您的 24 个助记词。开始输入每个单词并从建议中选择。",
+      "pasteAll": "粘贴全部 24 个单词",
+      "wordCount": "{{count}} / 24 个单词",
+      "continue": "继续"
+    },
+    "password": {
+      "description": "设置钱包密码以加密您的助记词。每次打开应用时需要输入此密码。",
+      "label": "密码",
+      "confirmLabel": "确认密码",
+      "placeholder": "输入密码",
+      "confirmPlaceholder": "确认密码",
+      "show": "显示",
+      "hide": "隐藏",
+      "capsLockOn": "大写锁定已开启",
+      "creating": "正在创建钱包...",
+      "submit": "创建钱包"
+    },
+    "errors": {
+      "allWordsRequired": "需要全部 24 个单词",
+      "passwordRequirements": "密码不符合所有要求",
+      "passwordMismatch": "两次输入的密码不一致",
+      "createFailed": "创建钱包失败",
+      "copyFailedTitle": "复制失败",
+      "copyFailedBody": "无法将 mnemonic 复制到剪贴板。",
+      "clipboardUnavailableTitle": "剪贴板不可用",
+      "clipboardUnavailableBody": "无法访问剪贴板。请尝试使用 Ctrl+V 直接粘贴到单词字段中。"
+    }
+  },
+  "unlock": {
+    "passwordLabel": "密码",
+    "togglePasswordVisibility": "切换密码可见性",
+    "capsLockOn": "大写锁定已开启",
+    "unlock": "解锁",
+    "unlocking": "解锁中...",
+    "forgotPassword": "忘记密码？",
+    "details": "详情",
+    "copyErrorTitle": "复制错误详情",
+    "delete": {
+      "title": "删除钱包？",
+      "description": "这将从此设备移除加密钱包。如果您已备份 24 个助记词，您的资金是安全的。删除后可重新导入。",
+      "warning": "没有助记词，您的资金将永久丢失。",
+      "acknowledge": "我已备份 24 个助记词",
+      "cancel": "取消",
+      "confirm": "删除钱包",
+      "deleting": "删除中..."
+    }
+  }
+}

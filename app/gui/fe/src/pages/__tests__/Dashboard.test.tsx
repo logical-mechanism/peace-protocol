@@ -205,11 +205,11 @@ describe('Dashboard', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /Marketplace/ })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /My Sales/ })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /My Purchases/ })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /History/ })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Library/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Marketplace/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /My sales/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /My purchases/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /History/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Library/i })).toBeInTheDocument();
     });
   });
 
@@ -225,10 +225,10 @@ describe('Dashboard', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /My Sales/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /My sales/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /My Sales/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /My sales/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId('my-sales-tab')).toBeInTheDocument();

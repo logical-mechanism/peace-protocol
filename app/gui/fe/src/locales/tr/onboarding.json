@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Tanıtım turu",
+  "skip": "Turu atla",
+  "skipAria": "Tanıtım turunu atla",
+  "next": "İleri",
+  "done": "Tamam",
+  "nextAria": "Sonraki adım ({{current}} / {{total}})",
+  "finishAria": "Tanıtım turunu bitir",
+  "stepProgress": "Adım {{current}} / {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Cüzdanınızı Oluşturun",
+      "description": "Veiled'e hoş geldiniz! Yeni bir cüzdan oluşturarak veya mevcut bir cüzdanı içe aktararak başlayın. Cüzdanınız pazar yerindeki kimliğinizi güvence altına alır."
+    },
+    "nodeSync": {
+      "title": "Blok Zinciriyle Senkronize Olun",
+      "description": "Düğümünüz Cardano blok zincirini indirecek ve senkronize edecektir. Bu, 10-20 dakika süren tek seferlik bir kurulumdur. Arka planda devam edebilirsiniz."
+    },
+    "marketplace": {
+      "title": "Pazar Yerine Göz Atın",
+      "description": "Pazar Yeri sekmesi mevcut tüm şifreli veri ilanlarını gösterir. Kategorilere göz atın, fiyatları kontrol edin ve satın almak istediğiniz verileri bulun."
+    },
+    "firstBid": {
+      "title": "İlk Teklifinizi Verin",
+      "description": "İlgi çekici bir şey mi buldunuz? Ayrıntıları görmek için bir ilana tıklayın, ardından istediğiniz fiyatla teklif verin. Satıcı teklifinizi kabul ederek değişimi tamamlayabilir."
+    }
+  }
+}

@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}m ago",
     "timeHoursAgo": "{{count}}h ago",
     "bidDescription": "Bid {{amount}} ADA",
-    "listingDescription": "Listing {{tokenName}}"
+    "listingDescription": "Listing {{tokenName}}",
+    "txType": {
+      "create-listing": "Create Listing",
+      "remove-listing": "Remove Listing",
+      "place-bid": "Place Bid",
+      "cancel-bid": "Cancel Bid",
+      "accept-bid": "Accept Bid",
+      "cancel-pending": "Cancel Pending",
+      "complete-sale": "Complete Sale",
+      "create-collateral": "Set Collateral",
+      "optimize-wallet": "Optimize Wallet",
+      "update-price": "Update Price",
+      "update-bid": "Update Bid"
+    }
   },
   "library": {
     "loading": "Loading your library…",

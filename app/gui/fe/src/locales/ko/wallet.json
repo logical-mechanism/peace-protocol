@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Cardano 기반 암호화 데이터 마켓플레이스",
+    "chooseCreateTitle": "새 지갑 생성",
+    "chooseCreateSubtitle": "새로운 24단어 복구 문구를 생성합니다",
+    "chooseImportTitle": "기존 지갑 가져오기",
+    "chooseImportSubtitle": "24단어 복구 문구로 복원합니다",
+    "back": "뒤로",
+    "steps": {
+      "backup": "백업",
+      "verify": "확인",
+      "password": "비밀번호",
+      "recoveryPhrase": "복구 문구"
+    },
+    "create": {
+      "recoveryPhraseTitle": "복구 문구",
+      "verifyTitle": "문구 확인",
+      "passwordTitle": "비밀번호 설정",
+      "warning": "이 24개의 단어를 순서대로 적어 두세요. 이것이 지갑을 복구하는 유일한 방법입니다. 절대 다른 사람에게 공유하지 마세요.",
+      "copyToClipboard": "클립보드에 복사",
+      "copied": "복사됨!",
+      "wroteItDown": "적어 두었습니다",
+      "verifyInstructions": "다음 단어를 입력하여 복구 문구를 확인하세요. 입력을 시작하면 일치하는 단어를 선택하세요.",
+      "continue": "계속"
+    },
+    "import": {
+      "enterTitle": "복구 문구 입력",
+      "passwordTitle": "비밀번호 설정",
+      "instructions": "24단어 복구 문구를 입력하세요. 각 단어를 입력하기 시작하면 추천 목록에서 선택하세요.",
+      "pasteAll": "24단어 모두 붙여넣기",
+      "wordCount": "{{count}} / 24 단어",
+      "continue": "계속"
+    },
+    "password": {
+      "description": "복구 문구를 암호화할 지갑 비밀번호를 설정하세요. 앱을 열 때마다 이 비밀번호가 필요합니다.",
+      "label": "비밀번호",
+      "confirmLabel": "비밀번호 확인",
+      "placeholder": "비밀번호 입력",
+      "confirmPlaceholder": "비밀번호 확인",
+      "show": "표시",
+      "hide": "숨기기",
+      "capsLockOn": "Caps Lock이 켜져 있습니다",
+      "creating": "지갑 생성 중...",
+      "submit": "지갑 생성"
+    },
+    "errors": {
+      "allWordsRequired": "24개의 단어가 모두 필요합니다",
+      "passwordRequirements": "비밀번호가 모든 요구 사항을 충족하지 않습니다",
+      "passwordMismatch": "비밀번호가 일치하지 않습니다",
+      "createFailed": "지갑 생성에 실패했습니다",
+      "copyFailedTitle": "복사 실패",
+      "copyFailedBody": "mnemonic을 클립보드에 복사할 수 없습니다.",
+      "clipboardUnavailableTitle": "클립보드 사용 불가",
+      "clipboardUnavailableBody": "클립보드에 접근할 수 없습니다. Ctrl+V로 단어 필드에 직접 붙여넣어 보세요."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "비밀번호",
+    "togglePasswordVisibility": "비밀번호 표시 전환",
+    "capsLockOn": "Caps Lock이 켜져 있습니다",
+    "unlock": "잠금 해제",
+    "unlocking": "잠금 해제 중...",
+    "forgotPassword": "비밀번호를 잊으셨나요?",
+    "details": "세부 정보",
+    "copyErrorTitle": "오류 세부 정보 복사",
+    "delete": {
+      "title": "지갑을 삭제하시겠습니까?",
+      "description": "이 장치에서 암호화된 지갑을 제거합니다. 24단어 복구 문구를 백업해 두었다면 자금은 안전합니다. 삭제 후 다시 가져올 수 있습니다.",
+      "warning": "복구 문구가 없으면 자금을 영구적으로 잃게 됩니다.",
+      "acknowledge": "24단어 복구 문구를 백업해 두었습니다",
+      "cancel": "취소",
+      "confirm": "지갑 삭제",
+      "deleting": "삭제 중..."
+    }
+  }
+}

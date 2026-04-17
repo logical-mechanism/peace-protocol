@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Pengaturan Node",
+    "bootstrapping": "Mengunduh Snapshot",
+    "starting": "Memulai Node",
+    "syncing": "Menyinkronkan Rantai",
+    "synced": "Node Siap",
+    "error": "Kesalahan Node"
+  },
+  "network": {
+    "preprod": "Jaringan Preprod",
+    "mainnet": "Jaringan Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Bootstrap",
+    "starting": "Memulai",
+    "syncing": "Menyinkronkan",
+    "ready": "Siap"
+  },
+  "progressLabel": "Progres sinkronisasi",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Memutar ulang ledger...",
+      "description": "Memvalidasi blok dari blockchain Cardano dan memelihara salinan lokal dari ledger."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Menghubungkan...",
+      "description": "Menerjemahkan data node ke protokol WebSocket untuk pembangunan dan pengiriman transaksi."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Memulai...",
+      "description": "Mengindeks UTxO di alamat kontrak dan dompet untuk kueri saldo dan daftar yang cepat."
+    },
+    "states": {
+      "waiting": "Menunggu...",
+      "starting": "Memulai...",
+      "ready": "Siap",
+      "error": "Kesalahan"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Server Backend",
+    "syncing": "Menyinkronkan {{percent}}%",
+    "indexing": "Mengindeks {{percent}}%",
+    "disconnected": "Terputus",
+    "stalled": "Terhenti",
+    "starting": "Memulai...",
+    "waiting": "Menunggu...",
+    "synced": "Tersinkronkan"
+  },
+  "syncInfo": {
+    "block": "Blok {{height}} — {{percent}}%",
+    "epoch": "Epoch {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Data blockchain tidak ditemukan. Unduh snapshot untuk memulai.",
+    "stopped": "Infrastruktur node dihentikan.",
+    "bootstrapDownloading": "Mengunduh snapshot: {{current}} / {{total}} berkas",
+    "bootstrapLedgerState": "Mengunduh status ledger: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Mempersiapkan unduhan snapshot blockchain...",
+    "bootstrapGeneric": "Mengunduh snapshot...",
+    "startingNode": "Memulai Cardano node...",
+    "waitingChainBridge": "Menunggu chain bridge...",
+    "connectingNetwork": "Menghubungkan ke jaringan...",
+    "fullySyncedStartingBackend": "Sepenuhnya tersinkronkan, memulai layanan backend...",
+    "fullySynced": "Sepenuhnya tersinkronkan dengan jaringan {{network}}",
+    "nodeSyncedWaitingKupo": "Node tersinkronkan, menunggu Kupo indexer...",
+    "syncing": "Menyinkronkan dengan jaringan {{network}}...",
+    "syncedAtBlock": "Sepenuhnya tersinkronkan dengan jaringan {{network}} di blok {{height}}",
+    "genericError": "Terjadi kesalahan"
+  },
+  "stuckMessage": "Beberapa blok terakhir memerlukan waktu lebih lama karena node memvalidasi transaksi terbaru. Ini normal. Beberapa persen terakhir mungkin memerlukan waktu 5-15 menit karena node memvalidasi blok terbaru.",
+  "diskSpace": {
+    "low": "Ruang disk rendah: {{available}} GB tersedia, sekitar {{required}} GB diperlukan untuk {{network}}. Sinkronisasi mungkin gagal jika ruang disk habis.",
+    "unknown": "Tidak dapat memverifikasi ruang disk. Pastikan Anda memiliki setidaknya 10 GB kosong sebelum menyinkronkan."
+  },
+  "actions": {
+    "starting": "Memulai...",
+    "downloadSnapshot": "Unduh Snapshot & Mulai",
+    "startNode": "Mulai Node",
+    "retry": "Coba Lagi",
+    "continueDashboard": "Lanjutkan ke Dasbor",
+    "continueBackground": "Lanjutkan di Latar Belakang",
+    "stop": "Berhenti"
+  },
+  "console": {
+    "show": "Tampilkan Keluaran Konsol ({{count}} baris)",
+    "hide": "Sembunyikan Keluaran Konsol ({{count}} baris)",
+    "copyLogs": "Salin Log",
+    "copyLogsAria": "Salin log ke papan klip",
+    "noLogsTitle": "Tidak ada log",
+    "noLogsBody": "Tidak ada baris log untuk disalin.",
+    "copiedTitle": "Log disalin",
+    "copiedBody": "Keluaran konsol disalin ke papan klip.",
+    "copyFailedTitle": "Gagal menyalin",
+    "copyFailedBody": "Tidak dapat menyalin log ke papan klip."
+  },
+  "errorDetails": {
+    "summary": "Detail",
+    "copyAria": "Salin detail kesalahan",
+    "errorFallback": "Kesalahan"
+  },
+  "wasm": {
+    "checkingSetup": "Memeriksa berkas pengaturan SNARK...",
+    "checkingExist": "Memeriksa apakah berkas pengaturan ada...",
+    "proverReady": "SNARK prover siap",
+    "setupFound": "Berkas pengaturan ditemukan",
+    "decompressing": "Mendekompresi berkas pengaturan SNARK...",
+    "decompressingDetail": "Mendekompresi pk.bin dan ccs.bin (~500MB)...",
+    "decompressed": "Berkas pengaturan didekompresi"
+  },
+  "firstTimeSetup": {
+    "title": "Pengaturan pertama kali",
+    "description": "Snapshot Mithril akan diunduh untuk melakukan bootstrap Cardano node. Ini memerlukan waktu sekitar 10-20 menit tergantung pada kecepatan koneksi Anda. Snapshot diverifikasi secara kriptografis sebelum digunakan."
+  }
+}

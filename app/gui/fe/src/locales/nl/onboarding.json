@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Introductierondleiding",
+  "skip": "Rondleiding overslaan",
+  "skipAria": "Introductierondleiding overslaan",
+  "next": "Volgende",
+  "done": "Klaar",
+  "nextAria": "Volgende stap ({{current}} van {{total}})",
+  "finishAria": "Introductierondleiding afronden",
+  "stepProgress": "Stap {{current}} van {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Maak je wallet aan",
+      "description": "Welkom bij Veiled! Begin met het aanmaken van een nieuwe wallet of het importeren van een bestaande. Je wallet beveiligt je identiteit op de marktplaats."
+    },
+    "nodeSync": {
+      "title": "Synchroniseer met de blockchain",
+      "description": "Je node downloadt en synchroniseert met de Cardano-blockchain. Dit is een eenmalige installatie die 10-20 minuten duurt. Je kunt doorgaan op de achtergrond."
+    },
+    "marketplace": {
+      "title": "Verken de marktplaats",
+      "description": "Het tabblad Marktplaats toont alle beschikbare versleutelde gegevensvermeldingen. Blader door categorieën, bekijk prijzen en vind gegevens die je wilt kopen."
+    },
+    "firstBid": {
+      "title": "Plaats je eerste bod",
+      "description": "Iets interessants gevonden? Klik op een vermelding voor details en plaats vervolgens een bod met je gewenste prijs. De verkoper kan je bod accepteren om de uitwisseling te voltooien."
+    }
+  }
+}

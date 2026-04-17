@@ -5,6 +5,22 @@ const LANGUAGE_KEY = 'veiled_language'
 
 export const AVAILABLE_LANGUAGES = [
   { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'pt', label: 'Português' },
+  { code: 'nl', label: 'Nederlands' },
+  { code: 'pl', label: 'Polski' },
+  { code: 'ru', label: 'Русский' },
+  { code: 'tr', label: 'Türkçe' },
+  { code: 'hi', label: 'हिन्दी' },
+  { code: 'th', label: 'ไทย' },
+  { code: 'id', label: 'Bahasa Indonesia' },
+  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'zh', label: '中文' },
+  { code: 'ja', label: '日本語' },
+  { code: 'ko', label: '한국어' },
 ] as const
 
 export type LanguageCode = (typeof AVAILABLE_LANGUAGES)[number]['code']

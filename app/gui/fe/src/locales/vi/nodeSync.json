@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Thiết lập nút",
+    "bootstrapping": "Đang tải bản sao",
+    "starting": "Đang khởi động nút",
+    "syncing": "Đang đồng bộ chuỗi",
+    "synced": "Nút đã sẵn sàng",
+    "error": "Lỗi nút"
+  },
+  "network": {
+    "preprod": "Mạng Preprod",
+    "mainnet": "Mạng Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Khởi tạo",
+    "starting": "Đang khởi động",
+    "syncing": "Đang đồng bộ",
+    "ready": "Sẵn sàng"
+  },
+  "progressLabel": "Tiến trình đồng bộ",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Đang phát lại sổ cái...",
+      "description": "Xác thực các khối từ chuỗi khối Cardano và duy trì bản sao sổ cái cục bộ."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Đang kết nối...",
+      "description": "Chuyển đổi dữ liệu nút thành giao thức WebSocket để xây dựng và gửi giao dịch."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Đang khởi động...",
+      "description": "Lập chỉ mục UTxO tại các địa chỉ hợp đồng và ví để truy vấn số dư và danh mục nhanh chóng."
+    },
+    "states": {
+      "waiting": "Đang chờ...",
+      "starting": "Đang khởi động...",
+      "ready": "Sẵn sàng",
+      "error": "Lỗi"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Máy chủ backend",
+    "syncing": "Đang đồng bộ {{percent}}%",
+    "indexing": "Đang lập chỉ mục {{percent}}%",
+    "disconnected": "Đã ngắt kết nối",
+    "stalled": "Bị treo",
+    "starting": "Đang khởi động...",
+    "waiting": "Đang chờ...",
+    "synced": "Đã đồng bộ"
+  },
+  "syncInfo": {
+    "block": "Khối {{height}} — {{percent}}%",
+    "epoch": "Epoch {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Không tìm thấy dữ liệu chuỗi khối. Tải bản sao để bắt đầu.",
+    "stopped": "Hạ tầng nút đã dừng.",
+    "bootstrapDownloading": "Đang tải bản sao: {{current}} / {{total}} tệp",
+    "bootstrapLedgerState": "Đang tải trạng thái sổ cái: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Đang chuẩn bị tải bản sao chuỗi khối...",
+    "bootstrapGeneric": "Đang tải bản sao...",
+    "startingNode": "Đang khởi động Cardano node...",
+    "waitingChainBridge": "Đang chờ cầu nối chuỗi...",
+    "connectingNetwork": "Đang kết nối mạng...",
+    "fullySyncedStartingBackend": "Đã đồng bộ hoàn toàn, đang khởi động dịch vụ backend...",
+    "fullySynced": "Đã đồng bộ hoàn toàn với mạng {{network}}",
+    "nodeSyncedWaitingKupo": "Nút đã đồng bộ, đang chờ Kupo indexer...",
+    "syncing": "Đang đồng bộ với mạng {{network}}...",
+    "syncedAtBlock": "Đã đồng bộ hoàn toàn với mạng {{network}} tại khối {{height}}",
+    "genericError": "Đã xảy ra lỗi"
+  },
+  "stuckMessage": "Các khối cuối cùng mất nhiều thời gian hơn do nút xác thực các giao dịch gần đây. Điều này là bình thường. Vài phần trăm cuối có thể mất 5–15 phút khi nút xác thực các khối gần đây.",
+  "diskSpace": {
+    "low": "Dung lượng ổ đĩa thấp: còn {{available}} GB, cần khoảng {{required}} GB cho {{network}}. Quá trình đồng bộ có thể thất bại nếu hết dung lượng ổ đĩa.",
+    "unknown": "Không thể xác minh dung lượng ổ đĩa. Hãy đảm bảo bạn có ít nhất 10 GB trống trước khi đồng bộ."
+  },
+  "actions": {
+    "starting": "Đang khởi động...",
+    "downloadSnapshot": "Tải bản sao & Khởi động",
+    "startNode": "Khởi động nút",
+    "retry": "Thử lại",
+    "continueDashboard": "Tiếp tục đến bảng điều khiển",
+    "continueBackground": "Tiếp tục nền",
+    "stop": "Dừng"
+  },
+  "console": {
+    "show": "Hiện đầu ra console ({{count}} dòng)",
+    "hide": "Ẩn đầu ra console ({{count}} dòng)",
+    "copyLogs": "Sao chép nhật ký",
+    "copyLogsAria": "Sao chép nhật ký vào clipboard",
+    "noLogsTitle": "Không có nhật ký",
+    "noLogsBody": "Không có dòng nhật ký nào để sao chép.",
+    "copiedTitle": "Đã sao chép nhật ký",
+    "copiedBody": "Đầu ra console đã được sao chép vào clipboard.",
+    "copyFailedTitle": "Sao chép thất bại",
+    "copyFailedBody": "Không thể sao chép nhật ký vào clipboard."
+  },
+  "errorDetails": {
+    "summary": "Chi tiết",
+    "copyAria": "Sao chép chi tiết lỗi",
+    "errorFallback": "Lỗi"
+  },
+  "wasm": {
+    "checkingSetup": "Đang kiểm tra tệp thiết lập SNARK...",
+    "checkingExist": "Đang kiểm tra tệp thiết lập có tồn tại...",
+    "proverReady": "Bộ chứng minh SNARK đã sẵn sàng",
+    "setupFound": "Đã tìm thấy tệp thiết lập",
+    "decompressing": "Đang giải nén tệp thiết lập SNARK...",
+    "decompressingDetail": "Đang giải nén pk.bin và ccs.bin (~500MB)...",
+    "decompressed": "Đã giải nén tệp thiết lập"
+  },
+  "firstTimeSetup": {
+    "title": "Thiết lập lần đầu",
+    "description": "Một bản sao Mithril sẽ được tải xuống để khởi tạo Cardano node. Quá trình này mất khoảng 10-20 phút tùy thuộc vào tốc độ kết nối của bạn. Bản sao được xác minh bằng mật mã trước khi sử dụng."
+  }
+}

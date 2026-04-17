@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Samouczek wprowadzajacy",
+  "skip": "Pomin samouczek",
+  "skipAria": "Pomin samouczek wprowadzajacy",
+  "next": "Dalej",
+  "done": "Gotowe",
+  "nextAria": "Nastepny krok ({{current}} z {{total}})",
+  "finishAria": "Zakoncz samouczek wprowadzajacy",
+  "stepProgress": "Krok {{current}} z {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Utworz swoj portfel",
+      "description": "Witaj w Veiled! Zacznij od utworzenia nowego portfela lub importu istniejacego. Twoj portfel zabezpiecza Twoja tozsamosc na rynku."
+    },
+    "nodeSync": {
+      "title": "Synchronizuj z blockchainem",
+      "description": "Twoj wezel pobierze i zsynchronizuje sie z blockchainem Cardano. To jednorazowa konfiguracja, ktora zajmuje 10-20 minut. Mozesz kontynuowac w tle."
+    },
+    "marketplace": {
+      "title": "Przegladaj rynek",
+      "description": "Zakladka Rynek pokazuje wszystkie dostepne aukcje zaszyfrowanych danych. Przegladaj kategorie, sprawdzaj ceny i znajdz dane, ktore chcesz kupic."
+    },
+    "firstBid": {
+      "title": "Zloz swoja pierwsza oferte",
+      "description": "Znalazles cos interesujacego? Kliknij na aukcje, aby zobaczyc szczegoly, a nastepnie zloz oferte z wybrana cena. Sprzedawca moze zaakceptowac Twoja oferte, aby zakonczyc wymiane."
+    }
+  }
+}

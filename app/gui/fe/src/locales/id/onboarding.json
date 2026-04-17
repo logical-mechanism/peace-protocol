@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Tur orientasi",
+  "skip": "Lewati tur",
+  "skipAria": "Lewati tur orientasi",
+  "next": "Berikutnya",
+  "done": "Selesai",
+  "nextAria": "Langkah berikutnya ({{current}} dari {{total}})",
+  "finishAria": "Selesaikan tur orientasi",
+  "stepProgress": "Langkah {{current}} dari {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Buat Dompet Anda",
+      "description": "Selamat datang di Veiled! Mulai dengan membuat dompet baru atau mengimpor yang sudah ada. Dompet Anda mengamankan identitas Anda di pasar."
+    },
+    "nodeSync": {
+      "title": "Sinkronkan Dengan Blockchain",
+      "description": "Node Anda akan mengunduh dan menyinkronkan dengan blockchain Cardano. Ini adalah pengaturan satu kali yang memerlukan waktu 10-20 menit. Anda dapat melanjutkan di latar belakang."
+    },
+    "marketplace": {
+      "title": "Jelajahi Pasar",
+      "description": "Tab Pasar menampilkan semua daftar data terenkripsi yang tersedia. Jelajahi kategori, periksa harga, dan temukan data yang ingin Anda beli."
+    },
+    "firstBid": {
+      "title": "Ajukan Tawaran Pertama Anda",
+      "description": "Menemukan sesuatu yang menarik? Klik pada daftar untuk melihat detail, lalu ajukan tawaran dengan harga yang Anda inginkan. Penjual dapat menerima tawaran Anda untuk menyelesaikan pertukaran."
+    }
+  }
+}

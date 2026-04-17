@@ -38,6 +38,7 @@ vi.mock('../../services/imageCache', () => ({
 
 vi.mock('../../services/transactionHistory', () => ({
   getTransactions: vi.fn().mockReturnValue([]),
+  getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
   getTypeLabel: vi.fn((type: string) => type),
 }));
 

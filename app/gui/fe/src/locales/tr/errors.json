@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Bir Hata Oluştu",
+    "action": "Tekrar deneyin. Sorun devam ederse uygulamayı yeniden başlatın."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo Kullanılamıyor",
+    "message": "UTxO indeksleyici başlatılıyor veya erişilemiyor.",
+    "action": "Düğümün senkronizasyonunu tamamlamasını bekleyin, ardından tekrar deneyin."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo Kullanılamıyor",
+    "message": "UTxO indeksleyici yanıt vermiyor.",
+    "action": "Düğümün senkronizasyonunu tamamlamasını bekleyin veya işlem durumu için Ayarlar'ı kontrol edin."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios İsteği Zaman Aşımına Uğradı",
+    "message": "İşlem hizmeti zamanında yanıt vermedi. Düğüm bağlantısı bozulmuş olabilir.",
+    "action": "Düğümü Ayarlar'dan yeniden başlatmayı deneyin veya düğümün tam senkronize olmasını bekleyin."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Ogmios'a Ulaşılamıyor",
+    "message": "İşlem hizmeti beklenen portunda erişilemiyor.",
+    "action": "Düğümün çalıştığından emin olun veya Ayarlar'dan yeniden başlatın."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios Kullanılamıyor",
+    "message": "İşlem gönderme hizmeti yanıt vermiyor.",
+    "action": "Düğümün senkronizasyonunu tamamlamasını bekleyin veya işlem durumu için Ayarlar'ı kontrol edin."
+  },
+  "network": {
+    "title": "Ağ Hatası",
+    "message": "Gerekli hizmete bağlanılamadı.",
+    "action": "İnternet bağlantınızı kontrol edin ve düğümün çalıştığından emin olun."
+  },
+  "noCollateral": {
+    "title": "Teminat Yok",
+    "message": "Cüzdanınızın akıllı sözleşme işlemleri için ayrılmış 5 ADA teminat UTxO'suna ihtiyacı var.",
+    "action": "Ayarlar > Cüzdan bölümüne gidin ve \"Teminat Ayarla\"ya tıklayın."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Teminat İçin Yetersiz Fon",
+    "message": "Cüzdanınızda teminat UTxO oluşturmak için yeterli ADA yok.",
+    "action": "Cüzdan adresinize en az 10 ADA gönderin."
+  },
+  "collateralInsufficient": {
+    "title": "Yetersiz Teminat",
+    "message": "İşlem mevcut olandan daha fazla teminat gerektiriyor.",
+    "action": "Cüzdanınızda teminat olarak ayarlanmış bir UTxO olduğundan emin olun. Cüzdan bakiyenizi yenilemeyi deneyin."
+  },
+  "insufficientBalance": {
+    "title": "Yetersiz Bakiye",
+    "message": "Cüzdanınızda bu işlem için yeterli ADA yok.",
+    "action": "Cüzdanınıza daha fazla ADA ekleyin ve tekrar deneyin."
+  },
+  "iagonAuth": {
+    "title": "Iagon Kimlik Doğrulaması Başarısız",
+    "message": "Iagon API anahtarınız geçersiz veya süresi dolmuş.",
+    "action": "Ayarlar → Veri Katmanı bölümüne gidin ve yeniden kimlik doğrulaması yapın."
+  },
+  "iagonFileTooLarge": {
+    "title": "Iagon İçin Dosya Çok Büyük",
+    "message": "Iagon bu boyutta dosya yüklemeyi desteklemiyor.",
+    "action": "200 MB'ın altında bir dosya seçin."
+  },
+  "iagonQuota": {
+    "title": "Iagon Depolama Alanı Dolu",
+    "message": "Iagon hesap depolama kotanız doldu.",
+    "action": "Iagon hesap depolama kullanımınızı kontrol edin."
+  },
+  "iagonGeneric": {
+    "title": "Depolama Hizmeti Hatası",
+    "message": "Iagon merkezi olmayan depolama hizmetine ulaşılamadı.",
+    "action": "İnternet bağlantınızı kontrol edin. Iagon geçici olarak kullanılamıyor olabilir."
+  },
+  "timeout": {
+    "title": "İstek Zaman Aşımına Uğradı",
+    "message": "İşlem tamamlanması çok uzun sürdü.",
+    "action": "Tekrar deneyin. Sorun devam ederse hizmet yoğun olabilir."
+  },
+  "mnemonicChecksum": {
+    "title": "Geçersiz Kurtarma Cümlesi",
+    "message": "Kurtarma cümlesinin sağlama toplamı geçersiz. Bir veya daha fazla kelime yanlış olabilir.",
+    "action": "Her kelimeyi yazılı yedeğinizle karşılaştırın ve tekrar deneyin."
+  },
+  "passwordTooShort": {
+    "title": "Parola Çok Kısa",
+    "message": "Parola en az 12 karakter uzunluğunda olmalıdır.",
+    "action": "Gösterilen tüm gereksinimleri karşılayan daha uzun bir parola seçin."
+  },
+  "walletGeneric": {
+    "title": "Cüzdan Hatası",
+    "message": "Cüzdan işleminde bir sorun oluştu.",
+    "action": "Cüzdanınızın kilidini tekrar açmayı deneyin. Sorun devam ederse uygulamayı yeniden başlatın."
+  },
+  "incorrectPassword": {
+    "title": "Yanlış Parola",
+    "message": "Girdiğiniz parola yanlış.",
+    "action": "Parolanızı kontrol edip tekrar deneyin."
+  },
+  "snarkOom": {
+    "title": "Yetersiz Bellek",
+    "message": "İspat oluşturma sırasında bellek yetersiz kaldı.",
+    "action": "Bellek boşaltmak için diğer uygulamaları kapatın ve tekrar deneyin."
+  },
+  "snarkSetupMissing": {
+    "title": "SNARK Kurulum Dosyaları Eksik",
+    "message": "Gerekli SNARK kurulum dosyaları bulunamadı.",
+    "action": "SNARK kurulum dosyalarını yeniden indirmek için Ayarlar'a gidin."
+  },
+  "snarkInProgress": {
+    "title": "İspat Zaten Çalışıyor",
+    "message": "Bir sıfır bilgi ispatı zaten oluşturuluyor.",
+    "action": "Başka bir ispat başlatmadan önce mevcut ispatın tamamlanmasını bekleyin."
+  },
+  "snarkGeneric": {
+    "title": "İspat Oluşturma Hatası",
+    "message": "SNARK ispatlayıcı bir hatayla karşılaştı.",
+    "action": "Tekrar deneyin. Sorun devam ederse kurulum dosyalarının düzgün yüklendiğini kontrol edin."
+  },
+  "scriptValidation": {
+    "title": "Betik Doğrulama Başarısız",
+    "message": "Bir akıllı sözleşme betiği doğrulama sırasında başarısız oldu.",
+    "action": "Zincir üstü durum değişmiş olabilir. Yenileyip tekrar deneyin."
+  },
+  "txConflict": {
+    "title": "İşlem Çakışması",
+    "message": "Bir veya daha fazla girdi başka bir işlem tarafından zaten harcanmış.",
+    "action": "Bu ilanda başka biri işlem yapmış olabilir. Sayfayı yenileyip tekrar deneyin."
+  },
+  "feeError": {
+    "title": "İşlem Ücreti Hatası",
+    "message": "İşlem ücreti çok düşük hesaplandı.",
+    "action": "Tekrar deneyin. Sorun devam ederse ücret parametrelerini yenilemek için uygulamayı yeniden başlatın."
+  },
+  "txFailed": {
+    "title": "İşlem Başarısız",
+    "message": "İşlem blok zincirine gönderilemedi.",
+    "action": "Zincir üstü durum değişmiş olabilir. Yenileyip tekrar deneyin."
+  },
+  "accessDenied": {
+    "title": "Erişim Reddedildi",
+    "message": "İstek sunucu tarafından engellendi.",
+    "action": "Bu bir yapılandırma sorunu olabilir. Uygulamayı yeniden başlatmayı deneyin."
+  },
+  "diskFull": {
+    "title": "Disk Dolu",
+    "message": "Bu işlemi tamamlamak için yeterli disk alanı yok.",
+    "action": "Disk alanı boşaltın ve tekrar deneyin. Temizleme seçenekleri için Ayarlar > Depolama'yı kontrol edin."
+  },
+  "portConflict": {
+    "title": "Port Çakışması",
+    "message": "Gerekli bir port başka bir işlem tarafından zaten kullanılıyor.",
+    "action": "Portu kullanıyor olabilecek diğer uygulamaları kapatın veya uygulamayı yeniden başlatın."
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Cos poszlo nie tak",
+    "action": "Sprobuj ponownie. Jesli problem sie powtarza, zrestartuj aplikacje."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo niedostepny",
+    "message": "Indekser UTxO jest uruchamiany lub jest nieosiagalny.",
+    "action": "Poczekaj, az wezel zakonczy synchronizacje, a nastepnie sprobuj ponownie."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo niedostepny",
+    "message": "Indekser UTxO nie odpowiada.",
+    "action": "Poczekaj, az wezel zakonczy synchronizacje, lub sprawdz status procesow w Ustawieniach."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios — limit czasu przekroczony",
+    "message": "Usluga transakcji nie odpowiedziala na czas. Polaczenie z wezlem moze byc niestabilne.",
+    "action": "Sprobuj ponownie uruchomic wezel z Ustawien lub poczekaj na pelna synchronizacje wezla."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Nie mozna polaczyc sie z Ogmios",
+    "message": "Usluga transakcji jest nieosiagalna na oczekiwanym porcie.",
+    "action": "Upewnij sie, ze wezel jest uruchomiony, lub uruchom ponownie z Ustawien."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios niedostepny",
+    "message": "Usluga wysylania transakcji nie odpowiada.",
+    "action": "Poczekaj, az wezel zakonczy synchronizacje, lub sprawdz status procesow w Ustawieniach."
+  },
+  "network": {
+    "title": "Blad sieci",
+    "message": "Nie udalo sie polaczyc z wymagana usluga.",
+    "action": "Sprawdz polaczenie internetowe i upewnij sie, ze wezel jest uruchomiony."
+  },
+  "noCollateral": {
+    "title": "Brak zabezpieczenia",
+    "message": "Twoj portfel potrzebuje dedykowanego UTxO zabezpieczenia 5 ADA dla transakcji kontraktow inteligentnych.",
+    "action": "Przejdz do Ustawienia > Portfel i kliknij \"Ustaw zabezpieczenie\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Niewystarczajace srodki na zabezpieczenie",
+    "message": "Twoj portfel nie ma wystarczajacej ilosci ADA, aby utworzyc UTxO zabezpieczenia.",
+    "action": "Wyslij co najmniej 10 ADA na adres Twojego portfela."
+  },
+  "collateralInsufficient": {
+    "title": "Niewystarczajace zabezpieczenie",
+    "message": "Transakcja wymaga wiecej zabezpieczenia niz jest dostepne.",
+    "action": "Upewnij sie, ze Twoj portfel ma UTxO ustawione jako zabezpieczenie. Sprobuj odswiezyc saldo portfela."
+  },
+  "insufficientBalance": {
+    "title": "Niewystarczajace saldo",
+    "message": "Twoj portfel nie ma wystarczajacej ilosci ADA na te transakcje.",
+    "action": "Dodaj wiecej ADA do portfela i sprobuj ponownie."
+  },
+  "iagonAuth": {
+    "title": "Uwierzytelnianie Iagon nie powiodlo sie",
+    "message": "Twoj klucz API Iagon jest nieprawidlowy lub wygasl.",
+    "action": "Przejdz do Ustawienia \u2192 Warstwa danych i uwierzytelnij sie ponownie."
+  },
+  "iagonFileTooLarge": {
+    "title": "Plik zbyt duzy dla Iagon",
+    "message": "Iagon nie obsluguje przesylania plikow o tym rozmiarze.",
+    "action": "Wybierz plik o rozmiarze ponizej 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Iagon — pelne przechowywanie",
+    "message": "Limit przechowywania na Twoim koncie Iagon jest wyczerpany.",
+    "action": "Sprawdz uzycie przechowywania na swoim koncie Iagon."
+  },
+  "iagonGeneric": {
+    "title": "Blad uslugi przechowywania",
+    "message": "Nie udalo sie polaczyc z usluga zdecentralizowanego przechowywania Iagon.",
+    "action": "Sprawdz polaczenie internetowe. Iagon moze byc tymczasowo niedostepny."
+  },
+  "timeout": {
+    "title": "Limit czasu przekroczony",
+    "message": "Operacja trwala zbyt dlugo.",
+    "action": "Sprobuj ponownie. Jesli problem sie powtarza, usluga moze byc przeciazona."
+  },
+  "mnemonicChecksum": {
+    "title": "Nieprawidlowa fraza odzyskiwania",
+    "message": "Fraza odzyskiwania ma nieprawidlowa sume kontrolna. Jedno lub wiecej slow moze byc nieprawidlowych.",
+    "action": "Sprawdz dokladnie kazde slowo w porownaniu z zapisana kopia zapasowa i sprobuj ponownie."
+  },
+  "passwordTooShort": {
+    "title": "Haslo zbyt krotkie",
+    "message": "Haslo musi miec co najmniej 12 znakow.",
+    "action": "Wybierz dluzsze haslo, ktore spelnia wszystkie wyswietlane wymagania."
+  },
+  "walletGeneric": {
+    "title": "Blad portfela",
+    "message": "Wystapil problem z operacja portfela.",
+    "action": "Sprobuj ponownie odblokowac portfel. Jesli problem sie powtarza, zrestartuj aplikacje."
+  },
+  "incorrectPassword": {
+    "title": "Nieprawidlowe haslo",
+    "message": "Wprowadzone haslo jest nieprawidlowe.",
+    "action": "Sprawdz dokladnie haslo i sprobuj ponownie."
+  },
+  "snarkOom": {
+    "title": "Za malo pamieci",
+    "message": "Generowanie dowodu wyczerpalo pamiec.",
+    "action": "Zamknij inne aplikacje, aby zwolnic pamiec, i sprobuj ponownie."
+  },
+  "snarkSetupMissing": {
+    "title": "Brak plikow konfiguracyjnych SNARK",
+    "message": "Nie mozna znalezc wymaganych plikow konfiguracyjnych SNARK.",
+    "action": "Przejdz do Ustawien, aby ponownie pobrac pliki konfiguracyjne SNARK."
+  },
+  "snarkInProgress": {
+    "title": "Dowod juz trwa",
+    "message": "Dowod zero-knowledge jest juz generowany.",
+    "action": "Poczekaj na zakonczenie biezacego dowodu przed rozpoczeciem kolejnego."
+  },
+  "snarkGeneric": {
+    "title": "Blad generowania dowodu",
+    "message": "SNARK prover napokal blad.",
+    "action": "Sprobuj ponownie. Jesli problem sie powtarza, sprawdz, czy pliki konfiguracyjne sa prawidlowo zainstalowane."
+  },
+  "scriptValidation": {
+    "title": "Walidacja skryptu nie powiodla sie",
+    "message": "Skrypt kontraktu inteligentnego nie przeszedl walidacji.",
+    "action": "Stan on-chain mogl sie zmienic. Odswiez i sprobuj ponownie."
+  },
+  "txConflict": {
+    "title": "Konflikt transakcji",
+    "message": "Jedno lub wiecej wejsc zostalo juz wydanych przez inna transakcje.",
+    "action": "Ktos inny mogl juz obsluzyc te aukcje. Odswiez strone i sprobuj ponownie."
+  },
+  "feeError": {
+    "title": "Blad oplaty transakcyjnej",
+    "message": "Oplata transakcyjna zostala obliczona zbyt nisko.",
+    "action": "Sprobuj ponownie. Jesli problem sie powtarza, zrestartuj aplikacje, aby odswiezyc parametry oplat."
+  },
+  "txFailed": {
+    "title": "Transakcja nie powiodla sie",
+    "message": "Nie mozna wyslac transakcji do blockchaina.",
+    "action": "Stan on-chain mogl sie zmienic. Odswiez i sprobuj ponownie."
+  },
+  "accessDenied": {
+    "title": "Odmowa dostepu",
+    "message": "Zadanie zostalo zablokowane przez serwer.",
+    "action": "Moze to byc problem konfiguracji. Sprobuj zrestartowac aplikacje."
+  },
+  "diskFull": {
+    "title": "Dysk pelny",
+    "message": "Brak wystarczajacej ilosci miejsca na dysku, aby zakonczyc te operacje.",
+    "action": "Zwolnij miejsce na dysku i sprobuj ponownie. Sprawdz Ustawienia > Przechowywanie, aby uzyskac opcje czyszczenia."
+  },
+  "portConflict": {
+    "title": "Konflikt portow",
+    "message": "Wymagany port jest juz uzywany przez inny proces.",
+    "action": "Zamknij inne aplikacje, ktore moga uzywac tego portu, lub zrestartuj aplikacje."
+  }
+}

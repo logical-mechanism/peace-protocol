@@ -19,6 +19,7 @@ vi.mock('../../services/toastSettings', () => ({
 }))
 
 vi.mock('../../services/transactionHistory', () => ({
+  getTypeLabelKey: (type: string) => `history.txType.${type}`,
   getTypeLabel: (type: string) => {
     const labels: Record<string, string> = {
       'create-listing': 'Create Listing',

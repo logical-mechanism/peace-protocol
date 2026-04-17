@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Configuration du nœud",
+    "bootstrapping": "Téléchargement du snapshot",
+    "starting": "Démarrage du nœud",
+    "syncing": "Synchronisation de la chaîne",
+    "synced": "Nœud prêt",
+    "error": "Erreur du nœud"
+  },
+  "network": {
+    "preprod": "Réseau Preprod",
+    "mainnet": "Réseau Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Bootstrap",
+    "starting": "Démarrage",
+    "syncing": "Synchronisation",
+    "ready": "Prêt"
+  },
+  "progressLabel": "Progression de la synchronisation",
+  "services": {
+    "cardanoNode": {
+      "label": "Nœud Cardano",
+      "startingText": "Rejeu du registre...",
+      "description": "Valide les blocs de la blockchain Cardano et maintient une copie locale du registre."
+    },
+    "ogmios": {
+      "label": "Pont Ogmios",
+      "startingText": "Connexion...",
+      "description": "Traduit les données du nœud en un protocole WebSocket pour la construction et la soumission de transactions."
+    },
+    "kupo": {
+      "label": "Indexeur Kupo",
+      "startingText": "Démarrage...",
+      "description": "Indexe les UTxOs aux adresses des contrats et du portefeuille pour des requêtes rapides de solde et d'annonces."
+    },
+    "states": {
+      "waiting": "En attente...",
+      "starting": "Démarrage...",
+      "ready": "Prêt",
+      "error": "Erreur"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Nœud Cardano",
+    "kupoIndexer": "Indexeur Kupo",
+    "backendServer": "Serveur backend",
+    "syncing": "Synchronisation {{percent}}%",
+    "indexing": "Indexation {{percent}}%",
+    "disconnected": "Déconnecté",
+    "stalled": "Bloqué",
+    "starting": "Démarrage...",
+    "waiting": "En attente...",
+    "synced": "Synchronisé"
+  },
+  "syncInfo": {
+    "block": "Bloc {{height}} — {{percent}}%",
+    "epoch": "Époque {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Données de la blockchain introuvables. Téléchargez un snapshot pour commencer.",
+    "stopped": "L'infrastructure du nœud est arrêtée.",
+    "bootstrapDownloading": "Téléchargement du snapshot : {{current}} / {{total}} fichiers",
+    "bootstrapLedgerState": "Téléchargement de l'état du registre : {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Préparation du téléchargement du snapshot de la blockchain...",
+    "bootstrapGeneric": "Téléchargement du snapshot...",
+    "startingNode": "Démarrage du nœud Cardano...",
+    "waitingChainBridge": "En attente du pont de chaîne...",
+    "connectingNetwork": "Connexion au réseau...",
+    "fullySyncedStartingBackend": "Synchronisation complète, démarrage des services backend...",
+    "fullySynced": "Synchronisé avec le réseau {{network}}",
+    "nodeSyncedWaitingKupo": "Nœud synchronisé, en attente de l'indexeur Kupo...",
+    "syncing": "Synchronisation avec le réseau {{network}}...",
+    "syncedAtBlock": "Synchronisé avec le réseau {{network}} au bloc {{height}}",
+    "genericError": "Une erreur est survenue"
+  },
+  "stuckMessage": "Les derniers blocs prennent plus de temps car le nœud valide les transactions récentes. C'est normal. Les derniers pourcentages peuvent prendre 5 à 15 minutes pendant la validation des blocs récents.",
+  "diskSpace": {
+    "low": "Espace disque faible : {{available}} Go disponibles, environ {{required}} Go nécessaires pour {{network}}. La synchronisation pourrait échouer si l'espace disque est épuisé.",
+    "unknown": "Impossible de vérifier l'espace disque. Assurez-vous d'avoir au moins 10 Go libres avant la synchronisation."
+  },
+  "actions": {
+    "starting": "Démarrage...",
+    "downloadSnapshot": "Télécharger le snapshot et démarrer",
+    "startNode": "Démarrer le nœud",
+    "retry": "Réessayer",
+    "continueDashboard": "Continuer vers le tableau de bord",
+    "continueBackground": "Continuer en arrière-plan",
+    "stop": "Arrêter"
+  },
+  "console": {
+    "show": "Afficher la sortie console ({{count}} lignes)",
+    "hide": "Masquer la sortie console ({{count}} lignes)",
+    "copyLogs": "Copier les journaux",
+    "copyLogsAria": "Copier les journaux dans le presse-papiers",
+    "noLogsTitle": "Aucun journal",
+    "noLogsBody": "Il n'y a aucune ligne de journal à copier.",
+    "copiedTitle": "Journaux copiés",
+    "copiedBody": "Sortie console copiée dans le presse-papiers.",
+    "copyFailedTitle": "Échec de la copie",
+    "copyFailedBody": "Impossible de copier les journaux dans le presse-papiers."
+  },
+  "errorDetails": {
+    "summary": "Détails",
+    "copyAria": "Copier les détails de l'erreur",
+    "errorFallback": "Erreur"
+  },
+  "wasm": {
+    "checkingSetup": "Vérification des fichiers de configuration SNARK...",
+    "checkingExist": "Vérification de l'existence des fichiers de configuration...",
+    "proverReady": "Prouveur SNARK prêt",
+    "setupFound": "Fichiers de configuration trouvés",
+    "decompressing": "Décompression des fichiers de configuration SNARK...",
+    "decompressingDetail": "Décompression de pk.bin et ccs.bin (~500 Mo)...",
+    "decompressed": "Fichiers de configuration décompressés"
+  },
+  "firstTimeSetup": {
+    "title": "Configuration initiale",
+    "description": "Un snapshot Mithril sera téléchargé pour amorcer le nœud Cardano. Cela prend environ 10 à 20 minutes selon votre vitesse de connexion. Le snapshot est vérifié cryptographiquement avant utilisation."
+  }
+}

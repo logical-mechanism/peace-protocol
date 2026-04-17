@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Düğüm Kurulumu",
+    "bootstrapping": "Anlık Görüntü İndiriliyor",
+    "starting": "Düğüm Başlatılıyor",
+    "syncing": "Zincir Senkronize Ediliyor",
+    "synced": "Düğüm Hazır",
+    "error": "Düğüm Hatası"
+  },
+  "network": {
+    "preprod": "Preprod Ağı",
+    "mainnet": "Mainnet Ağı"
+  },
+  "stages": {
+    "bootstrap": "Önyükleme",
+    "starting": "Başlatılıyor",
+    "syncing": "Senkronize Ediliyor",
+    "ready": "Hazır"
+  },
+  "progressLabel": "Senkronizasyon ilerlemesi",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Düğümü",
+      "startingText": "Defter yeniden oynatılıyor...",
+      "description": "Cardano blok zincirinden blokları doğrular ve defterin yerel bir kopyasını tutar."
+    },
+    "ogmios": {
+      "label": "Ogmios Köprüsü",
+      "startingText": "Bağlanıyor...",
+      "description": "Düğüm verilerini işlem oluşturma ve gönderme için WebSocket protokolüne çevirir."
+    },
+    "kupo": {
+      "label": "Kupo İndeksleyici",
+      "startingText": "Başlatılıyor...",
+      "description": "Hızlı bakiye ve ilan sorguları için sözleşme ve cüzdan adreslerindeki UTxO'ları indeksler."
+    },
+    "states": {
+      "waiting": "Bekleniyor...",
+      "starting": "Başlatılıyor...",
+      "ready": "Hazır",
+      "error": "Hata"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Düğümü",
+    "kupoIndexer": "Kupo İndeksleyici",
+    "backendServer": "Arka Uç Sunucusu",
+    "syncing": "Senkronize ediliyor %{{percent}}",
+    "indexing": "İndeksleniyor %{{percent}}",
+    "disconnected": "Bağlantı Kesildi",
+    "stalled": "Durdu",
+    "starting": "Başlatılıyor...",
+    "waiting": "Bekleniyor...",
+    "synced": "Senkronize Edildi"
+  },
+  "syncInfo": {
+    "block": "Blok {{height}} — %{{percent}}",
+    "epoch": "Dönem {{epoch}} ({{era}})",
+    "slot": "Yuva {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Blok zinciri verisi bulunamadı. Başlamak için bir anlık görüntü indirin.",
+    "stopped": "Düğüm altyapısı durduruldu.",
+    "bootstrapDownloading": "Anlık görüntü indiriliyor: {{current}} / {{total}} dosya",
+    "bootstrapLedgerState": "Defter durumu indiriliyor: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Blok zinciri anlık görüntüsü indirmeye hazırlanılıyor...",
+    "bootstrapGeneric": "Anlık görüntü indiriliyor...",
+    "startingNode": "Cardano düğümü başlatılıyor...",
+    "waitingChainBridge": "Zincir köprüsü bekleniyor...",
+    "connectingNetwork": "Ağa bağlanılıyor...",
+    "fullySyncedStartingBackend": "Tam senkronize edildi, arka uç hizmetleri başlatılıyor...",
+    "fullySynced": "{{network}} ağıyla tam senkronize edildi",
+    "nodeSyncedWaitingKupo": "Düğüm senkronize edildi, Kupo indeksleyici bekleniyor...",
+    "syncing": "{{network}} ağıyla senkronize ediliyor...",
+    "syncedAtBlock": "{{network}} ağıyla {{height}} blokta tam senkronize edildi",
+    "genericError": "Bir hata oluştu"
+  },
+  "stuckMessage": "Son birkaç blok, düğüm son işlemleri doğruladığı için daha uzun sürer. Bu normaldir. Son yüzde birkaçlık kısım, düğüm son blokları doğruladığı için 5-15 dakika sürebilir.",
+  "diskSpace": {
+    "low": "Düşük disk alanı: {{available}} GB mevcut, {{network}} için ~{{required}} GB gerekli. Disk alanı biterse senkronizasyon başarısız olabilir.",
+    "unknown": "Disk alanı doğrulanamadı. Senkronizasyondan önce en az 10 GB boş alanınız olduğundan emin olun."
+  },
+  "actions": {
+    "starting": "Başlatılıyor...",
+    "downloadSnapshot": "Anlık Görüntü İndir ve Başlat",
+    "startNode": "Düğümü Başlat",
+    "retry": "Tekrar Dene",
+    "continueDashboard": "Kontrol Paneline Devam Et",
+    "continueBackground": "Arka Planda Devam Et",
+    "stop": "Durdur"
+  },
+  "console": {
+    "show": "Konsol Çıktısını Göster ({{count}} satır)",
+    "hide": "Konsol Çıktısını Gizle ({{count}} satır)",
+    "copyLogs": "Günlükleri Kopyala",
+    "copyLogsAria": "Günlükleri panoya kopyala",
+    "noLogsTitle": "Günlük yok",
+    "noLogsBody": "Kopyalanacak günlük satırı yok.",
+    "copiedTitle": "Günlükler kopyalandı",
+    "copiedBody": "Konsol çıktısı panoya kopyalandı.",
+    "copyFailedTitle": "Kopyalama başarısız",
+    "copyFailedBody": "Günlükler panoya kopyalanamadı."
+  },
+  "errorDetails": {
+    "summary": "Ayrıntılar",
+    "copyAria": "Hata ayrıntılarını kopyala",
+    "errorFallback": "Hata"
+  },
+  "wasm": {
+    "checkingSetup": "SNARK kurulum dosyaları kontrol ediliyor...",
+    "checkingExist": "Kurulum dosyalarının mevcut olup olmadığı kontrol ediliyor...",
+    "proverReady": "SNARK ispatlayıcı hazır",
+    "setupFound": "Kurulum dosyaları bulundu",
+    "decompressing": "SNARK kurulum dosyaları açılıyor...",
+    "decompressingDetail": "pk.bin ve ccs.bin açılıyor (~500MB)...",
+    "decompressed": "Kurulum dosyaları açıldı"
+  },
+  "firstTimeSetup": {
+    "title": "İlk kurulum",
+    "description": "Cardano düğümünü önyüklemek için bir Mithril anlık görüntüsü indirilecektir. Bu, bağlantı hızınıza bağlı olarak yaklaşık 10-20 dakika sürer. Anlık görüntü kullanılmadan önce kriptografik olarak doğrulanır."
+  }
+}

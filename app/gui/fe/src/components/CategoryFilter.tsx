@@ -54,13 +54,13 @@ function getLabel(selected: string[], t: (key: string, options?: Record<string, 
     const id = selected[0];
     // Check top-level
     const topMatch = FILE_CATEGORIES.find((c) => c.id === id);
-    if (topMatch) return topMatch.label;
+    if (topMatch) return t(`common:categories.${topMatch.id}`);
     // Check sub-category (e.g. "audio:music")
     const parts = id.split(':');
     if (parts.length > 1) {
       const parent = FILE_CATEGORIES.find((c) => c.id === parts[0]);
       const sub = parent?.subcategories?.find((s) => s.id === parts[1]);
-      if (parent && sub) return `${parent.label} > ${sub.label}`;
+      if (parent && sub) return `${t(`common:categories.${parent.id}`)} > ${sub.label}`;
     }
     return t('dashboard:filters.categoryOneSelected');
   }
@@ -130,6 +130,12 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     }
   }
 
+  // Translate top-level category labels; subcategory/genre names are kept as-is
+  function nodeLabel(node: CategoryNode): string {
+    const topLevel = TOP_LEVEL_IDS.includes(node.id);
+    return topLevel ? t(`common:categories.${node.id}`) : node.label;
+  }
+
   function renderNode(node: CategoryNode, depth: number = 0) {
     const hasChildren = node.children && node.children.length > 0;
 
@@ -148,7 +154,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             onChange={() => handleToggleNode(node.id)}
             className="accent-[var(--accent)]"
           />
-          {node.label}
+          {nodeLabel(node)}
         </label>
       );
     }
@@ -167,7 +173,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             onChange={() => handleToggleNode(node.id)}
             className="accent-[var(--accent)]"
           />
-          {node.label}
+          {nodeLabel(node)}
         </label>
         {node.children!.map((child) => renderNode(child, depth + 1))}
       </div>

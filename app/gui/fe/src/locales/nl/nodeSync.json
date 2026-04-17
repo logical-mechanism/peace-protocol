@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Node-instelling",
+    "bootstrapping": "Snapshot downloaden",
+    "starting": "Node starten",
+    "syncing": "Chain synchroniseren",
+    "synced": "Node gereed",
+    "error": "Node-fout"
+  },
+  "network": {
+    "preprod": "Preprod-netwerk",
+    "mainnet": "Mainnet-netwerk"
+  },
+  "stages": {
+    "bootstrap": "Bootstrap",
+    "starting": "Starten",
+    "syncing": "Synchroniseren",
+    "ready": "Gereed"
+  },
+  "progressLabel": "Synchronisatievoortgang",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Ledger opnieuw afspelen...",
+      "description": "Valideert blokken van de Cardano-blockchain en onderhoudt een lokale kopie van het grootboek."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Verbinden...",
+      "description": "Vertaalt nodegegevens naar een WebSocket-protocol voor het samenstellen en indienen van transacties."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Starten...",
+      "description": "Indexeert UTxO's op contract- en walletadressen voor snelle saldo- en vermeldingsquery's."
+    },
+    "states": {
+      "waiting": "Wachten...",
+      "starting": "Starten...",
+      "ready": "Gereed",
+      "error": "Fout"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Backend-server",
+    "syncing": "Synchroniseren {{percent}}%",
+    "indexing": "Indexeren {{percent}}%",
+    "disconnected": "Verbinding verbroken",
+    "stalled": "Vastgelopen",
+    "starting": "Starten...",
+    "waiting": "Wachten...",
+    "synced": "Gesynchroniseerd"
+  },
+  "syncInfo": {
+    "block": "Blok {{height}} — {{percent}}%",
+    "epoch": "Epoch {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Blockchaingegevens niet gevonden. Download een snapshot om te beginnen.",
+    "stopped": "Node-infrastructuur is gestopt.",
+    "bootstrapDownloading": "Snapshot downloaden: {{current}} / {{total}} bestanden",
+    "bootstrapLedgerState": "Ledger-status downloaden: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Voorbereiden om blockchain-snapshot te downloaden...",
+    "bootstrapGeneric": "Snapshot downloaden...",
+    "startingNode": "Cardano-node starten...",
+    "waitingChainBridge": "Wachten op chain bridge...",
+    "connectingNetwork": "Verbinden met netwerk...",
+    "fullySyncedStartingBackend": "Volledig gesynchroniseerd, backend-services starten...",
+    "fullySynced": "Volledig gesynchroniseerd met {{network}}-netwerk",
+    "nodeSyncedWaitingKupo": "Node gesynchroniseerd, wachten op Kupo-indexer...",
+    "syncing": "Synchroniseren met {{network}}-netwerk...",
+    "syncedAtBlock": "Volledig gesynchroniseerd met {{network}}-netwerk op blok {{height}}",
+    "genericError": "Er is een fout opgetreden"
+  },
+  "stuckMessage": "De laatste paar blokken duren langer doordat de node recente transacties valideert. Dit is normaal. De laatste procenten kunnen 5-15 minuten duren terwijl de node recente blokken valideert.",
+  "diskSpace": {
+    "low": "Weinig schijfruimte: {{available}} GB beschikbaar, ~{{required}} GB nodig voor {{network}}. De synchronisatie kan mislukken als de schijfruimte opraakt.",
+    "unknown": "Kon schijfruimte niet verifiëren. Zorg ervoor dat je minstens 10 GB vrij hebt voordat je synchroniseert."
+  },
+  "actions": {
+    "starting": "Starten...",
+    "downloadSnapshot": "Snapshot downloaden en starten",
+    "startNode": "Node starten",
+    "retry": "Opnieuw proberen",
+    "continueDashboard": "Naar dashboard",
+    "continueBackground": "Op achtergrond doorgaan",
+    "stop": "Stoppen"
+  },
+  "console": {
+    "show": "Console-uitvoer tonen ({{count}} regels)",
+    "hide": "Console-uitvoer verbergen ({{count}} regels)",
+    "copyLogs": "Logs kopiëren",
+    "copyLogsAria": "Logs naar klembord kopiëren",
+    "noLogsTitle": "Geen logs",
+    "noLogsBody": "Er zijn geen logregels om te kopiëren.",
+    "copiedTitle": "Logs gekopieerd",
+    "copiedBody": "Console-uitvoer naar klembord gekopieerd.",
+    "copyFailedTitle": "Kopiëren mislukt",
+    "copyFailedBody": "Kon logs niet naar het klembord kopiëren."
+  },
+  "errorDetails": {
+    "summary": "Details",
+    "copyAria": "Foutdetails kopiëren",
+    "errorFallback": "Fout"
+  },
+  "wasm": {
+    "checkingSetup": "SNARK-installatiebestanden controleren...",
+    "checkingExist": "Controleren of installatiebestanden bestaan...",
+    "proverReady": "SNARK-bewijzer gereed",
+    "setupFound": "Installatiebestanden gevonden",
+    "decompressing": "SNARK-installatiebestanden decomprimeren...",
+    "decompressingDetail": "pk.bin en ccs.bin decomprimeren (~500MB)...",
+    "decompressed": "Installatiebestanden gedecomprimeerd"
+  },
+  "firstTimeSetup": {
+    "title": "Eerste installatie",
+    "description": "Een Mithril-snapshot wordt gedownload om de Cardano-node te bootstrappen. Dit duurt ongeveer 10-20 minuten afhankelijk van je verbindingssnelheid. De snapshot wordt cryptografisch geverifieerd voor gebruik."
+  }
+}

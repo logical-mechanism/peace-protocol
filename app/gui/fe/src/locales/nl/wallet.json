@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Versleutelde datamarktplaats op Cardano",
+    "chooseCreateTitle": "Nieuwe wallet aanmaken",
+    "chooseCreateSubtitle": "Genereer een nieuwe herstelzin van 24 woorden",
+    "chooseImportTitle": "Bestaande wallet importeren",
+    "chooseImportSubtitle": "Herstel vanuit een herstelzin van 24 woorden",
+    "back": "Terug",
+    "steps": {
+      "backup": "Back-up",
+      "verify": "Verifiëren",
+      "password": "Wachtwoord",
+      "recoveryPhrase": "Herstelzin"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Herstelzin",
+      "verifyTitle": "Zin verifiëren",
+      "passwordTitle": "Wachtwoord instellen",
+      "warning": "Schrijf deze 24 woorden in volgorde op. Dit is de enige manier om je wallet te herstellen. Deel ze nooit met iemand.",
+      "copyToClipboard": "Naar klembord kopiëren",
+      "copied": "Gekopieerd!",
+      "wroteItDown": "Ik heb het opgeschreven",
+      "verifyInstructions": "Verifieer je herstelzin door de volgende woorden in te voeren. Begin met typen en selecteer het overeenkomende woord.",
+      "continue": "Doorgaan"
+    },
+    "import": {
+      "enterTitle": "Herstelzin invoeren",
+      "passwordTitle": "Wachtwoord instellen",
+      "instructions": "Voer je herstelzin van 24 woorden in. Begin met typen en selecteer uit de suggesties.",
+      "pasteAll": "Alle 24 woorden plakken",
+      "wordCount": "{{count}} / 24 woorden",
+      "continue": "Doorgaan"
+    },
+    "password": {
+      "description": "Stel een walletwachtwoord in om je herstelzin te versleutelen. Je hebt dit wachtwoord nodig elke keer dat je de app opent.",
+      "label": "Wachtwoord",
+      "confirmLabel": "Wachtwoord bevestigen",
+      "placeholder": "Voer wachtwoord in",
+      "confirmPlaceholder": "Bevestig wachtwoord",
+      "show": "Tonen",
+      "hide": "Verbergen",
+      "capsLockOn": "Caps Lock staat aan",
+      "creating": "Wallet aanmaken...",
+      "submit": "Wallet aanmaken"
+    },
+    "errors": {
+      "allWordsRequired": "Alle 24 woorden zijn vereist",
+      "passwordRequirements": "Wachtwoord voldoet niet aan alle vereisten",
+      "passwordMismatch": "Wachtwoorden komen niet overeen",
+      "createFailed": "Wallet aanmaken mislukt",
+      "copyFailedTitle": "Kopiëren mislukt",
+      "copyFailedBody": "Kon mnemonic niet naar het klembord kopiëren.",
+      "clipboardUnavailableTitle": "Klembord niet beschikbaar",
+      "clipboardUnavailableBody": "Kon geen toegang krijgen tot het klembord. Probeer direct in de woordvelden te plakken met Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Wachtwoord",
+    "togglePasswordVisibility": "Wachtwoordzichtbaarheid wisselen",
+    "capsLockOn": "Caps Lock staat aan",
+    "unlock": "Ontgrendelen",
+    "unlocking": "Ontgrendelen...",
+    "forgotPassword": "Wachtwoord vergeten?",
+    "details": "Details",
+    "copyErrorTitle": "Foutdetails kopiëren",
+    "delete": {
+      "title": "Wallet verwijderen?",
+      "description": "Dit verwijdert de versleutelde wallet van dit apparaat. Je fondsen zijn veilig als je een back-up hebt van je herstelzin van 24 woorden. Je kunt deze opnieuw importeren na het verwijderen.",
+      "warning": "Zonder je herstelzin zijn je fondsen permanent verloren.",
+      "acknowledge": "Ik heb een back-up van mijn herstelzin van 24 woorden",
+      "cancel": "Annuleren",
+      "confirm": "Wallet verwijderen",
+      "deleting": "Verwijderen..."
+    }
+  }
+}

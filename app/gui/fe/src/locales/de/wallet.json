@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Verschlüsselter Datenmarktplatz auf Cardano",
+    "chooseCreateTitle": "Neue Wallet erstellen",
+    "chooseCreateSubtitle": "Neue 24-Wort-Wiederherstellungsphrase generieren",
+    "chooseImportTitle": "Bestehende Wallet importieren",
+    "chooseImportSubtitle": "Mit einer 24-Wort-Wiederherstellungsphrase wiederherstellen",
+    "back": "Zurück",
+    "steps": {
+      "backup": "Sicherung",
+      "verify": "Überprüfung",
+      "password": "Passwort",
+      "recoveryPhrase": "Wiederherstellungsphrase"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Wiederherstellungsphrase",
+      "verifyTitle": "Phrase überprüfen",
+      "passwordTitle": "Passwort festlegen",
+      "warning": "Schreibe diese 24 Wörter in der richtigen Reihenfolge auf. Dies ist der einzige Weg, deine Wallet wiederherzustellen. Teile sie niemals mit anderen.",
+      "copyToClipboard": "In die Zwischenablage kopieren",
+      "copied": "Kopiert!",
+      "wroteItDown": "Ich habe es aufgeschrieben",
+      "verifyInstructions": "Überprüfe deine Wiederherstellungsphrase, indem du die folgenden Wörter eingibst. Beginne zu tippen und wähle das passende Wort aus.",
+      "continue": "Weiter"
+    },
+    "import": {
+      "enterTitle": "Wiederherstellungsphrase eingeben",
+      "passwordTitle": "Passwort festlegen",
+      "instructions": "Gib deine 24-Wort-Wiederherstellungsphrase ein. Beginne jedes Wort zu tippen und wähle aus den Vorschlägen.",
+      "pasteAll": "Alle 24 Wörter einfügen",
+      "wordCount": "{{count}} / 24 Wörter",
+      "continue": "Weiter"
+    },
+    "password": {
+      "description": "Lege ein Wallet-Passwort fest, um deine Wiederherstellungsphrase zu verschlüsseln. Du benötigst dieses Passwort jedes Mal, wenn du die App öffnest.",
+      "label": "Passwort",
+      "confirmLabel": "Passwort bestätigen",
+      "placeholder": "Passwort eingeben",
+      "confirmPlaceholder": "Passwort bestätigen",
+      "show": "Anzeigen",
+      "hide": "Verbergen",
+      "capsLockOn": "Feststelltaste ist aktiv",
+      "creating": "Wallet wird erstellt...",
+      "submit": "Wallet erstellen"
+    },
+    "errors": {
+      "allWordsRequired": "Alle 24 Wörter sind erforderlich",
+      "passwordRequirements": "Passwort erfüllt nicht alle Anforderungen",
+      "passwordMismatch": "Passwörter stimmen nicht überein",
+      "createFailed": "Wallet konnte nicht erstellt werden",
+      "copyFailedTitle": "Kopieren fehlgeschlagen",
+      "copyFailedBody": "Mnemonic konnte nicht in die Zwischenablage kopiert werden.",
+      "clipboardUnavailableTitle": "Zwischenablage nicht verfügbar",
+      "clipboardUnavailableBody": "Zugriff auf die Zwischenablage nicht möglich. Versuche direkt mit Strg+V in die Wortfelder einzufügen."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Passwort",
+    "togglePasswordVisibility": "Passwortsichtbarkeit umschalten",
+    "capsLockOn": "Feststelltaste ist aktiv",
+    "unlock": "Entsperren",
+    "unlocking": "Wird entsperrt...",
+    "forgotPassword": "Passwort vergessen?",
+    "details": "Details",
+    "copyErrorTitle": "Fehlerdetails kopieren",
+    "delete": {
+      "title": "Wallet löschen?",
+      "description": "Dies entfernt die verschlüsselte Wallet von diesem Gerät. Deine Guthaben sind sicher, wenn du deine 24-Wort-Wiederherstellungsphrase gesichert hast. Du kannst sie nach dem Löschen erneut importieren.",
+      "warning": "Ohne deine Wiederherstellungsphrase gehen deine Guthaben dauerhaft verloren.",
+      "acknowledge": "Ich habe meine 24-Wort-Wiederherstellungsphrase gesichert",
+      "cancel": "Abbrechen",
+      "confirm": "Wallet löschen",
+      "deleting": "Wird gelöscht..."
+    }
+  }
+}

@@ -345,7 +345,12 @@
     "dismissAllQueued": "Dismiss all ({{count}} queued)"
   },
   "categories": {
-    "text": "Text"
+    "text": "Text",
+    "document": "Document",
+    "audio": "Audio",
+    "image": "Image",
+    "video": "Video",
+    "other": "Other"
   },
   "overlay": {
     "shuttingDown": "Shutting down...",

@@ -448,7 +448,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
               value={categoryFilter}
               options={[
                 { value: 'all', label: t('library.allCategories') },
-                ...FILE_CATEGORIES.map((cat) => ({ value: cat.id, label: cat.label })),
+                ...FILE_CATEGORIES.map((cat) => ({ value: cat.id, label: t(`common:categories.${cat.id}`) })),
               ]}
               onChange={(v) => dispatch({ type: 'SET_CATEGORY', payload: v })}
               ariaLabel={t('library.filterByCategoryAria')}

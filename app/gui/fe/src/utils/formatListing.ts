@@ -8,6 +8,11 @@ export function formatPrice(lovelace?: number): string {
   return `${formatAda(lovelace)} ADA`;
 }
 
+/** Get the i18n key for a category label (common:categories.{id}). */
+export function getCategoryLabelKey(category?: string): string {
+  return `categories.${category || 'text'}`;
+}
+
 /** Get a display label for a listing category, defaulting to "Text". */
 export function getCategoryLabel(category?: string): string {
   if (!category) return 'Text';

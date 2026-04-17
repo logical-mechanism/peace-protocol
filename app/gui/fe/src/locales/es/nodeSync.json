@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Configuración del nodo",
+    "bootstrapping": "Descargando instantánea",
+    "starting": "Iniciando nodo",
+    "syncing": "Sincronizando cadena",
+    "synced": "Nodo listo",
+    "error": "Error del nodo"
+  },
+  "network": {
+    "preprod": "Red Preprod",
+    "mainnet": "Red Mainnet"
+  },
+  "stages": {
+    "bootstrap": "Arranque",
+    "starting": "Iniciando",
+    "syncing": "Sincronizando",
+    "ready": "Listo"
+  },
+  "progressLabel": "Progreso de sincronización",
+  "services": {
+    "cardanoNode": {
+      "label": "Nodo Cardano",
+      "startingText": "Reproduciendo libro mayor...",
+      "description": "Valida bloques de la blockchain Cardano y mantiene una copia local del libro mayor."
+    },
+    "ogmios": {
+      "label": "Puente Ogmios",
+      "startingText": "Conectando...",
+      "description": "Traduce los datos del nodo a un protocolo WebSocket para la construcción y envío de transacciones."
+    },
+    "kupo": {
+      "label": "Indexador Kupo",
+      "startingText": "Iniciando...",
+      "description": "Indexa UTxOs en las direcciones de contratos y billetera para consultas rápidas de saldo y anuncios."
+    },
+    "states": {
+      "waiting": "Esperando...",
+      "starting": "Iniciando...",
+      "ready": "Listo",
+      "error": "Error"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Nodo Cardano",
+    "kupoIndexer": "Indexador Kupo",
+    "backendServer": "Servidor backend",
+    "syncing": "Sincronizando {{percent}}%",
+    "indexing": "Indexando {{percent}}%",
+    "disconnected": "Desconectado",
+    "stalled": "Detenido",
+    "starting": "Iniciando...",
+    "waiting": "Esperando...",
+    "synced": "Sincronizado"
+  },
+  "syncInfo": {
+    "block": "Bloque {{height}} — {{percent}}%",
+    "epoch": "Época {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "No se encontraron datos de la blockchain. Descarga una instantánea para comenzar.",
+    "stopped": "La infraestructura del nodo está detenida.",
+    "bootstrapDownloading": "Descargando instantánea: {{current}} / {{total}} archivos",
+    "bootstrapLedgerState": "Descargando estado del libro mayor: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Preparando para descargar instantánea de la blockchain...",
+    "bootstrapGeneric": "Descargando instantánea...",
+    "startingNode": "Iniciando nodo Cardano...",
+    "waitingChainBridge": "Esperando puente de cadena...",
+    "connectingNetwork": "Conectando a la red...",
+    "fullySyncedStartingBackend": "Completamente sincronizado, iniciando servicios backend...",
+    "fullySynced": "Completamente sincronizado con la red {{network}}",
+    "nodeSyncedWaitingKupo": "Nodo sincronizado, esperando indexador Kupo...",
+    "syncing": "Sincronizando con la red {{network}}...",
+    "syncedAtBlock": "Completamente sincronizado con la red {{network}} en el bloque {{height}}",
+    "genericError": "Ocurrió un error"
+  },
+  "stuckMessage": "Los últimos bloques tardan más mientras el nodo valida transacciones recientes. Esto es normal. El último porcentaje puede tardar de 5 a 15 minutos.",
+  "diskSpace": {
+    "low": "Poco espacio en disco: {{available}} GB disponibles, se necesitan ~{{required}} GB para {{network}}. La sincronización puede fallar si se agota el espacio.",
+    "unknown": "No se pudo verificar el espacio en disco. Asegúrate de tener al menos 10 GB libres antes de sincronizar."
+  },
+  "actions": {
+    "starting": "Iniciando...",
+    "downloadSnapshot": "Descargar instantánea e iniciar",
+    "startNode": "Iniciar nodo",
+    "retry": "Reintentar",
+    "continueDashboard": "Continuar al panel",
+    "continueBackground": "Continuar en segundo plano",
+    "stop": "Detener"
+  },
+  "console": {
+    "show": "Mostrar salida de consola ({{count}} líneas)",
+    "hide": "Ocultar salida de consola ({{count}} líneas)",
+    "copyLogs": "Copiar registros",
+    "copyLogsAria": "Copiar registros al portapapeles",
+    "noLogsTitle": "Sin registros",
+    "noLogsBody": "No hay líneas de registro para copiar.",
+    "copiedTitle": "Registros copiados",
+    "copiedBody": "Salida de consola copiada al portapapeles.",
+    "copyFailedTitle": "Error al copiar",
+    "copyFailedBody": "No se pudieron copiar los registros al portapapeles."
+  },
+  "errorDetails": {
+    "summary": "Detalles",
+    "copyAria": "Copiar detalles del error",
+    "errorFallback": "Error"
+  },
+  "wasm": {
+    "checkingSetup": "Verificando archivos de configuración SNARK...",
+    "checkingExist": "Verificando si existen archivos de configuración...",
+    "proverReady": "Probador SNARK listo",
+    "setupFound": "Archivos de configuración encontrados",
+    "decompressing": "Descomprimiendo archivos de configuración SNARK...",
+    "decompressingDetail": "Descomprimiendo pk.bin y ccs.bin (~500MB)...",
+    "decompressed": "Archivos de configuración descomprimidos"
+  },
+  "firstTimeSetup": {
+    "title": "Configuración inicial",
+    "description": "Se descargará una instantánea Mithril para arrancar el nodo Cardano. Esto toma aproximadamente 10-20 minutos dependiendo de tu velocidad de conexión. La instantánea se verifica criptográficamente antes de usarla."
+  }
+}

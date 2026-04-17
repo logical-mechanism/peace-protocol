@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Etwas ist schiefgelaufen",
+    "action": "Versuche es erneut. Wenn das Problem weiterhin besteht, starte die App neu."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo nicht verfügbar",
+    "message": "Der UTxO-Indexer wird gestartet oder ist nicht erreichbar.",
+    "action": "Warte, bis der Node die Synchronisierung abgeschlossen hat, und versuche es erneut."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo nicht verfügbar",
+    "message": "Der UTxO-Indexer antwortet nicht.",
+    "action": "Warte, bis der Node die Synchronisierung abgeschlossen hat, oder überprüfe den Prozessstatus in den Einstellungen."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios-Anfrage abgelaufen",
+    "message": "Der Transaktionsdienst hat nicht rechtzeitig geantwortet. Die Node-Verbindung könnte beeinträchtigt sein.",
+    "action": "Versuche den Node in den Einstellungen neu zu starten, oder warte, bis der Node vollständig synchronisiert ist."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Ogmios nicht erreichbar",
+    "message": "Der Transaktionsdienst ist auf dem erwarteten Port nicht erreichbar.",
+    "action": "Stelle sicher, dass der Node läuft, oder starte ihn in den Einstellungen neu."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios nicht verfügbar",
+    "message": "Der Transaktionsübermittlungsdienst antwortet nicht.",
+    "action": "Warte, bis der Node die Synchronisierung abgeschlossen hat, oder überprüfe den Prozessstatus in den Einstellungen."
+  },
+  "network": {
+    "title": "Netzwerkfehler",
+    "message": "Verbindung zum erforderlichen Dienst konnte nicht hergestellt werden.",
+    "action": "Überprüfe deine Internetverbindung und stelle sicher, dass der Node läuft."
+  },
+  "noCollateral": {
+    "title": "Kein Collateral",
+    "message": "Deine Wallet benötigt ein dediziertes 5-ADA-Collateral-UTxO für Smart-Contract-Transaktionen.",
+    "action": "Gehe zu Einstellungen > Wallet und klicke auf \"Collateral setzen\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Unzureichende Mittel für Collateral",
+    "message": "Deine Wallet hat nicht genug ADA, um ein Collateral-UTxO zu erstellen.",
+    "action": "Sende mindestens 10 ADA an deine Wallet-Adresse."
+  },
+  "collateralInsufficient": {
+    "title": "Unzureichendes Collateral",
+    "message": "Die Transaktion benötigt mehr Collateral als verfügbar ist.",
+    "action": "Stelle sicher, dass deine Wallet ein UTxO als Collateral hat. Versuche dein Wallet-Guthaben zu aktualisieren."
+  },
+  "insufficientBalance": {
+    "title": "Unzureichendes Guthaben",
+    "message": "Deine Wallet hat nicht genug ADA für diese Transaktion.",
+    "action": "Füge mehr ADA zu deiner Wallet hinzu und versuche es erneut."
+  },
+  "iagonAuth": {
+    "title": "Iagon-Authentifizierung fehlgeschlagen",
+    "message": "Dein Iagon-API-Schlüssel ist ungültig oder abgelaufen.",
+    "action": "Gehe zu Einstellungen → Datenschicht und authentifiziere dich erneut."
+  },
+  "iagonFileTooLarge": {
+    "title": "Datei zu groß für Iagon",
+    "message": "Iagon unterstützt das Hochladen von Dateien dieser Größe nicht.",
+    "action": "Wähle eine Datei unter 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Iagon-Speicher voll",
+    "message": "Das Speicherkontingent deines Iagon-Kontos ist voll.",
+    "action": "Überprüfe die Speichernutzung deines Iagon-Kontos."
+  },
+  "iagonGeneric": {
+    "title": "Speicherdienst-Fehler",
+    "message": "Der dezentrale Speicherdienst von Iagon konnte nicht erreicht werden.",
+    "action": "Überprüfe deine Internetverbindung. Iagon könnte vorübergehend nicht verfügbar sein."
+  },
+  "timeout": {
+    "title": "Zeitüberschreitung bei Anfrage",
+    "message": "Der Vorgang hat zu lange gedauert.",
+    "action": "Versuche es erneut. Wenn das Problem weiterhin besteht, könnte der Dienst stark ausgelastet sein."
+  },
+  "mnemonicChecksum": {
+    "title": "Ungültige Wiederherstellungsphrase",
+    "message": "Die Wiederherstellungsphrase hat eine ungültige Prüfsumme. Ein oder mehrere Wörter könnten falsch sein.",
+    "action": "Überprüfe jedes Wort anhand deiner schriftlichen Sicherung und versuche es erneut."
+  },
+  "passwordTooShort": {
+    "title": "Passwort zu kurz",
+    "message": "Das Passwort muss mindestens 12 Zeichen lang sein.",
+    "action": "Wähle ein längeres Passwort, das alle angezeigten Anforderungen erfüllt."
+  },
+  "walletGeneric": {
+    "title": "Wallet-Fehler",
+    "message": "Bei der Wallet-Operation ist ein Problem aufgetreten.",
+    "action": "Versuche deine Wallet erneut zu entsperren. Wenn das Problem weiterhin besteht, starte die App neu."
+  },
+  "incorrectPassword": {
+    "title": "Falsches Passwort",
+    "message": "Das eingegebene Passwort ist falsch.",
+    "action": "Überprüfe dein Passwort und versuche es erneut."
+  },
+  "snarkOom": {
+    "title": "Nicht genug Arbeitsspeicher",
+    "message": "Bei der Proof-Generierung ist der Arbeitsspeicher ausgegangen.",
+    "action": "Schließe andere Anwendungen, um Arbeitsspeicher freizugeben, und versuche es erneut."
+  },
+  "snarkSetupMissing": {
+    "title": "SNARK-Setup-Dateien fehlen",
+    "message": "Benötigte SNARK-Setup-Dateien konnten nicht gefunden werden.",
+    "action": "Gehe zu den Einstellungen, um die SNARK-Setup-Dateien erneut herunterzuladen."
+  },
+  "snarkInProgress": {
+    "title": "Proof läuft bereits",
+    "message": "Ein Zero-Knowledge-Proof wird bereits generiert.",
+    "action": "Warte, bis der aktuelle Proof abgeschlossen ist, bevor du einen neuen startest."
+  },
+  "snarkGeneric": {
+    "title": "Proof-Generierungsfehler",
+    "message": "Der SNARK-Prover hat einen Fehler festgestellt.",
+    "action": "Versuche es erneut. Wenn das Problem weiterhin besteht, überprüfe ob die Setup-Dateien korrekt installiert sind."
+  },
+  "scriptValidation": {
+    "title": "Script-Validierung fehlgeschlagen",
+    "message": "Ein Smart-Contract-Script ist bei der Validierung fehlgeschlagen.",
+    "action": "Der On-chain-Zustand könnte sich geändert haben. Aktualisiere und versuche es erneut."
+  },
+  "txConflict": {
+    "title": "Transaktionskonflikt",
+    "message": "Ein oder mehrere Inputs wurden bereits durch eine andere Transaktion ausgegeben.",
+    "action": "Jemand anderes könnte auf dieses Angebot reagiert haben. Aktualisiere die Seite und versuche es erneut."
+  },
+  "feeError": {
+    "title": "Transaktionsgebühren-Fehler",
+    "message": "Die Transaktionsgebühr wurde zu niedrig berechnet.",
+    "action": "Versuche es erneut. Wenn das Problem weiterhin besteht, starte die App neu, um die Gebührenparameter zu aktualisieren."
+  },
+  "txFailed": {
+    "title": "Transaktion fehlgeschlagen",
+    "message": "Die Transaktion konnte nicht an die Blockchain übermittelt werden.",
+    "action": "Der On-chain-Zustand könnte sich geändert haben. Aktualisiere und versuche es erneut."
+  },
+  "accessDenied": {
+    "title": "Zugriff verweigert",
+    "message": "Die Anfrage wurde vom Server blockiert.",
+    "action": "Dies könnte ein Konfigurationsproblem sein. Versuche die App neu zu starten."
+  },
+  "diskFull": {
+    "title": "Festplatte voll",
+    "message": "Es ist nicht genug Speicherplatz vorhanden, um diesen Vorgang abzuschließen.",
+    "action": "Gib Speicherplatz frei und versuche es erneut. Überprüfe Einstellungen > Speicher für Bereinigungsoptionen."
+  },
+  "portConflict": {
+    "title": "Port-Konflikt",
+    "message": "Ein benötigter Port wird bereits von einem anderen Prozess verwendet.",
+    "action": "Schließe andere Anwendungen, die den Port möglicherweise verwenden, oder starte die App neu."
+  }
+}
