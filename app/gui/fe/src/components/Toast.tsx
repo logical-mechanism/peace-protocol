@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
 import { getTypeLabel, type TransactionType } from '../services/transactionHistory';
@@ -38,6 +39,7 @@ interface ToastProps {
 }
 
 function Toast({ toast, onClose, index = 0 }: ToastProps) {
+  const { t } = useTranslation('common');
   const [copied, setCopied] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -215,7 +217,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
         <button
           onClick={handleCopy}
           className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:shadow-[var(--focus-ring)]"
-          aria-label="Copy error to clipboard"
+          aria-label={t('toast.copyError')}
         >
           {copied ? (
             <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +233,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
       <button
         onClick={handleClose}
         className="flex-shrink-0 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer focus-visible:shadow-[var(--focus-ring)]"
-        aria-label="Dismiss notification"
+        aria-label={t('toast.dismiss')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -254,6 +256,7 @@ interface ToastContainerProps {
 }
 
 export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll }: ToastContainerProps) {
+  const { t } = useTranslation('common');
   if (toasts.length === 0) return null;
 
   return (
@@ -263,7 +266,7 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
           onClick={onDismissAll}
           className="self-end text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer mb-1 rounded focus-visible:shadow-[var(--focus-ring)]"
         >
-          Dismiss all{queuedCount > 0 ? ` (${queuedCount} queued)` : ''}
+          {queuedCount > 0 ? t('toast.dismissAllQueued', { count: queuedCount }) : t('toast.dismissAll')}
         </button>
       )}
       {toasts.map((toast, index) => (
