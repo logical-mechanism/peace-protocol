@@ -82,6 +82,66 @@ import errorsKo from './locales/ko/errors.json'
 import notificationsKo from './locales/ko/notifications.json'
 import onboardingKo from './locales/ko/onboarding.json'
 
+import commonPt from './locales/pt/common.json'
+import walletPt from './locales/pt/wallet.json'
+import nodeSyncPt from './locales/pt/nodeSync.json'
+import dashboardPt from './locales/pt/dashboard.json'
+import settingsPt from './locales/pt/settings.json'
+import modalsPt from './locales/pt/modals.json'
+import errorsPt from './locales/pt/errors.json'
+import notificationsPt from './locales/pt/notifications.json'
+import onboardingPt from './locales/pt/onboarding.json'
+
+import commonTr from './locales/tr/common.json'
+import walletTr from './locales/tr/wallet.json'
+import nodeSyncTr from './locales/tr/nodeSync.json'
+import dashboardTr from './locales/tr/dashboard.json'
+import settingsTr from './locales/tr/settings.json'
+import modalsTr from './locales/tr/modals.json'
+import errorsTr from './locales/tr/errors.json'
+import notificationsTr from './locales/tr/notifications.json'
+import onboardingTr from './locales/tr/onboarding.json'
+
+import commonId from './locales/id/common.json'
+import walletId from './locales/id/wallet.json'
+import nodeSyncId from './locales/id/nodeSync.json'
+import dashboardId from './locales/id/dashboard.json'
+import settingsId from './locales/id/settings.json'
+import modalsId from './locales/id/modals.json'
+import errorsId from './locales/id/errors.json'
+import notificationsId from './locales/id/notifications.json'
+import onboardingId from './locales/id/onboarding.json'
+
+import commonVi from './locales/vi/common.json'
+import walletVi from './locales/vi/wallet.json'
+import nodeSyncVi from './locales/vi/nodeSync.json'
+import dashboardVi from './locales/vi/dashboard.json'
+import settingsVi from './locales/vi/settings.json'
+import modalsVi from './locales/vi/modals.json'
+import errorsVi from './locales/vi/errors.json'
+import notificationsVi from './locales/vi/notifications.json'
+import onboardingVi from './locales/vi/onboarding.json'
+
+import commonNl from './locales/nl/common.json'
+import walletNl from './locales/nl/wallet.json'
+import nodeSyncNl from './locales/nl/nodeSync.json'
+import dashboardNl from './locales/nl/dashboard.json'
+import settingsNl from './locales/nl/settings.json'
+import modalsNl from './locales/nl/modals.json'
+import errorsNl from './locales/nl/errors.json'
+import notificationsNl from './locales/nl/notifications.json'
+import onboardingNl from './locales/nl/onboarding.json'
+
+import commonRu from './locales/ru/common.json'
+import walletRu from './locales/ru/wallet.json'
+import nodeSyncRu from './locales/ru/nodeSync.json'
+import dashboardRu from './locales/ru/dashboard.json'
+import settingsRu from './locales/ru/settings.json'
+import modalsRu from './locales/ru/modals.json'
+import errorsRu from './locales/ru/errors.json'
+import notificationsRu from './locales/ru/notifications.json'
+import onboardingRu from './locales/ru/onboarding.json'
+
 export const NAMESPACES = [
   'common',
   'wallet',
@@ -171,6 +231,72 @@ export const resources = {
     errors: errorsKo,
     notifications: notificationsKo,
     onboarding: onboardingKo,
+  },
+  pt: {
+    common: commonPt,
+    wallet: walletPt,
+    nodeSync: nodeSyncPt,
+    dashboard: dashboardPt,
+    settings: settingsPt,
+    modals: modalsPt,
+    errors: errorsPt,
+    notifications: notificationsPt,
+    onboarding: onboardingPt,
+  },
+  tr: {
+    common: commonTr,
+    wallet: walletTr,
+    nodeSync: nodeSyncTr,
+    dashboard: dashboardTr,
+    settings: settingsTr,
+    modals: modalsTr,
+    errors: errorsTr,
+    notifications: notificationsTr,
+    onboarding: onboardingTr,
+  },
+  id: {
+    common: commonId,
+    wallet: walletId,
+    nodeSync: nodeSyncId,
+    dashboard: dashboardId,
+    settings: settingsId,
+    modals: modalsId,
+    errors: errorsId,
+    notifications: notificationsId,
+    onboarding: onboardingId,
+  },
+  vi: {
+    common: commonVi,
+    wallet: walletVi,
+    nodeSync: nodeSyncVi,
+    dashboard: dashboardVi,
+    settings: settingsVi,
+    modals: modalsVi,
+    errors: errorsVi,
+    notifications: notificationsVi,
+    onboarding: onboardingVi,
+  },
+  nl: {
+    common: commonNl,
+    wallet: walletNl,
+    nodeSync: nodeSyncNl,
+    dashboard: dashboardNl,
+    settings: settingsNl,
+    modals: modalsNl,
+    errors: errorsNl,
+    notifications: notificationsNl,
+    onboarding: onboardingNl,
+  },
+  ru: {
+    common: commonRu,
+    wallet: walletRu,
+    nodeSync: nodeSyncRu,
+    dashboard: dashboardRu,
+    settings: settingsRu,
+    modals: modalsRu,
+    errors: errorsRu,
+    notifications: notificationsRu,
+    onboarding: onboardingRu,
   },
 } as const
 
