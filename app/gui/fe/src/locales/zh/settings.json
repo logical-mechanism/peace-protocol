@@ -156,7 +156,10 @@
     "autoLockNever": "从不",
     "lockWalletTitle": "锁定钱包",
     "lockWalletDescription": "锁定钱包，再次使用前需要输入密码。",
-    "lockWalletButton": "锁定钱包"
+    "lockWalletButton": "锁定钱包",
+    "statusUnlocked": "已解锁",
+    "statusLocked": "已锁定",
+    "statusLoading": "加载中"
   },
   "dataLayer": {
     "iagonTitle": "Iagon 去中心化存储",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "一笔交易提交失败",
       "bid_accepted": "出价已接受",
       "bid_acceptedDesc": "您的一个出价被卖家接受"
-    }
+    },
+    "notifDuration3s": "3秒",
+    "notifDuration5s": "5秒（默认）",
+    "notifDuration8s": "8秒",
+    "notifDurationNever": "从不"
   },
   "contact": {
     "title": "联系与支持",

@@ -156,7 +156,10 @@
     "autoLockNever": "Jamais",
     "lockWalletTitle": "Verrouiller le portefeuille",
     "lockWalletDescription": "Verrouillez votre portefeuille pour exiger la saisie du mot de passe avant de l'utiliser à nouveau.",
-    "lockWalletButton": "Verrouiller le portefeuille"
+    "lockWalletButton": "Verrouiller le portefeuille",
+    "statusUnlocked": "Déverrouillé",
+    "statusLocked": "Verrouillé",
+    "statusLoading": "Chargement"
   },
   "dataLayer": {
     "iagonTitle": "Stockage décentralisé Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "La soumission d'une transaction échoue",
       "bid_accepted": "Offre acceptée",
       "bid_acceptedDesc": "Une offre que vous avez placée a été acceptée par le vendeur"
-    }
+    },
+    "notifDuration3s": "3 secondes",
+    "notifDuration5s": "5 secondes (par défaut)",
+    "notifDuration8s": "8 secondes",
+    "notifDurationNever": "Jamais"
   },
   "contact": {
     "title": "Contact et support",

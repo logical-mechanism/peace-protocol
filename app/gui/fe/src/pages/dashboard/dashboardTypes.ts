@@ -6,15 +6,15 @@ export type TabId = 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'l
 
 export interface Tab {
   id: TabId;
-  label: string;
+  labelKey: string;
 }
 
 export const TABS: Tab[] = [
-  { id: 'marketplace', label: 'Marketplace' },
-  { id: 'my-sales', label: 'My Sales' },
-  { id: 'my-purchases', label: 'My Purchases' },
-  { id: 'history', label: 'History' },
-  { id: 'library', label: 'Library' },
+  { id: 'marketplace', labelKey: 'tabs.marketplace' },
+  { id: 'my-sales', labelKey: 'tabs.mySales' },
+  { id: 'my-purchases', labelKey: 'tabs.myPurchases' },
+  { id: 'history', labelKey: 'tabs.history' },
+  { id: 'library', labelKey: 'tabs.library' },
 ];
 
 export interface ConfirmAction {

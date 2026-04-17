@@ -156,7 +156,10 @@
     "autoLockNever": "Nie",
     "lockWalletTitle": "Wallet sperren",
     "lockWalletDescription": "Sperre deine Wallet, um vor der erneuten Nutzung eine Passworteingabe zu verlangen.",
-    "lockWalletButton": "Wallet sperren"
+    "lockWalletButton": "Wallet sperren",
+    "statusUnlocked": "Entsperrt",
+    "statusLocked": "Gesperrt",
+    "statusLoading": "Laden"
   },
   "dataLayer": {
     "iagonTitle": "Iagon Dezentraler Speicher",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Die Übermittlung einer Transaktion schlägt fehl",
       "bid_accepted": "Gebot angenommen",
       "bid_acceptedDesc": "Ein von dir abgegebenes Gebot wurde vom Verkäufer angenommen"
-    }
+    },
+    "notifDuration3s": "3 Sekunden",
+    "notifDuration5s": "5 Sekunden (Standard)",
+    "notifDuration8s": "8 Sekunden",
+    "notifDurationNever": "Nie"
   },
   "contact": {
     "title": "Kontakt & Support",

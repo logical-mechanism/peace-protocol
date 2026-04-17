@@ -686,14 +686,14 @@ export default function Dashboard() {
                 aria-controls={`tabpanel-${tab.id}`}
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
-                title={t('dashboard:shell.tabShortcutTitle', { label: tab.label, number: index + 1 })}
+                title={t('dashboard:shell.tabShortcutTitle', { label: t(`dashboard:${tab.labelKey}`), number: index + 1 })}
                 className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
-                {tab.label}
+                {t(`dashboard:${tab.labelKey}`)}
                 {tab.id === 'my-sales' && effects.bidNotifications.unseenBidCount > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
                     {effects.bidNotifications.unseenBidCount}

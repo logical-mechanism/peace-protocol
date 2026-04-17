@@ -199,7 +199,7 @@ export default function WalletSection({
           <div className="space-y-4">
             <div>
               <span className="text-sm text-[var(--text-muted)]">{t('wallet.status')}</span>
-              <p className="text-lg font-medium capitalize">{walletState}</p>
+              <p className="text-lg font-medium capitalize">{walletState === 'unlocked' ? t('wallet.statusUnlocked') : walletState === 'locked' ? t('wallet.statusLocked') : t('wallet.statusLoading')}</p>
             </div>
             {address && (
               <div>

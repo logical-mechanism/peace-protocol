@@ -133,7 +133,7 @@ export default function PreferencesSection() {
         <div className="max-w-xs">
           <Select
             value={String(toastDuration)}
-            options={TOAST_DURATION_OPTIONS.map((opt) => ({ value: String(opt.value), label: opt.label }))}
+            options={TOAST_DURATION_OPTIONS.map((opt) => ({ value: String(opt.value), label: t(`preferences.${opt.labelKey}`) }))}
             onChange={(v) => {
               const ms = Number(v)
               setToastDuration(ms)

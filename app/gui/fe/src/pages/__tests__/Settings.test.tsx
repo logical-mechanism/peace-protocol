@@ -110,10 +110,10 @@ vi.mock('../../services/toastSettings', () => ({
   getToastDurationMs: vi.fn().mockReturnValue(5000),
   setToastDurationMs: vi.fn(),
   TOAST_DURATION_OPTIONS: [
-    { label: '3 seconds', value: 3000 },
-    { label: '5 seconds', value: 5000 },
-    { label: '8 seconds', value: 8000 },
-    { label: 'Never', value: 0 },
+    { labelKey: 'notifDuration3s', value: 3000 },
+    { labelKey: 'notifDuration5s', value: 5000 },
+    { labelKey: 'notifDuration8s', value: 8000 },
+    { labelKey: 'notifDurationNever', value: 0 },
   ],
 }));
 

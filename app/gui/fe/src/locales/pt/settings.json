@@ -156,7 +156,10 @@
     "autoLockNever": "Nunca",
     "lockWalletTitle": "Bloquear Carteira",
     "lockWalletDescription": "Bloqueie sua carteira para exigir a entrada de senha antes de usá-la novamente.",
-    "lockWalletButton": "Bloquear Carteira"
+    "lockWalletButton": "Bloquear Carteira",
+    "statusUnlocked": "Desbloqueada",
+    "statusLocked": "Bloqueada",
+    "statusLoading": "Carregando"
   },
   "dataLayer": {
     "iagonTitle": "Armazenamento Descentralizado Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "O envio de uma transação falha",
       "bid_accepted": "Oferta aceita",
       "bid_acceptedDesc": "Uma oferta que você fez foi aceita pelo vendedor"
-    }
+    },
+    "notifDuration3s": "3 segundos",
+    "notifDuration5s": "5 segundos (padrão)",
+    "notifDuration8s": "8 segundos",
+    "notifDurationNever": "Nunca"
   },
   "contact": {
     "title": "Contato e Suporte",

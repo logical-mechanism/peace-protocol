@@ -156,7 +156,10 @@
     "autoLockNever": "कभी नहीं",
     "lockWalletTitle": "वॉलेट लॉक करें",
     "lockWalletDescription": "अपना वॉलेट लॉक करें ताकि इसे फिर से उपयोग करने से पहले पासवर्ड दर्ज करना आवश्यक हो।",
-    "lockWalletButton": "वॉलेट लॉक करें"
+    "lockWalletButton": "वॉलेट लॉक करें",
+    "statusUnlocked": "अनलॉक",
+    "statusLocked": "लॉक",
+    "statusLoading": "लोड हो रहा है"
   },
   "dataLayer": {
     "iagonTitle": "Iagon विकेंद्रीकृत स्टोरेज",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "एक लेनदेन सबमिशन विफल हुआ",
       "bid_accepted": "बोली स्वीकृत",
       "bid_acceptedDesc": "आपकी एक बोली विक्रेता द्वारा स्वीकार की गई"
-    }
+    },
+    "notifDuration3s": "3 सेकंड",
+    "notifDuration5s": "5 सेकंड (डिफ़ॉल्ट)",
+    "notifDuration8s": "8 सेकंड",
+    "notifDurationNever": "कभी नहीं"
   },
   "contact": {
     "title": "संपर्क और सहायता",

@@ -156,7 +156,10 @@
     "autoLockNever": "Nunca",
     "lockWalletTitle": "Bloquear billetera",
     "lockWalletDescription": "Bloquea tu billetera para requerir contraseña antes de usarla de nuevo.",
-    "lockWalletButton": "Bloquear billetera"
+    "lockWalletButton": "Bloquear billetera",
+    "statusUnlocked": "Desbloqueada",
+    "statusLocked": "Bloqueada",
+    "statusLoading": "Cargando"
   },
   "dataLayer": {
     "iagonTitle": "Almacenamiento descentralizado Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "El envío de una transacción falla",
       "bid_accepted": "Oferta aceptada",
       "bid_acceptedDesc": "Una oferta que realizaste fue aceptada por el vendedor"
-    }
+    },
+    "notifDuration3s": "3 segundos",
+    "notifDuration5s": "5 segundos (predeterminado)",
+    "notifDuration8s": "8 segundos",
+    "notifDurationNever": "Nunca"
   },
   "contact": {
     "title": "Contacto y soporte",

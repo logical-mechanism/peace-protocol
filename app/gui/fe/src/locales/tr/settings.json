@@ -156,7 +156,10 @@
     "autoLockNever": "Asla",
     "lockWalletTitle": "Cüzdanı Kilitle",
     "lockWalletDescription": "Tekrar kullanmadan önce parola girişi gerektirmek için cüzdanınızı kilitleyin.",
-    "lockWalletButton": "Cüzdanı Kilitle"
+    "lockWalletButton": "Cüzdanı Kilitle",
+    "statusUnlocked": "Kilidi açık",
+    "statusLocked": "Kilitli",
+    "statusLoading": "Yükleniyor"
   },
   "dataLayer": {
     "iagonTitle": "Iagon Merkezi Olmayan Depolama",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Bir işlem gönderimi başarısız oldu",
       "bid_accepted": "Teklif kabul edildi",
       "bid_acceptedDesc": "Verdiğiniz bir teklif satıcı tarafından kabul edildi"
-    }
+    },
+    "notifDuration3s": "3 saniye",
+    "notifDuration5s": "5 saniye (varsayılan)",
+    "notifDuration8s": "8 saniye",
+    "notifDurationNever": "Asla"
   },
   "contact": {
     "title": "İletişim ve Destek",

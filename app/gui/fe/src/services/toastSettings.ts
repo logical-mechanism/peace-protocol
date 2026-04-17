@@ -3,12 +3,13 @@ import { storageGet, storageSet } from './storageUtils'
 const TOAST_DURATION_KEY = 'veiled_toast_duration_ms'
 const TOAST_DURATION_DEFAULT = 5000
 
-/** Valid toast duration presets in milliseconds. 0 = never auto-dismiss. */
+/** Valid toast duration presets in milliseconds. 0 = never auto-dismiss.
+ *  labelKey resolves via t(`settings:preferences.${labelKey}`). */
 export const TOAST_DURATION_OPTIONS = [
-  { label: '3 seconds', value: 3000 },
-  { label: '5 seconds (default)', value: 5000 },
-  { label: '8 seconds', value: 8000 },
-  { label: 'Never', value: 0 },
+  { labelKey: 'notifDuration3s', value: 3000 },
+  { labelKey: 'notifDuration5s', value: 5000 },
+  { labelKey: 'notifDuration8s', value: 8000 },
+  { labelKey: 'notifDurationNever', value: 0 },
 ] as const
 
 /** Read the toast auto-dismiss duration from localStorage (ms, 0 = never). */

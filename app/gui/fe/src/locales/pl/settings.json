@@ -156,7 +156,10 @@
     "autoLockNever": "Nigdy",
     "lockWalletTitle": "Zablokuj portfel",
     "lockWalletDescription": "Zablokuj portfel, aby wymagac podania hasla przed ponownym uzyciem.",
-    "lockWalletButton": "Zablokuj portfel"
+    "lockWalletButton": "Zablokuj portfel",
+    "statusUnlocked": "Odblokowany",
+    "statusLocked": "Zablokowany",
+    "statusLoading": "Ładowanie"
   },
   "dataLayer": {
     "iagonTitle": "Iagon — zdecentralizowane przechowywanie",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Przesłanie transakcji nie powiodło się",
       "bid_accepted": "Oferta zaakceptowana",
       "bid_acceptedDesc": "Oferta, którą złożyłeś, została zaakceptowana przez sprzedającego"
-    }
+    },
+    "notifDuration3s": "3 sekundy",
+    "notifDuration5s": "5 sekund (domyślnie)",
+    "notifDuration8s": "8 sekund",
+    "notifDurationNever": "Nigdy"
   },
   "contact": {
     "title": "Kontakt i wsparcie",

@@ -156,7 +156,10 @@
     "autoLockNever": "なし",
     "lockWalletTitle": "ウォレットをロック",
     "lockWalletDescription": "ウォレットをロックして、再使用時にパスワードの入力を求めるようにします。",
-    "lockWalletButton": "ウォレットをロック"
+    "lockWalletButton": "ウォレットをロック",
+    "statusUnlocked": "ロック解除",
+    "statusLocked": "ロック中",
+    "statusLoading": "読み込み中"
   },
   "dataLayer": {
     "iagonTitle": "Iagon分散型ストレージ",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "トランザクションの送信に失敗しました",
       "bid_accepted": "入札承認済み",
       "bid_acceptedDesc": "あなたの入札が売り手に承認されました"
-    }
+    },
+    "notifDuration3s": "3秒",
+    "notifDuration5s": "5秒（デフォルト）",
+    "notifDuration8s": "8秒",
+    "notifDurationNever": "なし"
   },
   "contact": {
     "title": "お問い合わせとサポート",

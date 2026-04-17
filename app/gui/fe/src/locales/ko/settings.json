@@ -156,7 +156,10 @@
     "autoLockNever": "안 함",
     "lockWalletTitle": "지갑 잠금",
     "lockWalletDescription": "지갑을 잠가 다시 사용하기 전에 비밀번호를 입력하도록 합니다.",
-    "lockWalletButton": "지갑 잠금"
+    "lockWalletButton": "지갑 잠금",
+    "statusUnlocked": "잠금 해제됨",
+    "statusLocked": "잠김",
+    "statusLoading": "로딩 중"
   },
   "dataLayer": {
     "iagonTitle": "Iagon 분산 스토리지",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "거래 제출이 실패했습니다",
       "bid_accepted": "입찰 수락됨",
       "bid_acceptedDesc": "회원님이 한 입찰이 판매자에 의해 수락되었습니다"
-    }
+    },
+    "notifDuration3s": "3초",
+    "notifDuration5s": "5초 (기본값)",
+    "notifDuration8s": "8초",
+    "notifDurationNever": "끄기"
   },
   "contact": {
     "title": "연락처 및 지원",

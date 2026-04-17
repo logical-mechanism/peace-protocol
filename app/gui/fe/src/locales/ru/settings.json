@@ -156,7 +156,10 @@
     "autoLockNever": "Никогда",
     "lockWalletTitle": "Заблокировать кошелёк",
     "lockWalletDescription": "Заблокируйте кошелёк, чтобы требовать ввод пароля перед повторным использованием.",
-    "lockWalletButton": "Заблокировать кошелёк"
+    "lockWalletButton": "Заблокировать кошелёк",
+    "statusUnlocked": "Разблокирован",
+    "statusLocked": "Заблокирован",
+    "statusLoading": "Загрузка"
   },
   "dataLayer": {
     "iagonTitle": "Децентрализованное хранилище Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Отправка транзакции завершилась ошибкой",
       "bid_accepted": "Ставка принята",
       "bid_acceptedDesc": "Ваша ставка была принята продавцом"
-    }
+    },
+    "notifDuration3s": "3 секунды",
+    "notifDuration5s": "5 секунд (по умолчанию)",
+    "notifDuration8s": "8 секунд",
+    "notifDurationNever": "Никогда"
   },
   "contact": {
     "title": "Контакт и поддержка",

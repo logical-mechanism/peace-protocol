@@ -156,7 +156,10 @@
     "autoLockNever": "ไม่เลย",
     "lockWalletTitle": "ล็อกกระเป๋าเงิน",
     "lockWalletDescription": "ล็อกกระเป๋าเงินเพื่อกำหนดให้ต้องป้อนรหัสผ่านก่อนใช้งานอีกครั้ง",
-    "lockWalletButton": "ล็อกกระเป๋าเงิน"
+    "lockWalletButton": "ล็อกกระเป๋าเงิน",
+    "statusUnlocked": "ปลดล็อกแล้ว",
+    "statusLocked": "ล็อกแล้ว",
+    "statusLoading": "กำลังโหลด"
   },
   "dataLayer": {
     "iagonTitle": "พื้นที่จัดเก็บแบบกระจายศูนย์ Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "การส่งธุรกรรมล้มเหลว",
       "bid_accepted": "การเสนอราคาถูกยอมรับ",
       "bid_acceptedDesc": "การเสนอราคาของคุณถูกยอมรับโดยผู้ขาย"
-    }
+    },
+    "notifDuration3s": "3 วินาที",
+    "notifDuration5s": "5 วินาที (ค่าเริ่มต้น)",
+    "notifDuration8s": "8 วินาที",
+    "notifDurationNever": "ไม่เคย"
   },
   "contact": {
     "title": "ติดต่อและสนับสนุน",

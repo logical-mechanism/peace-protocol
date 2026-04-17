@@ -156,7 +156,10 @@
     "autoLockNever": "Nooit",
     "lockWalletTitle": "Wallet vergrendelen",
     "lockWalletDescription": "Vergrendel je wallet zodat een wachtwoord vereist is voor gebruik.",
-    "lockWalletButton": "Wallet vergrendelen"
+    "lockWalletButton": "Wallet vergrendelen",
+    "statusUnlocked": "Ontgrendeld",
+    "statusLocked": "Vergrendeld",
+    "statusLoading": "Laden"
   },
   "dataLayer": {
     "iagonTitle": "Iagon gedecentraliseerde opslag",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Het indienen van een transactie mislukt",
       "bid_accepted": "Bod geaccepteerd",
       "bid_acceptedDesc": "Een bod dat je hebt geplaatst is geaccepteerd door de verkoper"
-    }
+    },
+    "notifDuration3s": "3 seconden",
+    "notifDuration5s": "5 seconden (standaard)",
+    "notifDuration8s": "8 seconden",
+    "notifDurationNever": "Nooit"
   },
   "contact": {
     "title": "Contact & Ondersteuning",

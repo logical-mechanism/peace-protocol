@@ -156,7 +156,10 @@
     "autoLockNever": "Tidak Pernah",
     "lockWalletTitle": "Kunci Dompet",
     "lockWalletDescription": "Kunci dompet Anda untuk mengharuskan memasukkan kata sandi sebelum menggunakannya lagi.",
-    "lockWalletButton": "Kunci Dompet"
+    "lockWalletButton": "Kunci Dompet",
+    "statusUnlocked": "Terbuka",
+    "statusLocked": "Terkunci",
+    "statusLoading": "Memuat"
   },
   "dataLayer": {
     "iagonTitle": "Penyimpanan Terdesentralisasi Iagon",
@@ -348,7 +351,11 @@
       "tx_failedDesc": "Pengiriman transaksi gagal",
       "bid_accepted": "Tawaran diterima",
       "bid_acceptedDesc": "Tawaran yang Anda buat telah diterima oleh penjual"
-    }
+    },
+    "notifDuration3s": "3 detik",
+    "notifDuration5s": "5 detik (default)",
+    "notifDuration8s": "8 detik",
+    "notifDurationNever": "Tidak pernah"
   },
   "contact": {
     "title": "Kontak & Dukungan",
