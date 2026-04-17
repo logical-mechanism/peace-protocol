@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useAudioPlayback } from './useAudioPlayback';
 import { formatTime, getConversionHint, computeSeekRatio, computeTooltipLeft } from './audioUtils';
@@ -64,6 +65,7 @@ function AlbumArtPlaceholder() {
 }
 
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
+  const { t } = useTranslation('common');
   // Cap at 5MB to prevent memory bloat from large embedded art
   const url = useMemo(() => {
     if (picture.data.length > 5_000_000) return null;
@@ -80,13 +82,14 @@ function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: st
   return (
     <img
       src={url}
-      alt="Album art"
+      alt={t('mediaPlayer.albumArt')}
       className="w-14 h-14 rounded-[var(--radius-md)] object-cover flex-shrink-0 shadow-md"
     />
   );
 }
 
 export default function AudioPlayer({ fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
+  const { t } = useTranslation('common');
   const { waveformCanvasRef, metadata, vizFailed, waveformDuration, drawWaveform, updateProgress, forceRedraw } =
     useAudioWaveform(tokenName, category);
 
@@ -637,8 +640,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           <button
             onClick={toggleMute}
             className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
-            title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            title={isMuted ? t('mediaPlayer.unmuteShortcut', { key: 'M' }) : t('mediaPlayer.muteShortcut', { key: 'M' })}
+            aria-label={isMuted ? t('mediaPlayer.unmute') : t('mediaPlayer.mute')}
             aria-pressed={isMuted}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -660,15 +663,15 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="audio-volume-slider w-20"
             style={{ '--volume-pct': `${Math.round(volume * 100)}%` } as CSSProperties}
-            aria-label="Volume"
+            aria-label={t('mediaPlayer.volume')}
             role="slider"
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={volume}
-            aria-valuetext={`${Math.round(volume * 100)}%`}
+            aria-valuetext={t('mediaPlayer.volumePercent', { percent: Math.round(volume * 100) })}
           />
           <span className="text-[10px] font-mono text-[var(--text-muted)] w-7 text-right tabular-nums select-none">
-            {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+            {isMuted ? t('mediaPlayer.volumePercent', { percent: 0 }) : t('mediaPlayer.volumePercent', { percent: Math.round(volume * 100) })}
           </span>
         </div>
       </div>
