@@ -31,6 +31,14 @@ describe('languageStorage', () => {
       localStorage.setItem('veiled_language', 'zz')
       expect(getLanguage()).toBe('en')
     })
+
+    it('returns the stored code for each supported language', () => {
+      const codes = ['es', 'fr', 'de', 'zh', 'ja', 'ko'] as const
+      for (const code of codes) {
+        localStorage.setItem('veiled_language', code)
+        expect(getLanguage()).toBe(code)
+      }
+    })
   })
 
   describe('setLanguage + hasStoredLanguage', () => {
@@ -61,8 +69,51 @@ describe('languageStorage', () => {
       expect(localStorage.getItem('veiled_language')).toBe('en')
     })
 
-    it('falls back to en when OS reports an unsupported locale', async () => {
+    it('normalizes OS locale to supported code', async () => {
       ;(invoke as Mock).mockResolvedValueOnce('ja-JP')
+      const code = await initializeLanguage()
+      expect(code).toBe('ja')
+      expect(localStorage.getItem('veiled_language')).toBe('ja')
+    })
+
+    it('normalizes zh-CN to zh', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('zh-CN')
+      const code = await initializeLanguage()
+      expect(code).toBe('zh')
+    })
+
+    it('normalizes es-MX to es', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('es-MX')
+      const code = await initializeLanguage()
+      expect(code).toBe('es')
+    })
+
+    it('normalizes fr_FR to fr', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('fr_FR')
+      const code = await initializeLanguage()
+      expect(code).toBe('fr')
+    })
+
+    it('normalizes de-AT to de', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('de-AT')
+      const code = await initializeLanguage()
+      expect(code).toBe('de')
+    })
+
+    it('normalizes ko-KR to ko', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('ko-KR')
+      const code = await initializeLanguage()
+      expect(code).toBe('ko')
+    })
+
+    it('falls back to en when OS reports an unsupported locale', async () => {
+      localStorage.clear()
+      ;(invoke as Mock).mockResolvedValueOnce('sw-KE')
       const code = await initializeLanguage()
       expect(code).toBe('en')
     })
@@ -78,6 +129,22 @@ describe('languageStorage', () => {
   describe('AVAILABLE_LANGUAGES', () => {
     it('includes English', () => {
       expect(AVAILABLE_LANGUAGES.find((l) => l.code === 'en')).toBeTruthy()
+    })
+
+    it('includes all 7 supported languages', () => {
+      const codes = AVAILABLE_LANGUAGES.map((l) => l.code)
+      expect(codes).toEqual(['en', 'es', 'fr', 'de', 'zh', 'ja', 'ko'])
+    })
+
+    it('has native-script labels for each locale', () => {
+      const labels = Object.fromEntries(AVAILABLE_LANGUAGES.map((l) => [l.code, l.label]))
+      expect(labels.en).toBe('English')
+      expect(labels.es).toBe('Español')
+      expect(labels.fr).toBe('Français')
+      expect(labels.de).toBe('Deutsch')
+      expect(labels.zh).toBe('中文')
+      expect(labels.ja).toBe('日本語')
+      expect(labels.ko).toBe('한국어')
     })
 
     it('every entry has a non-empty label', () => {
