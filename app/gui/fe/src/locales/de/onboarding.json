@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Einführungstour",
+  "skip": "Tour überspringen",
+  "skipAria": "Einführungstour überspringen",
+  "next": "Weiter",
+  "done": "Fertig",
+  "nextAria": "Nächster Schritt ({{current}} von {{total}})",
+  "finishAria": "Einführungstour beenden",
+  "stepProgress": "Schritt {{current}} von {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Erstelle deine Wallet",
+      "description": "Willkommen bei Veiled! Beginne, indem du eine neue Wallet erstellst oder eine bestehende importierst. Deine Wallet sichert deine Identität auf dem Marktplatz."
+    },
+    "nodeSync": {
+      "title": "Mit der Blockchain synchronisieren",
+      "description": "Dein Node wird die Cardano-Blockchain herunterladen und synchronisieren. Dies ist eine einmalige Einrichtung, die 10-20 Minuten dauert. Du kannst im Hintergrund fortfahren."
+    },
+    "marketplace": {
+      "title": "Den Marktplatz durchsuchen",
+      "description": "Der Marktplatz-Tab zeigt alle verfügbaren verschlüsselten Datenangebote. Durchsuche Kategorien, prüfe Preise und finde Daten, die du kaufen möchtest."
+    },
+    "firstBid": {
+      "title": "Gib dein erstes Gebot ab",
+      "description": "Etwas Interessantes gefunden? Klicke auf ein Angebot, um Details zu sehen, und gib dann ein Gebot mit deinem gewünschten Preis ab. Der Verkäufer kann dein Gebot annehmen, um den Austausch abzuschließen."
+    }
+  }
+}
