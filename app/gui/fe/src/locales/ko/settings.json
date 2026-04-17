@@ -355,7 +355,11 @@
     "notifDuration3s": "3초",
     "notifDuration5s": "5초 (기본값)",
     "notifDuration8s": "8초",
-    "notifDurationNever": "끄기"
+    "notifDurationNever": "끄기",
+    "tutorialsTitle": "가이드 튜토리얼",
+    "tutorialsDescription": "리스팅 생성 및 입찰을 위한 단계별 가이드를 다시 활성화합니다.",
+    "tutorialsReset": "튜토리얼 다시 시작",
+    "tutorialsResetDone": "튜토리얼이 초기화됨"
   },
   "contact": {
     "title": "연락처 및 지원",

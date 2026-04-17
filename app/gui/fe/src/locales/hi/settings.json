@@ -355,7 +355,11 @@
     "notifDuration3s": "3 सेकंड",
     "notifDuration5s": "5 सेकंड (डिफ़ॉल्ट)",
     "notifDuration8s": "8 सेकंड",
-    "notifDurationNever": "कभी नहीं"
+    "notifDurationNever": "कभी नहीं",
+    "tutorialsTitle": "गाइडेड ट्यूटोरियल",
+    "tutorialsDescription": "लिस्टिंग बनाने और बोली लगाने के लिए चरण-दर-चरण गाइड को पुनः सक्षम करें।",
+    "tutorialsReset": "ट्यूटोरियल पुनः प्रारंभ करें",
+    "tutorialsResetDone": "ट्यूटोरियल रीसेट हो गए"
   },
   "contact": {
     "title": "संपर्क और सहायता",

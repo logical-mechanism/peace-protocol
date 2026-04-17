@@ -355,7 +355,11 @@
     "notifDuration3s": "3 seconden",
     "notifDuration5s": "5 seconden (standaard)",
     "notifDuration8s": "8 seconden",
-    "notifDurationNever": "Nooit"
+    "notifDurationNever": "Nooit",
+    "tutorialsTitle": "Begeleide tutorials",
+    "tutorialsDescription": "Schakel de stapsgewijze handleidingen voor het aanmaken van listings en het plaatsen van biedingen opnieuw in.",
+    "tutorialsReset": "Tutorials herstarten",
+    "tutorialsResetDone": "Tutorials gereset"
   },
   "contact": {
     "title": "Contact & Ondersteuning",

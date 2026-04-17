@@ -355,7 +355,11 @@
     "notifDuration3s": "3 Sekunden",
     "notifDuration5s": "5 Sekunden (Standard)",
     "notifDuration8s": "8 Sekunden",
-    "notifDurationNever": "Nie"
+    "notifDurationNever": "Nie",
+    "tutorialsTitle": "Geführte Tutorials",
+    "tutorialsDescription": "Aktivieren Sie die Schritt-für-Schritt-Anleitungen zum Erstellen von Angeboten und Abgeben von Geboten erneut.",
+    "tutorialsReset": "Tutorials neu starten",
+    "tutorialsResetDone": "Tutorials zurückgesetzt"
   },
   "contact": {
     "title": "Kontakt & Support",

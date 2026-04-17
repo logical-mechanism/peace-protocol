@@ -355,7 +355,11 @@
       "tx_failedDesc": "A transaction submission fails",
       "bid_accepted": "Bid Accepted",
       "bid_acceptedDesc": "A bid you placed was accepted by the seller"
-    }
+    },
+    "tutorialsTitle": "Guided Tutorials",
+    "tutorialsDescription": "Re-enable the step-by-step guided walkthroughs for creating listings and placing bids.",
+    "tutorialsReset": "Restart Tutorials",
+    "tutorialsResetDone": "Tutorials Reset"
   },
   "contact": {
     "title": "Contact & Support",

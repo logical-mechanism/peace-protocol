@@ -355,7 +355,11 @@
     "notifDuration3s": "3 วินาที",
     "notifDuration5s": "5 วินาที (ค่าเริ่มต้น)",
     "notifDuration8s": "8 วินาที",
-    "notifDurationNever": "ไม่เคย"
+    "notifDurationNever": "ไม่เคย",
+    "tutorialsTitle": "บทช่วยสอนแนะนำ",
+    "tutorialsDescription": "เปิดใช้งานคำแนะนำทีละขั้นตอนสำหรับการสร้างรายการและการเสนอราคาอีกครั้ง",
+    "tutorialsReset": "รีสตาร์ทบทช่วยสอน",
+    "tutorialsResetDone": "รีเซ็ตบทช่วยสอนแล้ว"
   },
   "contact": {
     "title": "ติดต่อและสนับสนุน",

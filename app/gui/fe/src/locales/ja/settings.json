@@ -355,7 +355,11 @@
     "notifDuration3s": "3秒",
     "notifDuration5s": "5秒（デフォルト）",
     "notifDuration8s": "8秒",
-    "notifDurationNever": "なし"
+    "notifDurationNever": "なし",
+    "tutorialsTitle": "ガイド付きチュートリアル",
+    "tutorialsDescription": "リスティングの作成と入札のためのステップバイステップガイドを再度有効にします。",
+    "tutorialsReset": "チュートリアルを再開",
+    "tutorialsResetDone": "チュートリアルをリセットしました"
   },
   "contact": {
     "title": "お問い合わせとサポート",
