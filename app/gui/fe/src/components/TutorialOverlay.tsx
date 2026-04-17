@@ -199,7 +199,7 @@ export default function TutorialOverlay({
       <div
         ref={tooltipRef}
         role="dialog"
-        aria-label="Tutorial step"
+        aria-label={t('tutorial.stepAria')}
         aria-labelledby="tutorial-step-title"
         className="fixed rounded-[var(--radius-lg)] p-5 shadow-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]"
         style={tooltipStyle}

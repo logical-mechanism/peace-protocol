@@ -529,7 +529,7 @@ export default function ImportListingModal({
                       aria-describedby={errors.suggestedPrice ? 'import-suggestedPrice-error' : undefined}
                       className={`${inputClass('suggestedPrice')} pr-12`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">ADA</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">{t('common:units.ada')}</span>
                   </div>
                   {errors.suggestedPrice && <p id="import-suggestedPrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.suggestedPrice}</p>}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">{t('modals:importListing.priceHelp')}</p>

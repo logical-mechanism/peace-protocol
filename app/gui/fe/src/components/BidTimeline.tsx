@@ -41,7 +41,7 @@ export default function BidTimeline({ stage, bidStatus, compact = false }: BidTi
   return (
     <div
       role="progressbar"
-      aria-label="Bid progress"
+      aria-label={t('bidTimeline.progressAria')}
       aria-valuemin={0}
       aria-valuemax={3}
       aria-valuenow={currentIdx}

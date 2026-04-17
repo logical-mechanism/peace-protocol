@@ -295,7 +295,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                   }
                 }}
                 className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-[var(--transition-base)] ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
-                aria-label="Page number"
+                aria-label={t('pdfViewer.pageNumberAria')}
                 aria-invalid={pageInputInvalid || undefined}
               />
               <span>/ {numPages}</span>
@@ -441,7 +441,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         }}
         placeholder={t('pdfViewer.findPlaceholder')}
         className="flex-1 min-w-0 px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
-        aria-label="Search text in PDF"
+        aria-label={t('pdfViewer.searchTextAria')}
       />
       <button
         onClick={goToPrevMatch}

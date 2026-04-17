@@ -299,7 +299,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
   const imageElement = blobUrl ? (
     <img
       src={blobUrl}
-      alt="Decrypted content"
+      alt={t('ui.decryptedContent')}
       className="select-none"
       draggable={false}
       style={getImageStyle()}

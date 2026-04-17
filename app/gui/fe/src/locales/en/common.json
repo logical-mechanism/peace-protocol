@@ -258,6 +258,8 @@
     "searching": "Searching...",
     "noMatches": "No matches",
     "loadingPdf": "Loading PDF...",
+    "pageNumberAria": "Page number",
+    "searchTextAria": "Search text in PDF",
     "saveAs": "Save As",
     "closeSearch": "Close search (Escape)",
     "closeSearchAria": "Close search"
@@ -271,6 +273,7 @@
     "cancelled": "Cancelled"
   },
   "bidTimeline": {
+    "progressAria": "Bid progress",
     "bidPlaced": "Bid Placed",
     "accepted": "Accepted",
     "decrypting": "Decrypting",
@@ -305,6 +308,9 @@
   },
   "layoutPopover": {
     "layoutOptions": "Layout options",
+    "viewModeAria": "View mode",
+    "cardSizeAria": "Card size",
+    "columnCountAria": "Column count",
     "view": "View",
     "gridView": "Grid view",
     "listView": "List view",
@@ -316,6 +322,8 @@
     "loadingEllipsis": "Loading...",
     "skipToContent": "Skip to content",
     "scrollToTop": "Scroll to top",
+    "preview": "Preview",
+    "decryptedContent": "Decrypted content",
     "refreshingData": "Refreshing data",
     "moreInfo": "More information",
     "viewOnCardanoScan": "View on CardanoScan",
@@ -324,7 +332,8 @@
   },
   "tutorial": {
     "skipTutorial": "Skip tutorial",
-    "finish": "Finish"
+    "finish": "Finish",
+    "stepAria": "Tutorial step"
   },
   "mnemonic": {
     "invalidWord": "Not a valid BIP-39 word"

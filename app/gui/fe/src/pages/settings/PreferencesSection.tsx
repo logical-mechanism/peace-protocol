@@ -67,15 +67,15 @@ export default function PreferencesSection() {
 
       {/* Theme */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-2">Theme</h2>
+        <h2 className="text-lg font-medium mb-2">{t('preferences.themeTitle')}</h2>
         <p className="text-sm text-[var(--text-muted)] mb-4">
-          Choose dark, light, or follow your system preference.
+          {t('preferences.themeDescription')}
         </p>
         <div className="flex gap-2">
           {([
-            { label: 'Dark', value: 'dark' as Theme },
-            { label: 'Light', value: 'light' as Theme },
-            { label: 'System', value: 'system' as Theme },
+            { label: t('preferences.themeDark'), value: 'dark' as Theme },
+            { label: t('preferences.themeLight'), value: 'light' as Theme },
+            { label: t('preferences.themeSystem'), value: 'system' as Theme },
           ] as const).map((option) => (
             <button
               key={option.value}

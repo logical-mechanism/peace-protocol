@@ -85,7 +85,7 @@ export default function LayoutPopover({
           {/* View mode */}
           <div className="mb-3">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.view')}</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="View mode">
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.viewModeAria')}>
               <button
                 type="button"
                 onClick={() => onViewModeChange('grid')}
@@ -127,7 +127,7 @@ export default function LayoutPopover({
           {/* Card size — grid only */}
           <div className={`mb-3 transition-opacity duration-[var(--transition-fast)] ${isGrid ? '' : 'opacity-40 pointer-events-none'}`}>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.cardSize')}</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Card size">
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.cardSizeAria')}>
               {SIZE_OPTIONS.map((size) => (
                 <button
                   key={size}
@@ -170,7 +170,7 @@ export default function LayoutPopover({
           {/* Column count — grid only */}
           <div className={`transition-opacity duration-[var(--transition-fast)] ${isGrid ? '' : 'opacity-40 pointer-events-none'}`}>
             <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">{t('layoutPopover.columns')}</div>
-            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label="Column count">
+            <div className="flex border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden" role="group" aria-label={t('layoutPopover.columnCountAria')}>
               {COLUMN_OPTIONS.map((cols) => (
                 <button
                   key={cols}

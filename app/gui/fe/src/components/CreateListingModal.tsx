@@ -966,7 +966,7 @@ export default function CreateListingModal({
                     {imagePreviewUrl ? (
                       <img
                         src={imagePreviewUrl}
-                        alt="Preview"
+                        alt={t('common:ui.preview')}
                         className="w-16 h-16 rounded-[var(--radius-sm)] object-cover border border-[var(--border-subtle)]"
                         onLoad={() => setImagePreviewState('loaded')}
                         onError={() => {

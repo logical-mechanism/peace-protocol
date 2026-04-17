@@ -304,6 +304,11 @@
     "viewQueueAfter": " tab. Failed items can be retried from there."
   },
   "preferences": {
+    "themeTitle": "Theme",
+    "themeDescription": "Choose dark, light, or follow your system preference.",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeSystem": "System",
     "nsfwTitle": "NSFW Content",
     "nsfwDescription": "When disabled, NSFW listings have blurred images.",
     "nsfwLabel": "Show NSFW content",
