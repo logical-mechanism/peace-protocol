@@ -355,7 +355,11 @@
     "notifDuration3s": "3 secondes",
     "notifDuration5s": "5 secondes (par défaut)",
     "notifDuration8s": "8 secondes",
-    "notifDurationNever": "Jamais"
+    "notifDurationNever": "Jamais",
+    "tutorialsTitle": "Tutoriels guidés",
+    "tutorialsDescription": "Réactiver les tutoriels pas à pas pour créer des annonces et faire des offres.",
+    "tutorialsReset": "Redémarrer les tutoriels",
+    "tutorialsResetDone": "Tutoriels réinitialisés"
   },
   "contact": {
     "title": "Contact et support",

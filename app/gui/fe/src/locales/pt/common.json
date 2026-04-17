@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Pular tutorial",
     "finish": "Concluir",
-    "stepAria": "Etapa do tutorial"
+    "stepAria": "Etapa do tutorial",
+    "listing": {
+      "step1Title": "Criar uma listagem",
+      "step1Desc": "Clique neste botão para abrir o formulário de listagem. Você pode listar conteúdo de texto on-chain ou enviar arquivos criptografados via Iagon.",
+      "step2Title": "Escolher tipo de dados",
+      "step2Desc": "Selecione se sua listagem contém texto (armazenado on-chain) ou um arquivo (criptografado e enviado ao Iagon).",
+      "step3Title": "Adicionar uma descrição",
+      "step3Desc": "Escreva uma descrição clara para que os compradores saibam o que estão adquirindo. Isso é visível para todos no marketplace.",
+      "step4Title": "Definir seu preço",
+      "step4Desc": "Insira um preço sugerido em ADA. Os compradores podem dar lances de qualquer valor, mas isso ajuda a definir expectativas.",
+      "step5Title": "Enviar e assinar",
+      "step5Desc": "Revise sua listagem e clique em enviar. Sua carteira pedirá para assinar a transação."
+    }
   },
   "mnemonic": {
     "invalidWord": "Palavra BIP-39 inválida"

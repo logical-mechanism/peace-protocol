@@ -355,7 +355,11 @@
     "notifDuration3s": "3 секунды",
     "notifDuration5s": "5 секунд (по умолчанию)",
     "notifDuration8s": "8 секунд",
-    "notifDurationNever": "Никогда"
+    "notifDurationNever": "Никогда",
+    "tutorialsTitle": "Обучающие руководства",
+    "tutorialsDescription": "Повторно включить пошаговые руководства по созданию объявлений и размещению ставок.",
+    "tutorialsReset": "Перезапустить руководства",
+    "tutorialsResetDone": "Руководства сброшены"
   },
   "contact": {
     "title": "Контакт и поддержка",

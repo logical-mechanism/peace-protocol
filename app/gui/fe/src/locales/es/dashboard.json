@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Ocultar tus anuncios",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW oculto",
-    "nsfwHide": "Ocultar anuncios NSFW"
+    "nsfwHide": "Ocultar anuncios NSFW",
+    "tutorialBannerTitle": "¿Nuevo en Veiled?",
+    "tutorialBannerDesc": "Haz un recorrido guiado para aprender a crear tu primer anuncio.",
+    "tutorialBannerStart": "Iniciar recorrido",
+    "tutorialBannerDismiss": "Descartar"
   },
   "mySales": {
     "loading": "Cargando tus anuncios…",

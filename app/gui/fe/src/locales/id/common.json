@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Lewati tutorial",
     "finish": "Selesai",
-    "stepAria": "Langkah tutorial"
+    "stepAria": "Langkah tutorial",
+    "listing": {
+      "step1Title": "Buat Daftar",
+      "step1Desc": "Klik tombol ini untuk membuka formulir daftar. Anda dapat mendaftarkan konten teks on-chain atau mengunggah berkas terenkripsi melalui Iagon.",
+      "step2Title": "Pilih Tipe Data",
+      "step2Desc": "Pilih apakah daftar Anda berisi teks (disimpan on-chain) atau berkas (dienkripsi dan diunggah ke Iagon).",
+      "step3Title": "Tambahkan Deskripsi",
+      "step3Desc": "Tulis deskripsi yang jelas agar pembeli tahu apa yang mereka beli. Ini terlihat oleh semua orang di pasar.",
+      "step4Title": "Tetapkan Harga Anda",
+      "step4Desc": "Masukkan harga yang disarankan dalam ADA. Pembeli dapat menawar berapa pun, tetapi ini membantu menetapkan ekspektasi.",
+      "step5Title": "Kirim & Tanda Tangani",
+      "step5Desc": "Tinjau daftar Anda dan klik kirim. Dompet Anda akan meminta Anda untuk menandatangani transaksi."
+    }
   },
   "mnemonic": {
     "invalidWord": "Bukan kata BIP-39 yang valid"

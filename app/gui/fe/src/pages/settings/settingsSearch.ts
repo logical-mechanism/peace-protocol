@@ -11,6 +11,7 @@ export const searchableSections: { tab: string; title: string; keywords: string[
   { tab: 'preferences', title: 'Notification Duration', keywords: ['toast', 'notification', 'duration', 'dismiss', 'alert'] },
   { tab: 'preferences', title: 'Desktop Notifications', keywords: ['desktop', 'notification', 'system', 'os', 'bid', 'alert'] },
   { tab: 'preferences', title: 'Notification Sounds', keywords: ['sound', 'notification', 'audio', 'volume', 'alert', 'ping', 'preview'] },
+  { tab: 'preferences', title: 'Guided Tutorials', keywords: ['tutorial', 'guide', 'walkthrough', 'onboarding', 'restart', 'reset', 'help', 'tour'] },
   { tab: 'wallet', title: 'Lock Wallet', keywords: ['lock', 'wallet', 'password'] },
   { tab: 'network', title: 'Network Selection', keywords: ['network', 'preprod', 'mainnet', 'switch', 'restart'] },
   { tab: 'datalayer', title: 'Iagon Decentralized Storage', keywords: ['iagon', 'storage', 'decentralized', 'api', 'key', 'upload', 'download', 'file', 'connect', 'verify', 'disconnect'] },

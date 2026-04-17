@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Pomin samouczek",
     "finish": "Zakoncz",
-    "stepAria": "Krok samouczka"
+    "stepAria": "Krok samouczka",
+    "listing": {
+      "step1Title": "Utwórz aukcję",
+      "step1Desc": "Kliknij ten przycisk, aby otworzyć formularz aukcji. Możesz wystawić treść tekstową on-chain lub przesłać zaszyfrowane pliki przez Iagon.",
+      "step2Title": "Wybierz typ danych",
+      "step2Desc": "Wybierz, czy Twoja aukcja zawiera tekst (przechowywany on-chain) czy plik (zaszyfrowany i przesłany do Iagon).",
+      "step3Title": "Dodaj opis",
+      "step3Desc": "Napisz jasny opis, aby kupujący wiedzieli, co kupują. Jest on widoczny dla wszystkich na rynku.",
+      "step4Title": "Ustal cenę",
+      "step4Desc": "Podaj sugerowaną cenę w ADA. Kupujący mogą złożyć ofertę na dowolną kwotę, ale to pomaga ustalić oczekiwania.",
+      "step5Title": "Wyślij i podpisz",
+      "step5Desc": "Przejrzyj swoją aukcję i kliknij wyślij. Portfel poprosi o podpisanie transakcji."
+    }
   },
   "mnemonic": {
     "invalidWord": "Nieprawidlowe slowo BIP-39"

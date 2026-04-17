@@ -355,7 +355,11 @@
     "notifDuration3s": "3 segundos",
     "notifDuration5s": "5 segundos (predeterminado)",
     "notifDuration8s": "8 segundos",
-    "notifDurationNever": "Nunca"
+    "notifDurationNever": "Nunca",
+    "tutorialsTitle": "Tutoriales guiados",
+    "tutorialsDescription": "Reactivar los tutoriales paso a paso para crear listados y hacer ofertas.",
+    "tutorialsReset": "Reiniciar tutoriales",
+    "tutorialsResetDone": "Tutoriales reiniciados"
   },
   "contact": {
     "title": "Contacto y soporte",

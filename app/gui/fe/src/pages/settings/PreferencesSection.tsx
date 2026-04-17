@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../../i18n'
 import { AVAILABLE_LANGUAGES, getLanguage, setLanguage, type LanguageCode } from '../../services/languageStorage'
@@ -14,6 +14,7 @@ import {
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
 import { getTheme, setTheme, applyTheme, listenToSystemTheme, type Theme } from '../../services/themeStorage'
 import { getNsfwEnabled, setNsfwEnabled } from '../../services/nsfwStorage'
+import { resetTutorials } from '../../services/onboardingStorage'
 import Select from '../../components/Select'
 
 export default function PreferencesSection() {
@@ -41,6 +42,12 @@ export default function PreferencesSection() {
     return initial
   })
   const [desktopNotifEnabled, setDesktopNotifEnabledState] = useState(() => isDesktopNotificationsEnabled())
+  const [tutorialsReset, setTutorialsReset] = useState(false)
+
+  const handleResetTutorials = useCallback(() => {
+    resetTutorials()
+    setTutorialsReset(true)
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -272,6 +279,25 @@ export default function PreferencesSection() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Restart Tutorials */}
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-medium">{t('preferences.tutorialsTitle')}</h2>
+            <p className="text-sm text-[var(--text-muted)]">
+              {t('preferences.tutorialsDescription')}
+            </p>
+          </div>
+          <button
+            onClick={handleResetTutorials}
+            disabled={tutorialsReset}
+            className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {tutorialsReset ? t('preferences.tutorialsResetDone') : t('preferences.tutorialsReset')}
+          </button>
+        </div>
       </div>
     </div>
   )

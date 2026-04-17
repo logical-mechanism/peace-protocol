@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Ocultar suas próprias listagens",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW oculto",
-    "nsfwHide": "Ocultar listagens NSFW"
+    "nsfwHide": "Ocultar listagens NSFW",
+    "tutorialBannerTitle": "Novo no Veiled?",
+    "tutorialBannerDesc": "Faça um tour guiado para aprender a criar sua primeira listagem.",
+    "tutorialBannerStart": "Iniciar tour",
+    "tutorialBannerDismiss": "Dispensar"
   },
   "mySales": {
     "loading": "Carregando suas listagens…",

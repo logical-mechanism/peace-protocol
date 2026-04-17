@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Sembunyikan daftar Anda sendiri",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW disembunyikan",
-    "nsfwHide": "Sembunyikan daftar NSFW"
+    "nsfwHide": "Sembunyikan daftar NSFW",
+    "tutorialBannerTitle": "Baru di Veiled?",
+    "tutorialBannerDesc": "Ikuti tur panduan untuk mempelajari cara membuat daftar pertama Anda.",
+    "tutorialBannerStart": "Mulai Tur",
+    "tutorialBannerDismiss": "Tutup"
   },
   "mySales": {
     "loading": "Memuat daftar Anda…",

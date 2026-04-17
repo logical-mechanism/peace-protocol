@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Tutorial überspringen",
     "finish": "Fertig",
-    "stepAria": "Tutorial-Schritt"
+    "stepAria": "Tutorial-Schritt",
+    "listing": {
+      "step1Title": "Angebot erstellen",
+      "step1Desc": "Klicke auf diese Schaltfläche, um das Angebotsformular zu öffnen. Du kannst Textinhalte on-chain listen oder verschlüsselte Dateien über Iagon hochladen.",
+      "step2Title": "Datentyp wählen",
+      "step2Desc": "Wähle, ob dein Angebot Text (on-chain gespeichert) oder eine Datei (verschlüsselt und auf Iagon hochgeladen) enthält.",
+      "step3Title": "Beschreibung hinzufügen",
+      "step3Desc": "Schreibe eine klare Beschreibung, damit Käufer wissen, was sie erwerben. Diese ist für alle auf dem Marktplatz sichtbar.",
+      "step4Title": "Preis festlegen",
+      "step4Desc": "Gib einen empfohlenen Preis in ADA ein. Käufer können jeden Betrag bieten, aber dies hilft bei der Orientierung.",
+      "step5Title": "Absenden & Signieren",
+      "step5Desc": "Überprüfe dein Angebot und klicke auf Absenden. Dein Wallet fordert dich auf, die Transaktion zu signieren."
+    }
   },
   "mnemonic": {
     "invalidWord": "Kein gültiges BIP-39 Wort"

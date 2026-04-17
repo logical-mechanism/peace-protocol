@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Passer le tutoriel",
     "finish": "Terminer",
-    "stepAria": "Étape du tutoriel"
+    "stepAria": "Étape du tutoriel",
+    "listing": {
+      "step1Title": "Créer une annonce",
+      "step1Desc": "Cliquez sur ce bouton pour ouvrir le formulaire d'annonce. Vous pouvez publier du contenu texte on-chain ou téléverser des fichiers chiffrés via Iagon.",
+      "step2Title": "Choisir le type de données",
+      "step2Desc": "Sélectionnez si votre annonce contient du texte (stocké on-chain) ou un fichier (chiffré et téléversé sur Iagon).",
+      "step3Title": "Ajouter une description",
+      "step3Desc": "Rédigez une description claire pour que les acheteurs sachent ce qu'ils achètent. Elle est visible par tous sur le marché.",
+      "step4Title": "Définir votre prix",
+      "step4Desc": "Entrez un prix suggéré en ADA. Les acheteurs peuvent offrir n'importe quel montant, mais cela aide à fixer les attentes.",
+      "step5Title": "Soumettre et signer",
+      "step5Desc": "Vérifiez votre annonce et cliquez sur soumettre. Votre portefeuille vous demandera de signer la transaction."
+    }
   },
   "mnemonic": {
     "invalidWord": "Ce n'est pas un mot BIP-39 valide"

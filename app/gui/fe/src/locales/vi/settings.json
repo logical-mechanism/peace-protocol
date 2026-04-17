@@ -355,7 +355,11 @@
     "notifDuration3s": "3 giây",
     "notifDuration5s": "5 giây (mặc định)",
     "notifDuration8s": "8 giây",
-    "notifDurationNever": "Không bao giờ"
+    "notifDurationNever": "Không bao giờ",
+    "tutorialsTitle": "Hướng dẫn từng bước",
+    "tutorialsDescription": "Bật lại các hướng dẫn từng bước để tạo danh sách và đặt giá thầu.",
+    "tutorialsReset": "Khởi động lại hướng dẫn",
+    "tutorialsResetDone": "Đã đặt lại hướng dẫn"
   },
   "contact": {
     "title": "Liên hệ & Hỗ trợ",

@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "跳过教程",
     "finish": "完成",
-    "stepAria": "教程步骤"
+    "stepAria": "教程步骤",
+    "listing": {
+      "step1Title": "创建商品",
+      "step1Desc": "点击此按钮打开商品表单。您可以在链上发布文本内容，或通过 Iagon 上传加密文件。",
+      "step2Title": "选择数据类型",
+      "step2Desc": "选择您的商品包含文本（存储在链上）还是文件（加密后上传至 Iagon）。",
+      "step3Title": "添加描述",
+      "step3Desc": "写一段清晰的描述，让买家了解他们要购买的内容。描述对市场上的所有人可见。",
+      "step4Title": "设定价格",
+      "step4Desc": "输入以 ADA 为单位的建议价格。买家可以出任意金额，但这有助于设定预期。",
+      "step5Title": "提交并签名",
+      "step5Desc": "检查您的商品并点击提交。您的钱包将提示您签署交易。"
+    }
   },
   "mnemonic": {
     "invalidWord": "不是有效的 BIP-39 单词"

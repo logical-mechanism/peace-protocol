@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Hide your own listings",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW hidden",
-    "nsfwHide": "Hide NSFW listings"
+    "nsfwHide": "Hide NSFW listings",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "Loading your listings…",

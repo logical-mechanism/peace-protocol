@@ -355,7 +355,11 @@
     "notifDuration3s": "3 segundos",
     "notifDuration5s": "5 segundos (padrão)",
     "notifDuration8s": "8 segundos",
-    "notifDurationNever": "Nunca"
+    "notifDurationNever": "Nunca",
+    "tutorialsTitle": "Tutoriais guiados",
+    "tutorialsDescription": "Reativar os tutoriais passo a passo para criar listagens e fazer lances.",
+    "tutorialsReset": "Reiniciar tutoriais",
+    "tutorialsResetDone": "Tutoriais reiniciados"
   },
   "contact": {
     "title": "Contato e Suporte",

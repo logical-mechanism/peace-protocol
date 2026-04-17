@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Eigen vermeldingen verbergen",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW verborgen",
-    "nsfwHide": "NSFW-vermeldingen verbergen"
+    "nsfwHide": "NSFW-vermeldingen verbergen",
+    "tutorialBannerTitle": "Nieuw bij Veiled?",
+    "tutorialBannerDesc": "Volg een rondleiding om te leren hoe je je eerste vermelding aanmaakt.",
+    "tutorialBannerStart": "Rondleiding starten",
+    "tutorialBannerDismiss": "Sluiten"
   },
   "mySales": {
     "loading": "Je vermeldingen laden…",

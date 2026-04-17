@@ -355,7 +355,11 @@
     "notifDuration3s": "3 sekundy",
     "notifDuration5s": "5 sekund (domyślnie)",
     "notifDuration8s": "8 sekund",
-    "notifDurationNever": "Nigdy"
+    "notifDurationNever": "Nigdy",
+    "tutorialsTitle": "Samouczki z przewodnikiem",
+    "tutorialsDescription": "Ponownie włącz przewodniki krok po kroku dotyczące tworzenia ofert i składania licytacji.",
+    "tutorialsReset": "Uruchom ponownie samouczki",
+    "tutorialsResetDone": "Samouczki zresetowane"
   },
   "contact": {
     "title": "Kontakt i wsparcie",

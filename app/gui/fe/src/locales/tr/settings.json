@@ -355,7 +355,11 @@
     "notifDuration3s": "3 saniye",
     "notifDuration5s": "5 saniye (varsayılan)",
     "notifDuration8s": "8 saniye",
-    "notifDurationNever": "Asla"
+    "notifDurationNever": "Asla",
+    "tutorialsTitle": "Rehberli Öğreticiler",
+    "tutorialsDescription": "İlan oluşturma ve teklif verme için adım adım rehberleri yeniden etkinleştirin.",
+    "tutorialsReset": "Öğreticileri Yeniden Başlat",
+    "tutorialsResetDone": "Öğreticiler Sıfırlandı"
   },
   "contact": {
     "title": "İletişim ve Destek",

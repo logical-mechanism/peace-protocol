@@ -355,7 +355,11 @@
     "notifDuration3s": "3秒",
     "notifDuration5s": "5秒（默认）",
     "notifDuration8s": "8秒",
-    "notifDurationNever": "从不"
+    "notifDurationNever": "从不",
+    "tutorialsTitle": "引导教程",
+    "tutorialsDescription": "重新启用创建列表和出价的分步指南。",
+    "tutorialsReset": "重新开始教程",
+    "tutorialsResetDone": "教程已重置"
   },
   "contact": {
     "title": "联系与支持",

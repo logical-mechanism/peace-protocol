@@ -17,6 +17,7 @@ import { optimisticStore } from '../../services/optimisticStore'
 import { playSound } from '../../services/notificationSound'
 import { saveDecryptedContent, saveContentMetadata } from '../../services/contentStorage'
 import { getRecoverableDrafts, updateListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
+import { markFirstListingCompleted } from '../../services/onboardingStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 import type { CreateListingFormData } from '../../components/CreateListingModal'
@@ -264,6 +265,9 @@ export function useSellerActions({ actions, iagonConnected: _iagonConnected }: U
         _optimistic: true,
       })
     }
+
+    // Mark first-listing tutorial as completed on successful listing
+    markFirstListingCompleted()
 
     triggerTransactionRefresh()
   }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, userPkh])

@@ -618,7 +618,7 @@ export default function CreateListingModal({
             )}
 
             {/* Mode Toggle: Text vs File */}
-            <div>
+            <div id="tutorial-data-type-toggle">
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                 {t('modals:createListing.dataType')} <span className="text-[var(--error)]">*</span>
               </label>
@@ -855,7 +855,7 @@ export default function CreateListingModal({
             )}
 
             {/* Description */}
-            <div>
+            <div id="tutorial-description-field">
               <label
                 htmlFor="description"
                 className="block text-sm font-medium text-[var(--text-primary)] mb-2"
@@ -895,7 +895,7 @@ export default function CreateListingModal({
             {/* Price + Image Link — two-column row */}
             <div className="grid grid-cols-2 gap-4">
               {/* Suggested Price */}
-              <div>
+              <div id="tutorial-price-field">
                 <label
                   htmlFor="suggestedPrice"
                   className="block text-sm font-medium text-[var(--text-primary)] mb-2"
@@ -1095,6 +1095,7 @@ export default function CreateListingModal({
                 {t('common:actions.cancel')}
               </button>
               <button
+                id="tutorial-submit-listing"
                 type="submit"
                 disabled={!canSubmit}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"

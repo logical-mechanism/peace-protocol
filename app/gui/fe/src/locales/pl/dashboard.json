@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Ukryj wlasne aukcje",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW ukryte",
-    "nsfwHide": "Ukryj aukcje NSFW"
+    "nsfwHide": "Ukryj aukcje NSFW",
+    "tutorialBannerTitle": "Nowy w Veiled?",
+    "tutorialBannerDesc": "Przejdź przewodnik, aby dowiedzieć się, jak utworzyć swoją pierwszą aukcję.",
+    "tutorialBannerStart": "Rozpocznij przewodnik",
+    "tutorialBannerDismiss": "Odrzuć"
   },
   "mySales": {
     "loading": "Wczytywanie Twoich aukcji…",

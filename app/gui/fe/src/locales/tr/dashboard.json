@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Kendi ilanlarınızı gizleyin",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW gizlendi",
-    "nsfwHide": "NSFW ilanları gizle"
+    "nsfwHide": "NSFW ilanları gizle",
+    "tutorialBannerTitle": "Veiled'da yeni misiniz?",
+    "tutorialBannerDesc": "İlk ilanınızı nasıl oluşturacağınızı öğrenmek için rehberli bir tur yapın.",
+    "tutorialBannerStart": "Turu Başlat",
+    "tutorialBannerDismiss": "Kapat"
   },
   "mySales": {
     "loading": "İlanlarınız yükleniyor…",

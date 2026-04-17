@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Скрыть свои объявления",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW скрыто",
-    "nsfwHide": "Скрыть NSFW объявления"
+    "nsfwHide": "Скрыть NSFW объявления",
+    "tutorialBannerTitle": "Впервые в Veiled?",
+    "tutorialBannerDesc": "Пройдите обзорную экскурсию, чтобы узнать, как создать своё первое объявление.",
+    "tutorialBannerStart": "Начать экскурсию",
+    "tutorialBannerDismiss": "Закрыть"
   },
   "mySales": {
     "loading": "Загрузка ваших объявлений…",

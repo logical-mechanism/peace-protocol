@@ -355,7 +355,11 @@
     "notifDuration3s": "3 detik",
     "notifDuration5s": "5 detik (default)",
     "notifDuration8s": "8 detik",
-    "notifDurationNever": "Tidak pernah"
+    "notifDurationNever": "Tidak pernah",
+    "tutorialsTitle": "Tutorial Terpandu",
+    "tutorialsDescription": "Aktifkan kembali panduan langkah demi langkah untuk membuat listing dan memasang bid.",
+    "tutorialsReset": "Mulai Ulang Tutorial",
+    "tutorialsResetDone": "Tutorial Direset"
   },
   "contact": {
     "title": "Kontak & Dukungan",

@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Tutorial overslaan",
     "finish": "Voltooien",
-    "stepAria": "Tutorialstap"
+    "stepAria": "Tutorialstap",
+    "listing": {
+      "step1Title": "Vermelding aanmaken",
+      "step1Desc": "Klik op deze knop om het vermeldingsformulier te openen. Je kunt tekstinhoud on-chain plaatsen of versleutelde bestanden uploaden via Iagon.",
+      "step2Title": "Datatype kiezen",
+      "step2Desc": "Selecteer of je vermelding tekst (on-chain opgeslagen) of een bestand (versleuteld en geüpload naar Iagon) bevat.",
+      "step3Title": "Beschrijving toevoegen",
+      "step3Desc": "Schrijf een duidelijke beschrijving zodat kopers weten wat ze kopen. Dit is zichtbaar voor iedereen op de marktplaats.",
+      "step4Title": "Stel je prijs in",
+      "step4Desc": "Voer een adviesprijs in ADA in. Kopers kunnen elk bedrag bieden, maar dit helpt verwachtingen te scheppen.",
+      "step5Title": "Versturen en ondertekenen",
+      "step5Desc": "Controleer je vermelding en klik op versturen. Je wallet vraagt je om de transactie te ondertekenen."
+    }
   },
   "mnemonic": {
     "invalidWord": "Geen geldig BIP-39 woord"

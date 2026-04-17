@@ -333,7 +333,19 @@
   "tutorial": {
     "skipTutorial": "Öğreticiyi atla",
     "finish": "Bitir",
-    "stepAria": "Öğretici adımı"
+    "stepAria": "Öğretici adımı",
+    "listing": {
+      "step1Title": "İlan Oluştur",
+      "step1Desc": "İlan formunu açmak için bu düğmeye tıklayın. Metin içeriğini zincir üstünde listeleyebilir veya şifrelenmiş dosyaları Iagon aracılığıyla yükleyebilirsiniz.",
+      "step2Title": "Veri Türünü Seçin",
+      "step2Desc": "İlanınızın metin (zincir üstünde depolanır) mi yoksa dosya (şifrelenerek Iagon'a yüklenir) mı içerdiğini seçin.",
+      "step3Title": "Açıklama Ekleyin",
+      "step3Desc": "Alıcıların ne satın aldıklarını bilmeleri için net bir açıklama yazın. Bu, pazar yerindeki herkes tarafından görülebilir.",
+      "step4Title": "Fiyatınızı Belirleyin",
+      "step4Desc": "ADA cinsinden önerilen bir fiyat girin. Alıcılar herhangi bir tutar teklif edebilir, ancak bu beklentileri belirlemeye yardımcı olur.",
+      "step5Title": "Gönder ve İmzala",
+      "step5Desc": "İlanınızı gözden geçirin ve gönder'e tıklayın. Cüzdanınız işlemi imzalamanızı isteyecektir."
+    }
   },
   "mnemonic": {
     "invalidWord": "Geçerli bir BIP-39 kelimesi değil"
