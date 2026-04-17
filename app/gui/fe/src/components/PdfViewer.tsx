@@ -121,7 +121,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
 
   const onDocumentLoadError = useCallback((err: Error) => {
     setError(err.message || t('pdfViewer.failedToLoad'));
-  }, []);
+  }, [t]);
 
   const zoomIn = useCallback(() => setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)), []);
   const zoomOut = useCallback(() => setScale(s => Math.max(ZOOM_MIN, s - ZOOM_STEP)), []);
@@ -386,7 +386,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             <button
               onClick={onExport}
               className={btnClass}
-              title="Save As"
+              title={t('pdfViewer.saveAs')}
               aria-label={t('pdfViewer.savePdfAria')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -473,8 +473,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
       <button
         onClick={closeSearch}
         className={btnClass}
-        title="Close search (Escape)"
-        aria-label="Close search"
+        title={t('pdfViewer.closeSearch')}
+        aria-label={t('pdfViewer.closeSearchAria')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

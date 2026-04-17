@@ -817,7 +817,7 @@ export default function CreateListingModal({
             {isFileMode && !isIagonConnected && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-                  Upload File
+                  {t('modals:createListing.uploadFile')}
                 </label>
                 <div className="relative">
                   <div className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-[var(--border-subtle)] rounded-[var(--radius-md)] bg-[var(--bg-secondary)] opacity-40">

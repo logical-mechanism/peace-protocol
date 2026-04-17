@@ -233,7 +233,8 @@
     "expand": "Expand",
     "cannotRender": "The image could not be rendered.",
     "fullscreenMessage": "Image is expanded to fullscreen. Press Esc or the collapse button to return.",
-    "loadingImage": "Loading image..."
+    "loadingImage": "Loading image...",
+    "saveAs": "Save As"
   },
   "pdfViewer": {
     "failedToLoad": "Failed to load PDF",
@@ -256,7 +257,10 @@
     "nextMatch": "Next match (Enter)",
     "searching": "Searching...",
     "noMatches": "No matches",
-    "loadingPdf": "Loading PDF..."
+    "loadingPdf": "Loading PDF...",
+    "saveAs": "Save As",
+    "closeSearch": "Close search (Escape)",
+    "closeSearchAria": "Close search"
   },
   "badge": {
     "active": "Active",

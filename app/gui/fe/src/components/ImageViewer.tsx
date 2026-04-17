@@ -234,7 +234,7 @@ export default function ImageViewer({ data, mimeType, onExport }: ImageViewerPro
             <button
               onClick={onExport}
               className={btnClass}
-              title="Save As"
+              title={t('imageViewer.saveAs')}
               aria-label={t('imageViewer.saveImageAria')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
