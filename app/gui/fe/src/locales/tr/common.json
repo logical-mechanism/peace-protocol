@@ -331,6 +331,7 @@
     "transactionFallback": "İşlem: {{hash}}..."
   },
   "tutorial": {
+    "skip": "Atla",
     "skipTutorial": "Öğreticiyi atla",
     "finish": "Bitir",
     "stepAria": "Öğretici adımı",

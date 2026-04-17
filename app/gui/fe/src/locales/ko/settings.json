@@ -27,7 +27,8 @@
     "storage": "스토리지",
     "logs": "로그",
     "updates": "업데이트",
-    "contact": "연락처"
+    "contact": "연락처",
+    "tutorials": "튜토리얼 및 도움말"
   },
   "language": {
     "title": "언어",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "업데이트 다운로드 완료",
     "downloadSuccessBody": "저장 위치: {{path}}. 새 버전을 사용하려면 앱을 닫고 다시 여세요.",
     "retry": "재시도"
+  },
+  "tutorials": {
+    "title": "튜토리얼 및 도움말",
+    "description": "단계별 가이드를 다시 재생하거나 키보드 단축키를 확인하세요.",
+    "resetAll": "모두 초기화",
+    "resetAllDone": "모두 초기화됨",
+    "statusCompleted": "완료",
+    "statusNotStarted": "시작되지 않음",
+    "start": "시작",
+    "replay": "다시 재생",
+    "comingSoon": "곧 출시",
+    "shortcutsTitle": "키보드 단축키",
+    "flows": {
+      "firstListing": {
+        "title": "첫 번째 리스팅 만들기",
+        "description": "마켓플레이스에서 콘텐츠를 판매하는 방법을 알아보세요."
+      },
+      "firstBid": {
+        "title": "첫 번째 입찰하기",
+        "description": "마켓플레이스 리스팅에 입찰하는 방법을 알아보세요."
+      },
+      "firstDecrypt": {
+        "title": "구매 복호화",
+        "description": "구매한 콘텐츠를 복호화하고 접근하는 방법을 알아보세요."
+      },
+      "firstBidAccepted": {
+        "title": "입찰 수락 (판매자)",
+        "description": "입찰을 수락하고 SNARK 증명으로 판매를 완료하는 방법을 알아보세요."
+      },
+      "iagonPrimer": {
+        "title": "Iagon 스토리지 설정",
+        "description": "파일 기반 리스팅을 위한 Iagon 분산 스토리지를 설정하세요."
+      }
+    }
   }
 }

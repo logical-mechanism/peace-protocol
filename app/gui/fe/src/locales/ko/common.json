@@ -331,6 +331,7 @@
     "transactionFallback": "트랜잭션: {{hash}}..."
   },
   "tutorial": {
+    "skip": "건너뛰기",
     "skipTutorial": "튜토리얼 건너뛰기",
     "finish": "완료",
     "stepAria": "튜토리얼 단계",

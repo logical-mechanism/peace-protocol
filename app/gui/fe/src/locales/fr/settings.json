@@ -27,7 +27,8 @@
     "storage": "Stockage",
     "logs": "Journaux",
     "updates": "Mises à jour",
-    "contact": "Contact"
+    "contact": "Contact",
+    "tutorials": "Tutoriels et Aide"
   },
   "language": {
     "title": "Langue",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Mise à jour téléchargée",
     "downloadSuccessBody": "Enregistré dans : {{path}}. Fermez et rouvrez l'application pour utiliser la nouvelle version.",
     "retry": "Réessayer"
+  },
+  "tutorials": {
+    "title": "Tutoriels et Aide",
+    "description": "Rejouez les guides pas à pas ou consultez les raccourcis clavier.",
+    "resetAll": "Tout réinitialiser",
+    "resetAllDone": "Tout réinitialisé",
+    "statusCompleted": "Terminé",
+    "statusNotStarted": "Non commencé",
+    "start": "Démarrer",
+    "replay": "Rejouer",
+    "comingSoon": "Bientôt disponible",
+    "shortcutsTitle": "Raccourcis clavier",
+    "flows": {
+      "firstListing": {
+        "title": "Créez votre première annonce",
+        "description": "Apprenez à mettre du contenu en vente sur le marché."
+      },
+      "firstBid": {
+        "title": "Faites votre première offre",
+        "description": "Apprenez à enchérir sur une annonce du marché."
+      },
+      "firstDecrypt": {
+        "title": "Déchiffrer un achat",
+        "description": "Apprenez à déchiffrer et accéder au contenu que vous avez acheté."
+      },
+      "firstBidAccepted": {
+        "title": "Accepter une offre (Vendeur)",
+        "description": "Apprenez à accepter une offre et finaliser une vente avec preuve SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Configuration du stockage Iagon",
+        "description": "Configurez le stockage décentralisé Iagon pour les annonces basées sur des fichiers."
+      }
+    }
   }
 }

@@ -331,6 +331,7 @@
     "transactionFallback": "Transakcja: {{hash}}..."
   },
   "tutorial": {
+    "skip": "Pomiń",
     "skipTutorial": "Pomin samouczek",
     "finish": "Zakoncz",
     "stepAria": "Krok samouczka",

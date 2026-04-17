@@ -331,6 +331,7 @@
     "transactionFallback": "लेनदेन: {{hash}}..."
   },
   "tutorial": {
+    "skip": "छोड़ें",
     "skipTutorial": "ट्यूटोरियल छोड़ें",
     "finish": "समाप्त",
     "stepAria": "ट्यूटोरियल चरण",

@@ -27,7 +27,8 @@
     "storage": "Penyimpanan",
     "logs": "Log",
     "updates": "Pembaruan",
-    "contact": "Kontak"
+    "contact": "Kontak",
+    "tutorials": "Tutorial & Bantuan"
   },
   "language": {
     "title": "Bahasa",
@@ -382,5 +383,39 @@
     "downloadSuccessTitle": "Pembaruan diunduh",
     "downloadSuccessBody": "Disimpan ke: {{path}}. Tutup dan buka kembali aplikasi untuk menggunakan versi baru.",
     "retry": "Coba Lagi"
+  },
+  "tutorials": {
+    "title": "Tutorial & Bantuan",
+    "description": "Ulangi panduan langkah demi langkah atau lihat pintasan keyboard.",
+    "resetAll": "Atur ulang semua",
+    "resetAllDone": "Semua diatur ulang",
+    "statusCompleted": "Selesai",
+    "statusNotStarted": "Belum dimulai",
+    "start": "Mulai",
+    "replay": "Ulangi",
+    "comingSoon": "Segera hadir",
+    "shortcutsTitle": "Pintasan Keyboard",
+    "flows": {
+      "firstListing": {
+        "title": "Buat Listing Pertamamu",
+        "description": "Pelajari cara mendaftarkan konten untuk dijual di marketplace."
+      },
+      "firstBid": {
+        "title": "Buat Tawaran Pertamamu",
+        "description": "Pelajari cara menawar listing di marketplace."
+      },
+      "firstDecrypt": {
+        "title": "Dekripsi Pembelian",
+        "description": "Pelajari cara mendekripsi dan mengakses konten yang telah kamu beli."
+      },
+      "firstBidAccepted": {
+        "title": "Terima Tawaran (Penjual)",
+        "description": "Pelajari cara menerima tawaran dan menyelesaikan penjualan dengan bukti SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Pengaturan Penyimpanan Iagon",
+        "description": "Atur penyimpanan terdesentralisasi Iagon untuk listing berbasis file."
+      }
+    }
   }
 }

@@ -331,6 +331,7 @@
     "transactionFallback": "トランザクション: {{hash}}..."
   },
   "tutorial": {
+    "skip": "スキップ",
     "skipTutorial": "チュートリアルをスキップ",
     "finish": "完了",
     "stepAria": "チュートリアルステップ",

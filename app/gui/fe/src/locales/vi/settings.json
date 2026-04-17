@@ -27,7 +27,8 @@
     "storage": "Lưu trữ",
     "logs": "Nhật ký",
     "updates": "Cập nhật",
-    "contact": "Liên hệ"
+    "contact": "Liên hệ",
+    "tutorials": "Hướng dẫn & Trợ giúp"
   },
   "language": {
     "title": "Ngôn ngữ",
@@ -365,6 +366,40 @@
     "title": "Liên hệ & Hỗ trợ",
     "discordLabel": "Tham gia Discord",
     "emailLabel": "Email hỗ trợ"
+  },
+  "tutorials": {
+    "title": "Hướng dẫn & Trợ giúp",
+    "description": "Phát lại hướng dẫn từng bước hoặc xem phím tắt.",
+    "resetAll": "Đặt lại tất cả",
+    "resetAllDone": "Đã đặt lại tất cả",
+    "statusCompleted": "Hoàn thành",
+    "statusNotStarted": "Chưa bắt đầu",
+    "start": "Bắt đầu",
+    "replay": "Phát lại",
+    "comingSoon": "Sắp ra mắt",
+    "shortcutsTitle": "Phím tắt",
+    "flows": {
+      "firstListing": {
+        "title": "Tạo danh sách đầu tiên",
+        "description": "Tìm hiểu cách đăng nội dung bán trên thị trường."
+      },
+      "firstBid": {
+        "title": "Đặt giá thầu đầu tiên",
+        "description": "Tìm hiểu cách đặt giá thầu cho danh sách trên thị trường."
+      },
+      "firstDecrypt": {
+        "title": "Giải mã giao dịch mua",
+        "description": "Tìm hiểu cách giải mã và truy cập nội dung bạn đã mua."
+      },
+      "firstBidAccepted": {
+        "title": "Chấp nhận giá thầu (Người bán)",
+        "description": "Tìm hiểu cách chấp nhận giá thầu và hoàn tất bán hàng với bằng chứng SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Thiết lập lưu trữ Iagon",
+        "description": "Thiết lập lưu trữ phi tập trung Iagon cho danh sách dựa trên tệp."
+      }
+    }
   },
   "update": {
     "title": "Cập nhật ứng dụng",

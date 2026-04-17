@@ -27,7 +27,8 @@
     "storage": "Armazenamento",
     "logs": "Logs",
     "updates": "Atualizações",
-    "contact": "Contato"
+    "contact": "Contato",
+    "tutorials": "Tutoriais e Ajuda"
   },
   "language": {
     "title": "Idioma",
@@ -365,6 +366,40 @@
     "title": "Contato e Suporte",
     "discordLabel": "Junte-se ao nosso Discord",
     "emailLabel": "Suporte por Email"
+  },
+  "tutorials": {
+    "title": "Tutoriais e Ajuda",
+    "description": "Repita os guias passo a passo ou consulte os atalhos de teclado.",
+    "resetAll": "Redefinir tudo",
+    "resetAllDone": "Tudo redefinido",
+    "statusCompleted": "Concluído",
+    "statusNotStarted": "Não iniciado",
+    "start": "Iniciar",
+    "replay": "Repetir",
+    "comingSoon": "Em breve",
+    "shortcutsTitle": "Atalhos de teclado",
+    "flows": {
+      "firstListing": {
+        "title": "Crie seu primeiro anúncio",
+        "description": "Aprenda a listar conteúdo à venda no marketplace."
+      },
+      "firstBid": {
+        "title": "Faça sua primeira oferta",
+        "description": "Aprenda a fazer lances em anúncios do marketplace."
+      },
+      "firstDecrypt": {
+        "title": "Descriptografe uma compra",
+        "description": "Aprenda a descriptografar e acessar o conteúdo que você comprou."
+      },
+      "firstBidAccepted": {
+        "title": "Aceite uma oferta (Vendedor)",
+        "description": "Aprenda a aceitar uma oferta e concluir uma venda com prova SNARK."
+      },
+      "iagonPrimer": {
+        "title": "Configuração de armazenamento Iagon",
+        "description": "Configure o armazenamento descentralizado Iagon para anúncios baseados em arquivos."
+      }
+    }
   },
   "update": {
     "title": "Atualizações do Aplicativo",
