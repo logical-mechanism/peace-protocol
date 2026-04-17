@@ -110,7 +110,10 @@
       "label": "Sub-category",
       "optional": "(optional)",
       "clearGenre": "Clear genre",
-      "clearSubcategory": "Clear sub-category"
+      "clearSubcategory": "Clear sub-category",
+      "placeholder": "None",
+      "ariaLabel": "Sub-category",
+      "ariaLabelLevel2": "Sub-category level 2"
     }
   },
   "marketplace": {

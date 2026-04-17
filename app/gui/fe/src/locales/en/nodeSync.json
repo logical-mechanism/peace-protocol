@@ -106,6 +106,15 @@
     "copyAria": "Copy error details",
     "errorFallback": "Error"
   },
+  "wasm": {
+    "checkingSetup": "Checking SNARK setup files...",
+    "checkingExist": "Checking if setup files exist...",
+    "proverReady": "SNARK prover ready",
+    "setupFound": "Setup files found",
+    "decompressing": "Decompressing SNARK setup files...",
+    "decompressingDetail": "Decompressing pk.bin and ccs.bin (~500MB)...",
+    "decompressed": "Setup files decompressed"
+  },
   "firstTimeSetup": {
     "title": "First-time setup",
     "description": "A Mithril snapshot will be downloaded to bootstrap the Cardano node. This takes approximately 10-20 minutes depending on your connection speed. The snapshot is verified cryptographically before use."

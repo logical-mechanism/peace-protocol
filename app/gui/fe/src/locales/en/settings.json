@@ -323,6 +323,11 @@
     "volumeLabel": "Volume",
     "previewSoundAria": "Preview {{label}} sound"
   },
+  "contact": {
+    "title": "Contact & Support",
+    "discordLabel": "Join our Discord",
+    "emailLabel": "Email Support"
+  },
   "update": {
     "title": "App Updates",
     "currentVersion": "Current version",
