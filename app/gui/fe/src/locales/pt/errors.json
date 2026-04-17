@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Algo Deu Errado",
+    "action": "Tente novamente. Se o problema persistir, reinicie o aplicativo."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo Indisponível",
+    "message": "O indexador de UTxOs está iniciando ou inacessível.",
+    "action": "Aguarde o nó terminar de sincronizar e tente novamente."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo Indisponível",
+    "message": "O indexador de UTxOs não está respondendo.",
+    "action": "Aguarde o nó terminar de sincronizar ou verifique o status dos processos em Configurações."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios Expirou",
+    "message": "O serviço de transações não respondeu a tempo. A conexão com o nó pode estar degradada.",
+    "action": "Tente reiniciar o nó em Configurações ou aguarde a sincronização completa."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Não Foi Possível Conectar ao Ogmios",
+    "message": "O serviço de transações não está acessível na porta esperada.",
+    "action": "Certifique-se de que o nó está em execução ou reinicie em Configurações."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios Indisponível",
+    "message": "O serviço de envio de transações não está respondendo.",
+    "action": "Aguarde o nó terminar de sincronizar ou verifique o status dos processos em Configurações."
+  },
+  "network": {
+    "title": "Erro de Rede",
+    "message": "Não foi possível conectar ao serviço necessário.",
+    "action": "Verifique sua conexão com a internet e certifique-se de que o nó está em execução."
+  },
+  "noCollateral": {
+    "title": "Sem Colateral",
+    "message": "Sua carteira precisa de um UTxO de colateral dedicado de 5 ADA para transações com contratos inteligentes.",
+    "action": "Vá em Configurações > Carteira e clique em \"Definir Colateral\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Fundos Insuficientes para Colateral",
+    "message": "Sua carteira não tem ADA suficiente para criar um UTxO de colateral.",
+    "action": "Envie pelo menos 10 ADA para o endereço da sua carteira."
+  },
+  "collateralInsufficient": {
+    "title": "Colateral Insuficiente",
+    "message": "A transação requer mais colateral do que está disponível.",
+    "action": "Certifique-se de que sua carteira tem um UTxO definido como colateral. Tente atualizar o saldo da sua carteira."
+  },
+  "insufficientBalance": {
+    "title": "Saldo Insuficiente",
+    "message": "Sua carteira não tem ADA suficiente para esta transação.",
+    "action": "Adicione mais ADA à sua carteira e tente novamente."
+  },
+  "iagonAuth": {
+    "title": "Falha na Autenticação do Iagon",
+    "message": "Sua chave de API do Iagon é inválida ou expirou.",
+    "action": "Vá em Configurações \u2192 Camada de Dados e reautentique."
+  },
+  "iagonFileTooLarge": {
+    "title": "Arquivo Muito Grande para o Iagon",
+    "message": "O Iagon não suporta o envio de arquivos deste tamanho.",
+    "action": "Escolha um arquivo com menos de 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Armazenamento do Iagon Cheio",
+    "message": "A cota de armazenamento da sua conta Iagon está cheia.",
+    "action": "Verifique o uso de armazenamento da sua conta Iagon."
+  },
+  "iagonGeneric": {
+    "title": "Erro do Serviço de Armazenamento",
+    "message": "Não foi possível acessar o serviço de armazenamento descentralizado Iagon.",
+    "action": "Verifique sua conexão com a internet. O Iagon pode estar temporariamente indisponível."
+  },
+  "timeout": {
+    "title": "Tempo Esgotado",
+    "message": "A operação demorou demais para ser concluída.",
+    "action": "Tente novamente. Se o problema persistir, o serviço pode estar sobrecarregado."
+  },
+  "mnemonicChecksum": {
+    "title": "Frase de Recuperação Inválida",
+    "message": "A frase de recuperação tem um checksum inválido. Uma ou mais palavras podem estar incorretas.",
+    "action": "Verifique cada palavra com seu backup escrito e tente novamente."
+  },
+  "passwordTooShort": {
+    "title": "Senha Muito Curta",
+    "message": "A senha deve ter pelo menos 12 caracteres.",
+    "action": "Escolha uma senha mais longa que atenda a todos os requisitos exibidos."
+  },
+  "walletGeneric": {
+    "title": "Erro da Carteira",
+    "message": "Houve um problema com a operação da carteira.",
+    "action": "Tente desbloquear sua carteira novamente. Se o problema persistir, reinicie o aplicativo."
+  },
+  "incorrectPassword": {
+    "title": "Senha Incorreta",
+    "message": "A senha inserida está incorreta.",
+    "action": "Verifique sua senha e tente novamente."
+  },
+  "snarkOom": {
+    "title": "Memória Insuficiente",
+    "message": "A geração da prova ficou sem memória.",
+    "action": "Feche outros aplicativos para liberar memória e tente novamente."
+  },
+  "snarkSetupMissing": {
+    "title": "Arquivos de Configuração do SNARK Ausentes",
+    "message": "Os arquivos de configuração do SNARK necessários não foram encontrados.",
+    "action": "Vá em Configurações para baixar novamente os arquivos de configuração do SNARK."
+  },
+  "snarkInProgress": {
+    "title": "Prova Já em Execução",
+    "message": "Uma prova de conhecimento zero já está sendo gerada.",
+    "action": "Aguarde a prova atual terminar antes de iniciar outra."
+  },
+  "snarkGeneric": {
+    "title": "Erro na Geração da Prova",
+    "message": "O provador SNARK encontrou um erro.",
+    "action": "Tente novamente. Se o problema persistir, verifique se os arquivos de configuração estão corretamente instalados."
+  },
+  "scriptValidation": {
+    "title": "Falha na Validação do Script",
+    "message": "Um script de contrato inteligente falhou durante a validação.",
+    "action": "O estado on-chain pode ter mudado. Atualize e tente novamente."
+  },
+  "txConflict": {
+    "title": "Conflito de Transação",
+    "message": "Uma ou mais entradas já foram gastas por outra transação.",
+    "action": "Outra pessoa pode ter agido nesta listagem. Atualize a página e tente novamente."
+  },
+  "feeError": {
+    "title": "Erro na Taxa de Transação",
+    "message": "A taxa de transação foi calculada muito baixa.",
+    "action": "Tente novamente. Se o problema persistir, reinicie o aplicativo para atualizar os parâmetros de taxa."
+  },
+  "txFailed": {
+    "title": "Transação Falhou",
+    "message": "A transação não pôde ser enviada para a blockchain.",
+    "action": "O estado on-chain pode ter mudado. Atualize e tente novamente."
+  },
+  "accessDenied": {
+    "title": "Acesso Negado",
+    "message": "A solicitação foi bloqueada pelo servidor.",
+    "action": "Isso pode ser um problema de configuração. Tente reiniciar o aplicativo."
+  },
+  "diskFull": {
+    "title": "Disco Cheio",
+    "message": "Não há espaço suficiente em disco para concluir esta operação.",
+    "action": "Libere espaço em disco e tente novamente. Verifique Configurações > Armazenamento para opções de limpeza."
+  },
+  "portConflict": {
+    "title": "Conflito de Porta",
+    "message": "Uma porta necessária já está em uso por outro processo.",
+    "action": "Feche outros aplicativos que possam estar usando a porta ou reinicie o aplicativo."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "tourLabel": "Tour de integração",
+  "skip": "Pular tour",
+  "skipAria": "Pular tour de integração",
+  "next": "Avançar",
+  "done": "Concluir",
+  "nextAria": "Próxima etapa ({{current}} de {{total}})",
+  "finishAria": "Finalizar tour de integração",
+  "stepProgress": "Etapa {{current}} de {{total}}",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "Crie Sua Carteira",
+      "description": "Bem-vindo ao Veiled! Comece criando uma nova carteira ou importando uma existente. Sua carteira protege sua identidade no marketplace."
+    },
+    "nodeSync": {
+      "title": "Sincronize com a Blockchain",
+      "description": "Seu nó irá baixar e sincronizar com a blockchain Cardano. Esta é uma configuração única que leva 10-20 minutos. Você pode continuar em segundo plano."
+    },
+    "marketplace": {
+      "title": "Explore o Marketplace",
+      "description": "A aba Marketplace mostra todas as listagens de dados criptografados disponíveis. Navegue pelas categorias, confira preços e encontre dados que deseja comprar."
+    },
+    "firstBid": {
+      "title": "Faça Seu Primeiro Lance",
+      "description": "Encontrou algo interessante? Clique em uma listagem para ver os detalhes e faça um lance com o preço desejado. O vendedor pode aceitar seu lance para concluir a troca."
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Marketplace de dados criptografados no Cardano",
+    "chooseCreateTitle": "Criar Nova Carteira",
+    "chooseCreateSubtitle": "Gerar uma nova frase de recuperação de 24 palavras",
+    "chooseImportTitle": "Importar Carteira Existente",
+    "chooseImportSubtitle": "Restaurar a partir de uma frase de recuperação de 24 palavras",
+    "back": "Voltar",
+    "steps": {
+      "backup": "Backup",
+      "verify": "Verificar",
+      "password": "Senha",
+      "recoveryPhrase": "Frase de Recuperação"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Frase de Recuperação",
+      "verifyTitle": "Verificar Frase",
+      "passwordTitle": "Definir Senha",
+      "warning": "Anote estas 24 palavras em ordem. Esta é a única forma de recuperar sua carteira. Nunca as compartilhe com ninguém.",
+      "copyToClipboard": "Copiar para Área de Transferência",
+      "copied": "Copiado!",
+      "wroteItDown": "Eu anotei",
+      "verifyInstructions": "Verifique sua frase de recuperação digitando as palavras a seguir. Comece a digitar e selecione a palavra correspondente.",
+      "continue": "Continuar"
+    },
+    "import": {
+      "enterTitle": "Inserir Frase de Recuperação",
+      "passwordTitle": "Definir Senha",
+      "instructions": "Insira sua frase de recuperação de 24 palavras. Comece a digitar cada palavra e selecione nas sugestões.",
+      "pasteAll": "Colar todas as 24 palavras",
+      "wordCount": "{{count}} / 24 palavras",
+      "continue": "Continuar"
+    },
+    "password": {
+      "description": "Defina uma senha para a carteira para criptografar sua frase de recuperação. Você precisará desta senha cada vez que abrir o aplicativo.",
+      "label": "Senha",
+      "confirmLabel": "Confirmar Senha",
+      "placeholder": "Insira a senha",
+      "confirmPlaceholder": "Confirme a senha",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "capsLockOn": "Caps Lock está ativado",
+      "creating": "Criando Carteira...",
+      "submit": "Criar Carteira"
+    },
+    "errors": {
+      "allWordsRequired": "Todas as 24 palavras são obrigatórias",
+      "passwordRequirements": "A senha não atende a todos os requisitos",
+      "passwordMismatch": "As senhas não coincidem",
+      "createFailed": "Falha ao criar carteira",
+      "copyFailedTitle": "Falha ao copiar",
+      "copyFailedBody": "Não foi possível copiar o mnemonic para a área de transferência.",
+      "clipboardUnavailableTitle": "Área de transferência indisponível",
+      "clipboardUnavailableBody": "Não foi possível acessar a área de transferência. Tente colar diretamente nos campos de palavras com Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Senha",
+    "togglePasswordVisibility": "Alternar visibilidade da senha",
+    "capsLockOn": "Caps Lock está ativado",
+    "unlock": "Desbloquear",
+    "unlocking": "Desbloqueando...",
+    "forgotPassword": "Esqueceu a senha?",
+    "details": "Detalhes",
+    "copyErrorTitle": "Copiar detalhes do erro",
+    "delete": {
+      "title": "Excluir Carteira?",
+      "description": "Isso removerá a carteira criptografada deste dispositivo. Seus fundos estão seguros se você fez backup da frase de recuperação de 24 palavras. Você pode reimportá-la após a exclusão.",
+      "warning": "Sem a frase de recuperação, seus fundos serão permanentemente perdidos.",
+      "acknowledge": "Eu fiz backup da minha frase de recuperação de 24 palavras",
+      "cancel": "Cancelar",
+      "confirm": "Excluir Carteira",
+      "deleting": "Excluindo..."
+    }
+  }
+}
