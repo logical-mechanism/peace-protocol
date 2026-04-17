@@ -1,4 +1,5 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useVideoPlayback } from './useVideoPlayback';
 import { useVideoFullscreen } from './useVideoFullscreen';
@@ -9,6 +10,7 @@ import { SPEED_FINE_MIN, SPEED_FINE_MAX, SPEED_FINE_STEP, SPEED_PRESETS } from '
 import type { VideoPlayerProps } from './videoTypes';
 
 export default function VideoPlayer({ src, mimeType, fileExtension, onExport, subtitleUrl: subtitleUrlProp }: VideoPlayerProps) {
+  const { t } = useTranslation('common');
   // Destructure hook returns fully so ESLint can trace ref usage
   const {
     videoRef, isPlayingRef, isSeekingRef, vizTimeRef,
@@ -68,12 +70,12 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       const delta = e.deltaY < 0 ? 0.05 : -0.05;
       playbackActions.adjustVolume(delta);
       const newVol = Math.max(0, Math.min(1, playbackState.volume + delta));
-      const volText = newVol === 0 ? 'Muted' : `Volume ${Math.round(newVol * 100)}%`;
+      const volText = newVol === 0 ? t('mediaPlayer.muted') : `${t('mediaPlayer.volume')} ${t('mediaPlayer.volumePercent', { percent: Math.round(newVol * 100) })}`;
       showOsd(volText);
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, [playbackActions, playbackState.volume, showOsd]);
+  }, [playbackActions, playbackState.volume, showOsd, t]);
 
   // Speed popup state
   const [speedPopupOpen, setSpeedPopupOpen] = useState(false);
@@ -276,7 +278,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       {divider}
 
       {/* Volume */}
-      <button onClick={playbackActions.handleMuteToggle} className={btnClass} title={isMuted ? 'Unmute (M)' : 'Mute (M)'} aria-label={isMuted ? 'Unmute' : 'Mute'} aria-pressed={isMuted}>
+      <button onClick={playbackActions.handleMuteToggle} className={btnClass} title={isMuted ? t('mediaPlayer.unmuteShortcut', { key: 'M' }) : t('mediaPlayer.muteShortcut', { key: 'M' })} aria-label={isMuted ? t('mediaPlayer.unmute') : t('mediaPlayer.mute')} aria-pressed={isMuted}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           {isMuted || volume === 0 ? (
             <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0021 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 003.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" />
@@ -295,9 +297,9 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         value={isMuted ? 0 : volume}
         onChange={playbackActions.handleVolumeChange}
         className="w-16 flex-shrink-0 accent-[var(--accent)]"
-        aria-label="Volume"
+        aria-label={t('mediaPlayer.volume')}
         aria-valuenow={isMuted ? 0 : Math.round(volume * 100)}
-        aria-valuetext={isMuted ? 'Muted' : `${Math.round(volume * 100)}%`}
+        aria-valuetext={isMuted ? t('mediaPlayer.muted') : t('mediaPlayer.volumePercent', { percent: Math.round(volume * 100) })}
       />
 
       {divider}
@@ -415,7 +417,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Shift</kbd> &plusmn;30s</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> Volume</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> {t('mediaPlayer.volume')}</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">J</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">K</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Back / Play / Fwd</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">X</kbd> Stop</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">R</kbd> Repeat</span>
