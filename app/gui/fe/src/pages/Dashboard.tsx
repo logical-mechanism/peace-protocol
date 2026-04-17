@@ -452,6 +452,7 @@ export default function Dashboard() {
           <div className="relative" ref={createListingDropdownRef}>
             <div className="flex">
               <button
+                id="tutorial-create-listing"
                 onClick={() => seller.setShowCreateListing(true)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-[var(--radius-md)] btn-base btn-primary"
               >
