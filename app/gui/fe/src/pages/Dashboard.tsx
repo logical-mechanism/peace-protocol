@@ -44,6 +44,10 @@ import { useSellerActions } from './dashboard/useSellerActions'
 import { useBuyerActions } from './dashboard/useBuyerActions'
 import { useDashboardEffects } from './dashboard/useDashboardEffects'
 import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
+import { useTutorial } from '../hooks/useTutorial'
+import TutorialOverlay from '../components/TutorialOverlay'
+import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
+import { markFirstListingCompleted } from '../services/onboardingStorage'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -115,6 +119,23 @@ export default function Dashboard() {
   const [myPurchasesFilters, myPurchasesDispatch] = useReducer(myPurchasesReducer, MY_PURCHASES_INITIAL)
   const [historyFilters, historyDispatch] = useReducer(historyReducer, HISTORY_INITIAL)
   const [libraryFilters, libraryDispatch] = useReducer(libraryReducer, LIBRARY_INITIAL)
+
+  // ── Tutorial hook ─────────────────────────────────────────────────
+  const tutorial = useTutorial()
+
+  const handleStartListingTutorial = useCallback(() => {
+    tutorial.startTutorial(
+      LISTING_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => markFirstListingCompleted(),
+        onSkip: () => markFirstListingCompleted(),
+      },
+    )
+  }, [tutorial, t])
 
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
@@ -198,6 +219,15 @@ export default function Dashboard() {
     actions: dashboardActions,
     iagonConnected: effects.iagonConnected,
   })
+
+  // Open CreateListingModal when tutorial advances past step 1 (the button)
+  // into steps 2-5 (modal fields). Close is handled normally by the user.
+  useEffect(() => {
+    if (tutorial.isTutorialActive && tutorial.currentStepIndex >= 1) {
+      seller.setShowCreateListing(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tutorial.isTutorialActive, tutorial.currentStepIndex])
 
   // ── Buyer actions hook ────────────────────────────────────────────
   const buyer = useBuyerActions({
@@ -761,6 +791,7 @@ export default function Dashboard() {
                 lovelace={lovelace}
                 onPlaceBid={buyer.handlePlaceBid}
                 onCreateListing={handleOpenCreateListing}
+                onStartTutorial={handleStartListingTutorial}
                 onLocalRefresh={handleLocalRefresh}
                 filters={marketplaceFilters}
                 dispatch={marketplaceDispatch}
@@ -963,6 +994,15 @@ export default function Dashboard() {
         confirmLabel={confirmAction?.confirmLabel ?? t('dashboard:shell.confirmFallback')}
         confirmVariant="danger"
         loading={confirmLoading}
+      />
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentStepIndex}
+        totalSteps={tutorial.totalSteps}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
       />
 
       {/* Toast Notifications */}
