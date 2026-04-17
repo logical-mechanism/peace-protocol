@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+
+vi.mock('../../services/onboardingStorage', () => ({
+  getOnboardingState: vi.fn().mockReturnValue({ step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false }),
+  markFirstBidCompleted: vi.fn(),
+}));
+
 import PlaceBidModal from '../PlaceBidModal';
 import { ModalProvider } from '../../contexts/ModalContext';
 import type { EncryptionDisplay } from '../../services/api';
+import { getOnboardingState } from '../../services/onboardingStorage';
 
 const mockOnClose = vi.fn();
 const mockOnSubmit = vi.fn();
@@ -448,5 +455,59 @@ describe('PlaceBidModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
     const error = await screen.findByText(/Minimum bid is 2 ADA/);
     expect(error.textContent).toBe('Minimum bid is 2 ADA');
+  });
+
+  // --- First-bid tutorial hints ---
+
+  it('shows bid hints when firstBidCompleted is false', () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+    renderModal();
+    expect(screen.getByTestId('bid-hint-amount')).toBeInTheDocument();
+    expect(screen.getByTestId('bid-hint-submit')).toBeInTheDocument();
+  });
+
+  it('does not show bid hints when firstBidCompleted is true', () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: true,
+    });
+    renderModal();
+    expect(screen.queryByTestId('bid-hint-amount')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('bid-hint-submit')).not.toBeInTheDocument();
+  });
+
+  it('shows future price hint when section is expanded and firstBidCompleted is false', () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    expect(screen.getByTestId('bid-hint-future-price')).toBeInTheDocument();
+  });
+
+  it('does not show future price hint when firstBidCompleted is true', () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: true,
+    });
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
+    expect(screen.queryByTestId('bid-hint-future-price')).not.toBeInTheDocument();
+  });
+
+  it('bid hints do not block form submission', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+    renderModal();
+    expect(screen.getByTestId('bid-hint-amount')).toBeInTheDocument();
+
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '50' } });
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledOnce();
+    });
   });
 });
