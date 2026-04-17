@@ -39,9 +39,9 @@
     "title": "Biblioteka",
     "position": "{{current}} z {{total}}",
     "prevItem": "Poprzedni element",
-    "prevItemTitle": "Poprzedni element (\u2190)",
+    "prevItemTitle": "Poprzedni element (←)",
     "nextItem": "Nastepny element",
-    "nextItemTitle": "Nastepny element (\u2192)",
+    "nextItemTitle": "Nastepny element (→)",
     "contentMissing": "Brak tresci",
     "contentMissingError": "Nie znaleziono pliku tresci na dysku. Plik mogl zostac przeniesiony lub usuniety.",
     "loadFailed": "Nie udalo sie wczytac tresci",
@@ -389,6 +389,11 @@
       "futureMax": "Przyszla cena przekracza maksimum (45B ADA)",
       "noEncryption": "Nie wybrano szyfrowania",
       "submitFailed": "Nie udalo sie zlozyc oferty. Sprobuj ponownie."
+    },
+    "hints": {
+      "bidAmount": "To jest kwota ADA, którą oferujesz. Jest blokowana on-chain, dopóki sprzedawca nie zaakceptuje lub nie anulujesz.",
+      "futurePrice": "Jeśli wygrasz, możesz ponownie wystawić dane. To ustala sugerowaną cenę dla następnego kupującego.",
+      "submit": "Wysłanie tworzy token oferty on-chain. Twoje ADA są zablokowane w kontrakcie — możesz anulować w dowolnym momencie przed akceptacją."
     }
   }
 }

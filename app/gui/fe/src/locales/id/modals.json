@@ -39,9 +39,9 @@
     "title": "Perpustakaan",
     "position": "{{current}} dari {{total}}",
     "prevItem": "Item sebelumnya",
-    "prevItemTitle": "Item sebelumnya (\u2190)",
+    "prevItemTitle": "Item sebelumnya (←)",
     "nextItem": "Item berikutnya",
-    "nextItemTitle": "Item berikutnya (\u2192)",
+    "nextItemTitle": "Item berikutnya (→)",
     "contentMissing": "Konten Tidak Ditemukan",
     "contentMissingError": "Berkas konten tidak ditemukan di disk. Berkas mungkin telah dipindahkan atau dihapus.",
     "loadFailed": "Gagal memuat konten",
@@ -131,7 +131,7 @@
     "categoryAutoDetected": "Kategori terdeteksi otomatis:",
     "nsfwLabel": "NSFW",
     "nsfwMark": "Tandai sebagai konten NSFW",
-    "nsfwUnmark": "Ditandai sebagai NSFW \u2014 klik untuk menghapus",
+    "nsfwUnmark": "Ditandai sebagai NSFW — klik untuk menghapus",
     "copyErrorLabel": "Salin kesalahan ke papan klip",
     "infoNoteLabel": "Catatan:",
     "infoNote": "Berkas harus sudah dienkripsi dan diunggah ke Iagon. Ini akan membuat daftar on-chain yang merujuk berkas tersebut. Anda perlu menandatangani transaksi dengan dompet Anda.",
@@ -184,7 +184,7 @@
     "textHint": "Daftar teks menyimpan konten langsung di rantai dalam kapsul terenkripsi.",
     "fileHint": "Berkas dienkripsi dan diunggah ke penyimpanan terdesentralisasi Iagon.",
     "nsfwMark": "Tandai sebagai konten NSFW",
-    "nsfwUnmark": "Ditandai sebagai NSFW \u2014 klik untuk menghapus",
+    "nsfwUnmark": "Ditandai sebagai NSFW — klik untuk menghapus",
     "nsfwLabel": "NSFW",
     "secretMessage": "Pesan Rahasia",
     "secretPlaceholder": "Masukkan data rahasia yang ingin Anda jual...",
@@ -389,6 +389,11 @@
       "futureMax": "Harga masa depan melebihi maksimum (45M ADA)",
       "noEncryption": "Tidak ada enkripsi yang dipilih",
       "submitFailed": "Gagal mengajukan tawaran. Silakan coba lagi."
+    },
+    "hints": {
+      "bidAmount": "Ini adalah jumlah ADA yang Anda tawarkan. Ini dikunci di on-chain sampai penjual menerima atau Anda membatalkan.",
+      "futurePrice": "Jika Anda menang, Anda dapat mendaftarkan ulang data. Ini menetapkan harga yang disarankan untuk pembeli berikutnya.",
+      "submit": "Mengirim membuat token tawaran on-chain. ADA Anda dikunci dalam kontrak — Anda dapat membatalkan kapan saja sebelum diterima."
     }
   }
 }

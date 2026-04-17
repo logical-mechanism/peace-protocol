@@ -39,9 +39,9 @@
     "title": "Libreria",
     "position": "{{current}} di {{total}}",
     "prevItem": "Elemento precedente",
-    "prevItemTitle": "Elemento precedente (\u2190)",
+    "prevItemTitle": "Elemento precedente (←)",
     "nextItem": "Elemento successivo",
-    "nextItemTitle": "Elemento successivo (\u2192)",
+    "nextItemTitle": "Elemento successivo (→)",
     "contentMissing": "Contenuto mancante",
     "contentMissingError": "File di contenuto non trovato su disco. Il file potrebbe essere stato spostato o eliminato.",
     "loadFailed": "Impossibile caricare il contenuto",
@@ -131,7 +131,7 @@
     "categoryAutoDetected": "Categoria rilevata automaticamente:",
     "nsfwLabel": "NSFW",
     "nsfwMark": "Contrassegna come contenuto NSFW",
-    "nsfwUnmark": "Contrassegnato come NSFW \u2014 clicca per rimuovere",
+    "nsfwUnmark": "Contrassegnato come NSFW — clicca per rimuovere",
     "copyErrorLabel": "Copia errore negli appunti",
     "infoNoteLabel": "Nota:",
     "infoNote": "Il file deve essere gia crittografato e caricato su Iagon. Questo creera un annuncio on-chain che fa riferimento a quel file. Dovrai firmare una transazione con il tuo portafoglio.",
@@ -184,7 +184,7 @@
     "textHint": "Gli annunci testuali archiviano il contenuto direttamente on-chain nella capsula crittografata.",
     "fileHint": "I file vengono crittografati e caricati sull'archiviazione decentralizzata Iagon.",
     "nsfwMark": "Contrassegna come contenuto NSFW",
-    "nsfwUnmark": "Contrassegnato come NSFW \u2014 clicca per rimuovere",
+    "nsfwUnmark": "Contrassegnato come NSFW — clicca per rimuovere",
     "nsfwLabel": "NSFW",
     "secretMessage": "Messaggio segreto",
     "secretPlaceholder": "Inserisci i dati segreti che vuoi vendere...",
@@ -389,6 +389,11 @@
       "futureMax": "Il prezzo futuro supera il massimo (45B ADA)",
       "noEncryption": "Nessuna crittografia selezionata",
       "submitFailed": "Impossibile effettuare l'offerta. Riprova."
+    },
+    "hints": {
+      "bidAmount": "Questo è l'importo di ADA che offri. Viene bloccato on-chain finché il venditore non accetta o non annulli.",
+      "futurePrice": "Se vinci, puoi rimettere in vendita i dati. Questo imposta il prezzo suggerito per il prossimo acquirente.",
+      "submit": "L'invio crea un token di offerta on-chain. I tuoi ADA sono bloccati nel contratto — puoi annullare in qualsiasi momento prima dell'accettazione."
     }
   }
 }

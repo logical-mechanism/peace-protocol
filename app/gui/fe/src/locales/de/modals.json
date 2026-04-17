@@ -389,6 +389,11 @@
       "futureMax": "Zukünftiger Preis überschreitet Maximum (45B ADA)",
       "noEncryption": "Keine Verschlüsselung ausgewählt",
       "submitFailed": "Gebot konnte nicht abgegeben werden. Bitte erneut versuchen."
+    },
+    "hints": {
+      "bidAmount": "Dies ist der ADA-Betrag, den Sie anbieten. Er wird on-chain gesperrt, bis der Verkäufer akzeptiert oder Sie stornieren.",
+      "futurePrice": "Wenn Sie gewinnen, können Sie die Daten erneut listen. Dies legt den vorgeschlagenen Preis für den nächsten Käufer fest.",
+      "submit": "Das Absenden erstellt ein Gebot-Token on-chain. Ihre ADA werden im Vertrag gesperrt — Sie können jederzeit vor der Annahme stornieren."
     }
   }
 }

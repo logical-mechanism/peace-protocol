@@ -389,6 +389,11 @@
       "futureMax": "Toekomstprijs overschrijdt maximum (45B ADA)",
       "noEncryption": "Geen versleuteling geselecteerd",
       "submitFailed": "Bod plaatsen mislukt. Probeer het opnieuw."
+    },
+    "hints": {
+      "bidAmount": "Dit is het ADA-bedrag dat u biedt. Het wordt on-chain vergrendeld totdat de verkoper accepteert of u annuleert.",
+      "futurePrice": "Als u wint, kunt u de data opnieuw aanbieden. Dit stelt de voorgestelde prijs in voor de volgende koper.",
+      "submit": "Indienen maakt een bod-token on-chain aan. Uw ADA wordt vergrendeld in het contract — u kunt op elk moment vóór acceptatie annuleren."
     }
   }
 }

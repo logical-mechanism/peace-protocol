@@ -9,6 +9,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
+import { getOnboardingState } from '../services/onboardingStorage';
 import { formatAda } from '../utils/formatAda';
 
 interface PlaceBidFormData {
@@ -62,6 +63,7 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  const [showBidHints, setShowBidHints] = useState(false);
   const bidAmountRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -70,6 +72,7 @@ export default function PlaceBidModal({
       setErrors({});
       setSubmitError(null);
       setRestoredFromDraft(false);
+      setShowBidHints(!getOnboardingState().firstBidCompleted);
 
       // Try to restore from a saved draft for this encryption
       const draft = encryption ? getBidFormDraft(encryption.tokenName) : null;
@@ -406,6 +409,14 @@ export default function PlaceBidModal({
                   {t('modals:placeBid.bidHint', { amount: MIN_BID_ADA })}
                   <InfoTooltip text={t('modals:placeBid.minimumTooltip')} />
                 </p>
+                {showBidHints && (
+                  <p className="text-xs text-[var(--accent)] flex items-start gap-1.5" data-testid="bid-hint-amount">
+                    <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('modals:placeBid.hints.bidAmount')}
+                  </p>
+                )}
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--text-secondary)]">
@@ -536,6 +547,14 @@ export default function PlaceBidModal({
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     {t('modals:placeBid.futurePriceHelp')}
                   </p>
+                  {showBidHints && (
+                    <p className="mt-1 text-xs text-[var(--accent)] flex items-start gap-1.5" data-testid="bid-hint-future-price">
+                      <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {t('modals:placeBid.hints.futurePrice')}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -580,6 +599,15 @@ export default function PlaceBidModal({
                 <strong>{t('modals:placeBid.infoNoteLabel')}</strong> {t('modals:placeBid.infoNote')}
               </p>
             </div>
+
+            {showBidHints && (
+              <p className="mb-3 text-xs text-[var(--accent)] flex items-start gap-1.5" data-testid="bid-hint-submit">
+                <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {t('modals:placeBid.hints.submit')}
+              </p>
+            )}
 
             <div className="flex items-center gap-3">
               <button
