@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useModal } from '../contexts/ModalContext';
 
 interface ScrollToTopProps {
@@ -6,6 +7,7 @@ interface ScrollToTopProps {
 }
 
 export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
+  const { t } = useTranslation('common');
   const [isVisible, setIsVisible] = useState(false);
   const { hasOpenModal } = useModal();
 
@@ -35,8 +37,8 @@ export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
     <button
       onClick={scrollToTop}
       className="fixed bottom-6 right-6 z-50 p-3 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-full shadow-[var(--shadow-lg)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)] btn-base"
-      title="Scroll to top"
-      aria-label="Scroll to top"
+      title={t('ui.scrollToTop')}
+      aria-label={t('ui.scrollToTop')}
     >
       <svg
         className="w-5 h-5"

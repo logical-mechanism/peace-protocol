@@ -124,16 +124,16 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         <svg className="w-8 h-8 mx-auto mb-2 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
-        <p className="text-sm font-medium text-[var(--error)]">Failed to play video</p>
+        <p className="text-sm font-medium text-[var(--error)]">{t('videoPlayer.failedToPlay')}</p>
         <p className="text-xs text-[var(--text-muted)]">
           {error}
         </p>
 
         {/* Diagnostic info */}
         <div className="flex items-center justify-center gap-3 text-xs text-[var(--text-muted)]">
-          <span>Format: <span className="font-mono text-[var(--text-secondary)]">{fileExtension.toUpperCase().replace('.', '')}</span></span>
+          <span>{t('videoPlayer.formatLabel')}: <span className="font-mono text-[var(--text-secondary)]">{fileExtension.toUpperCase().replace('.', '')}</span></span>
           <span className="text-[var(--border-subtle)]">|</span>
-          <span>MIME: <span className="font-mono text-[var(--text-secondary)]">{mimeType}</span></span>
+          <span>{t('videoPlayer.mimeLabel')}: <span className="font-mono text-[var(--text-secondary)]">{mimeType}</span></span>
         </div>
 
         {/* Conversion hint */}
@@ -152,11 +152,11 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Save As
+            {t('videoPlayer.saveAs')}
           </button>
         ) : (
           <p className="text-xs text-[var(--text-muted)]">
-            Use Save As to open it with an external player.
+            {t('videoPlayer.saveAsHint')}
           </p>
         )}
       </div>
@@ -172,14 +172,14 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] flex-nowrap overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Screen reader status */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
-        {error ? 'Error' : loading ? 'Loading' : isPlaying ? 'Playing' : 'Paused'}
+        {error ? t('mediaPlayer.statusError') : loading ? t('mediaPlayer.statusLoading') : isPlaying ? t('mediaPlayer.statusPlaying') : t('mediaPlayer.statusPaused')}
       </span>
       {/* Screen reader announcement for volume/speed changes */}
       <span className="sr-only" aria-live="polite" aria-atomic="true">
         {controlAnnouncement}
       </span>
       {/* Play/Pause */}
-      <button onClick={playbackActions.handlePlayPause} className={btnClass} title={isPlaying ? 'Pause (Space)' : 'Play (Space)'} aria-label={isPlaying ? 'Pause' : 'Play'} aria-pressed={isPlaying}>
+      <button onClick={playbackActions.handlePlayPause} className={btnClass} title={isPlaying ? t('mediaPlayer.pauseShortcut', { key: 'Space' }) : t('mediaPlayer.playShortcut', { key: 'Space' })} aria-label={isPlaying ? t('mediaPlayer.pause') : t('mediaPlayer.play')} aria-pressed={isPlaying}>
         {isPlaying ? (
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -192,21 +192,21 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       </button>
 
       {/* Stop */}
-      <button onClick={() => { playbackActions.handleStop(); seekBarActions.syncVizTime(0); }} className={btnClass} title="Stop (X)" aria-label="Stop">
+      <button onClick={() => { playbackActions.handleStop(); seekBarActions.syncVizTime(0); }} className={btnClass} title={t('mediaPlayer.stopShortcut', { key: 'X' })} aria-label={t('mediaPlayer.stop')}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 6h12v12H6z" />
         </svg>
       </button>
 
       {/* Skip Back */}
-      <button onClick={playbackActions.handleSkipBack} className={btnClass} title="Back 5s (←)" aria-label="Skip back 5 seconds">
+      <button onClick={playbackActions.handleSkipBack} className={btnClass} title={t('mediaPlayer.skipBackShortcut', { seconds: 5, key: '\u2190' })} aria-label={t('mediaPlayer.skipBackSeconds', { seconds: 5 })}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
         </svg>
       </button>
 
       {/* Skip Forward */}
-      <button onClick={playbackActions.handleSkipForward} className={btnClass} title="Forward 5s (→)" aria-label="Skip forward 5 seconds">
+      <button onClick={playbackActions.handleSkipForward} className={btnClass} title={t('mediaPlayer.skipForwardShortcut', { seconds: 5, key: '\u2192' })} aria-label={t('mediaPlayer.skipForwardSeconds', { seconds: 5 })}>
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
         </svg>
@@ -219,8 +219,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); seekBarActions.setShowRemaining(r => !r); } }}
         role="button"
         tabIndex={0}
-        title="Click to toggle remaining time (T)"
-        aria-label={showRemaining ? 'Showing remaining time, click for total' : 'Showing total time, click for remaining'}
+        title={t('mediaPlayer.clickToggleRemainingTimeShortcut', { key: 'T' })}
+        aria-label={showRemaining ? t('mediaPlayer.showingRemainingTime') : t('mediaPlayer.showingTotalTime')}
       >
         {formatTime(displayTime)} / {showRemaining ? `\u2212${formatTime(Math.max(0, duration - displayTime))}` : formatTime(duration)}
       </div>
@@ -234,7 +234,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
         onKeyDown={seekBarActions.handleSeekKeyDown}
         role="slider"
         tabIndex={0}
-        aria-label="Seek"
+        aria-label={t('mediaPlayer.seek')}
         aria-valuemin={0}
         aria-valuemax={Math.round(duration)}
         aria-valuenow={Math.round(currentTime)}
@@ -308,8 +308,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       <button
         onClick={subtitleUrlProp ? playbackActions.handleCaptionToggle : undefined}
         className={`${btnClass} font-bold text-xs ${!subtitleUrlProp ? 'opacity-50 cursor-not-allowed' : showCaptions ? 'text-[var(--accent)]' : ''}`}
-        title={!subtitleUrlProp ? 'No subtitles available' : showCaptions ? 'Hide subtitles (C)' : 'Show subtitles (C)'}
-        aria-label={!subtitleUrlProp ? 'Subtitles unavailable' : showCaptions ? 'Hide subtitles' : 'Show subtitles'}
+        title={!subtitleUrlProp ? t('videoPlayer.noSubtitles') : showCaptions ? t('videoPlayer.hideSubtitlesShortcut', { key: 'C' }) : t('videoPlayer.showSubtitlesShortcut', { key: 'C' })}
+        aria-label={!subtitleUrlProp ? t('videoPlayer.subtitlesUnavailable') : showCaptions ? t('videoPlayer.hideSubtitles') : t('videoPlayer.showSubtitles')}
         aria-pressed={subtitleUrlProp ? showCaptions : undefined}
         aria-disabled={!subtitleUrlProp || undefined}
         disabled={!subtitleUrlProp}
@@ -321,8 +321,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       <button
         onClick={playbackActions.handleToggleLoop}
         className={`${btnClass} ${isLooping ? 'text-[var(--accent)]' : ''}`}
-        title={isLooping ? 'Repeat: On (R)' : 'Repeat: Off (R)'}
-        aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+        title={isLooping ? t('mediaPlayer.repeatOnShortcut', { key: 'R' }) : t('mediaPlayer.repeatOffShortcut', { key: 'R' })}
+        aria-label={isLooping ? t('mediaPlayer.disableRepeat') : t('mediaPlayer.enableRepeat')}
         aria-pressed={isLooping}
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -337,8 +337,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           onClick={playbackActions.handleSpeedChange}
           onContextMenu={(e) => { e.preventDefault(); setSpeedPopupOpen(p => !p); }}
           className={`${btnClass} min-w-[42px] text-center font-mono`}
-          title="Playback speed (right-click for fine control)"
-          aria-label={`Playback speed: ${playbackRate}x`}
+          title={t('mediaPlayer.speedTooltip')}
+          aria-label={t('mediaPlayer.playbackSpeed', { speed: playbackRate })}
         >
           {playbackRate}x
         </button>
@@ -356,7 +356,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
               value={playbackRate}
               onChange={handleSpeedSliderChange}
               className="w-full accent-[var(--accent)] mb-2"
-              aria-label="Fine speed control"
+              aria-label={t('mediaPlayer.fineSpeedControl')}
             />
             <div className="flex justify-between gap-1">
               {SPEED_PRESETS.map(s => (
@@ -379,7 +379,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
 
       {/* PiP */}
       {pipSupported && (
-        <button onClick={playbackActions.handlePip} className={btnClass} title={isPip ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'} aria-label={isPip ? 'Exit Picture-in-Picture' : 'Enter Picture-in-Picture'} aria-pressed={isPip}>
+        <button onClick={playbackActions.handlePip} className={btnClass} title={isPip ? t('videoPlayer.exitPip') : t('videoPlayer.enterPip')} aria-label={isPip ? t('videoPlayer.exitPip') : t('videoPlayer.enterPip')} aria-pressed={isPip}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <rect x="2" y="3" width="20" height="14" rx="2" strokeWidth={2} />
             <rect x="11" y="9" width="9" height="6" rx="1" strokeWidth={2} fill="currentColor" opacity={0.3} />
@@ -393,8 +393,8 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
       <button
         onClick={fullscreenActions.toggleFullscreen}
         className={`${btnClass} ${isFullscreen ? 'text-[var(--accent)]' : ''}`}
-        title={isFullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-        aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        title={isFullscreen ? t('videoPlayer.exitFullscreenShortcut', { key: 'F' }) : t('videoPlayer.fullscreenShortcut', { key: 'F' })}
+        aria-label={isFullscreen ? t('videoPlayer.exitFullscreen') : t('videoPlayer.enterFullscreen')}
         aria-pressed={isFullscreen}
       >
         {isFullscreen ? (
@@ -413,20 +413,20 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
   const keyHintsOverlay = showKeyHints ? (
     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)]/90 text-[var(--text-primary)] text-xs rounded-[var(--radius-md)] px-4 py-3 pointer-events-none z-10 whitespace-nowrap transition-opacity duration-[var(--transition-slow)] border border-[var(--border-subtle)]">
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">F</kbd> Fullscreen</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> Seek &plusmn;5s / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Shift</kbd> &plusmn;30s</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">Space</kbd> {t('mediaPlayer.hintPlayPause')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">F</kbd> {t('mediaPlayer.hintFullscreen')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&larr; &rarr;</kbd> {t('mediaPlayer.hintSeekShift')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">M</kbd> {t('mediaPlayer.hintMute')}</span>
         <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">&uarr; &darr;</kbd> {t('mediaPlayer.volume')}</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">J</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">K</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> Back / Play / Fwd</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">X</kbd> Stop</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">R</kbd> Repeat</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time</span>
-        {subtitleUrlProp && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> Captions</span>}
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">,</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">.</kbd> Frame step</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">0-9</kbd> Seek 0%-90%</span>
-        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> Show hints</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">J</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">K</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">L</kbd> {t('mediaPlayer.hintBackPlayFwd')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">X</kbd> {t('mediaPlayer.hintStop')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">R</kbd> {t('mediaPlayer.hintRepeat')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">S</kbd> {t('mediaPlayer.hintSpeed')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">T</kbd> {t('mediaPlayer.hintTime')}</span>
+        {subtitleUrlProp && <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">C</kbd> {t('mediaPlayer.hintCaptions')}</span>}
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">,</kbd> / <kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">.</kbd> {t('mediaPlayer.hintFrameStep')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">0-9</kbd> {t('mediaPlayer.hintSeekPercent')}</span>
+        <span><kbd className="font-mono bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-[11px]">?</kbd> {t('mediaPlayer.hintShowHints')}</span>
       </div>
     </div>
   ) : null;
@@ -480,7 +480,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
           kind="subtitles"
           src={subtitleUrlProp}
           srcLang="und"
-          label="Subtitles"
+          label={t('videoPlayer.subtitlesLabel')}
           default={showCaptions}
         />
       )}
@@ -493,7 +493,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
     <div className="space-y-3">
       {isFullscreen && (
         <div className="p-4 text-center text-sm text-[var(--text-muted)]">
-          Video is expanded to fullscreen. Press Esc or the collapse button to return.
+          {t('videoPlayer.fullscreenMessage')}
         </div>
       )}
 
@@ -518,7 +518,7 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]/80 backdrop-blur-sm">
               <div className="text-center">
                 <DelayedSpinner size="lg" className="mx-auto mb-4" />
-                <p className="text-sm text-[var(--text-muted)]">Loading video...</p>
+                <p className="text-sm text-[var(--text-muted)]">{t('videoPlayer.loadingVideo')}</p>
               </div>
             </div>
           )}
@@ -527,18 +527,18 @@ export default function VideoPlayer({ src, mimeType, fileExtension, onExport, su
               <button
                 onClick={playbackActions.handleReplay}
                 className="flex flex-col items-center gap-2 text-white/90 hover:text-white transition-colors"
-                aria-label="Replay video"
+                aria-label={t('videoPlayer.replayAria')}
               >
                 <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
                 </svg>
-                <span className="text-sm font-medium">Replay</span>
+                <span className="text-sm font-medium">{t('videoPlayer.replay')}</span>
               </button>
             </div>
           )}
           {resumedFrom !== null && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)]/90 text-[var(--text-primary)] text-xs rounded-[var(--radius-md)] px-3 py-1.5 pointer-events-none z-10 border border-[var(--border-subtle)] transition-opacity duration-500">
-              Resumed from {formatTime(resumedFrom)}
+              {t('videoPlayer.resumedFrom', { time: formatTime(resumedFrom) })}
             </div>
           )}
           {visualOsd && (

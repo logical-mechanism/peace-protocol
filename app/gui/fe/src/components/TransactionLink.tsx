@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 
 interface TransactionLinkProps {
@@ -15,6 +16,7 @@ export default function TransactionLink({
   truncate = true,
   className = '',
 }: TransactionLinkProps) {
+  const { t } = useTranslation('common');
   if (!txHash || !isValidTxHash(txHash)) {
     return (
       <span className={`font-mono text-[var(--text-muted)] ${className}`}>
@@ -49,7 +51,7 @@ export default function TransactionLink({
         target="_blank"
         rel="noopener noreferrer"
         className={`inline-flex items-center gap-1 font-mono text-[var(--accent)] hover:text-[var(--accent)]/80 underline underline-offset-2 transition-colors ${className}`}
-        title={`View transaction ${txHash} on CardanoScan`}
+        title={t('ui.viewTxOnCardanoScan', { txHash })}
       >
         {txHash}
         {icon}
@@ -64,7 +66,7 @@ export default function TransactionLink({
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex items-center gap-1 font-mono text-[var(--accent)] hover:text-[var(--accent)]/80 underline underline-offset-2 transition-colors ${className}`}
-      title={`View transaction ${txHash} on CardanoScan`}
+      title={t('ui.viewTxOnCardanoScan', { txHash })}
     >
       {/* sm: 8...4 */}
       <span className="md:hidden">{txHash.slice(0, 8)}...{txHash.slice(-4)}</span>
@@ -89,6 +91,7 @@ export function TransactionLinkInline({
   txHash: string;
   className?: string;
 }) {
+  const { t } = useTranslation('common');
   if (!txHash || !isValidTxHash(txHash)) {
     return <span className="font-mono">{txHash || 'N/A'}</span>;
   }
@@ -101,7 +104,7 @@ export function TransactionLinkInline({
       target="_blank"
       rel="noopener noreferrer"
       className={`text-[var(--accent)] hover:underline ${className}`}
-      title="View on CardanoScan"
+      title={t('ui.viewOnCardanoScan')}
     >
       {txHash.slice(0, 8)}...{txHash.slice(-8)}
     </a>

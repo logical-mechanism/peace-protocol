@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -17,14 +18,16 @@ export default function LoadingSpinner({
   size = 'md',
   variant = 'arc',
   className = '',
-  label = 'Loading',
+  label,
 }: LoadingSpinnerProps) {
+  const { t } = useTranslation('common');
+  const resolvedLabel = label ?? t('ui.loading');
   if (variant === 'ring') {
     return (
       <div
         className={`animate-spin rounded-full border-2 border-transparent border-t-[var(--accent)] ${sizeClasses[size]} ${className}`}
         role="status"
-        aria-label={label}
+        aria-label={resolvedLabel}
       />
     );
   }
@@ -36,7 +39,7 @@ export default function LoadingSpinner({
       fill="none"
       viewBox="0 0 24 24"
       role="status"
-      aria-label={label}
+      aria-label={resolvedLabel}
     >
       <circle
         className="opacity-25"

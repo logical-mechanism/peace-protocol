@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface SelectOption {
   value: string
@@ -30,12 +31,14 @@ export default function Select({
   value,
   options,
   onChange,
-  placeholder = 'Select…',
+  placeholder,
   disabled,
   searchThreshold = 6,
   className = '',
   ariaLabel,
 }: SelectProps) {
+  const { t } = useTranslation('common')
+  const resolvedPlaceholder = placeholder ?? t('select.placeholder')
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -93,7 +96,7 @@ export default function Select({
         } bg-[var(--bg-secondary)] text-[var(--text-primary)]`}
       >
         <span className={selectedItem ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}>
-          {selectedItem ? selectedItem.label : placeholder}
+          {selectedItem ? selectedItem.label : resolvedPlaceholder}
         </span>
         <svg
           className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${open ? 'rotate-180' : ''}`}
@@ -117,14 +120,14 @@ export default function Select({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search..."
+                placeholder={t('select.searchPlaceholder')}
                 className="w-full px-2.5 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
           )}
           <div className="max-h-48 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-[var(--text-muted)]">No matches</p>
+              <p className="px-3 py-2 text-sm text-[var(--text-muted)]">{t('select.noMatches')}</p>
             ) : (
               filtered.map((opt) => (
                 <button

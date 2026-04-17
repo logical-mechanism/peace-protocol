@@ -145,7 +145,7 @@ describe('InlineErrorBoundary', () => {
     expect(screen.getByText('Failed to load this section')).toBeInTheDocument();
 
     shouldThrow = false;
-    fireEvent.click(screen.getByText('Try again'));
+    fireEvent.click(screen.getByText('Try Again'));
     expect(screen.getByText('Inline recovered')).toBeInTheDocument();
   });
 
@@ -181,6 +181,6 @@ describe('InlineErrorBoundary', () => {
         <ThrowEmpty />
       </InlineErrorBoundary>
     );
-    expect(screen.getByText('An unexpected error occurred')).toBeInTheDocument();
+    expect(screen.getByText('An unexpected error occurred. Please try refreshing the page.')).toBeInTheDocument();
   });
 });

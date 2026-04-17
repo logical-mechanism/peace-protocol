@@ -86,7 +86,7 @@ describe('ImageViewer', () => {
   describe('fullscreen', () => {
     it('renders fullscreen toggle button', () => {
       renderViewer();
-      expect(screen.getByLabelText('Enter fullscreen')).toBeInTheDocument();
+      expect(screen.getByLabelText('Expand')).toBeInTheDocument();
     });
   });
 

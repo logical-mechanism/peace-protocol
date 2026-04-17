@@ -103,9 +103,9 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
         value={level1Id}
         options={toOptions(subcategories)}
         onChange={handleLevel1Select}
-        placeholder="None"
+        placeholder={t('filters.subcategory.placeholder')}
         disabled={disabled}
-        ariaLabel="Sub-category"
+        ariaLabel={t('filters.subcategory.ariaLabel')}
       />
 
       {level1Id && level2Items.length > 0 && (
@@ -114,9 +114,9 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
             value={level2Id}
             options={toOptions(level2Items)}
             onChange={handleLevel2Select}
-            placeholder="None"
+            placeholder={t('filters.subcategory.placeholder')}
             disabled={disabled}
-            ariaLabel="Sub-category level 2"
+            ariaLabel={t('filters.subcategory.ariaLabelLevel2')}
           />
         </div>
       )}

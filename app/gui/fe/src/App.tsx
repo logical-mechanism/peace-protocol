@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useWalletContext } from './contexts/WalletContext'
 import { useNode } from './contexts/NodeContext'
@@ -12,6 +13,7 @@ import OfflineBanner from './components/OfflineBanner'
 import OnboardingOverlay from './components/OnboardingOverlay'
 
 function App() {
+  const { t } = useTranslation('common')
   const { walletState, refreshBalance } = useWalletContext()
   const { stage: nodeStage, tipSlot } = useNode()
   const location = useLocation()
@@ -34,7 +36,7 @@ function App() {
         className="min-h-screen flex items-center justify-center"
         style={{ background: 'var(--bg-primary)' }}
       >
-        <div style={{ color: 'var(--text-muted)' }}>Loading...</div>
+        <div style={{ color: 'var(--text-muted)' }}>{t('ui.loadingEllipsis')}</div>
       </main>
     )
   }
@@ -45,7 +47,7 @@ function App() {
       href="#main-content"
       className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:bg-[var(--bg-card)] focus:text-[var(--text-primary)] focus:border focus:border-[var(--accent)] focus:rounded-[var(--radius-md)] focus:shadow-lg focus:outline-none"
     >
-      Skip to content
+      {t('ui.skipToContent')}
     </a>
     <OfflineBanner />
     <SessionWarningBanner />

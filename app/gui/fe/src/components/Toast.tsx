@@ -282,6 +282,7 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
+  const { t } = useTranslation('common');
   const [visibleToasts, setVisibleToasts] = useState<ToastMessage[]>([]);
   const [queuedCount, setQueuedCount] = useState(0);
   const queueRef = useRef<ToastMessage[]>([]);
@@ -368,12 +369,12 @@ export function useToast() {
     (title: string, txHash: string, messageOrDetails?: string | TransactionDetails, secondaryAction?: ToastAction) => {
       const base = getToastDurationMs();
       const action: ToastAction | undefined = isValidTxHash(txHash)
-        ? { label: 'View on CardanoScan', href: getTransactionUrl(txHash) }
+        ? { label: t('ui.viewOnCardanoScan'), href: getTransactionUrl(txHash) }
         : undefined;
 
       let message: string;
       if (typeof messageOrDetails === 'string') {
-        message = messageOrDetails || `Transaction: ${txHash.slice(0, 16)}...`;
+        message = messageOrDetails || t('ui.transactionFallback', { hash: txHash.slice(0, 16) });
       } else if (messageOrDetails) {
         const parts: string[] = [];
         if (messageOrDetails.type) {
@@ -391,14 +392,14 @@ export function useToast() {
         }
         message = parts.length > 0
           ? parts.join(' \u2014 ')
-          : `Transaction: ${txHash.slice(0, 16)}...`;
+          : t('ui.transactionFallback', { hash: txHash.slice(0, 16) });
       } else {
-        message = `Transaction: ${txHash.slice(0, 16)}...`;
+        message = t('ui.transactionFallback', { hash: txHash.slice(0, 16) });
       }
 
       return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 8000), action, 'transaction', secondaryAction);
     },
-    [addToast]
+    [addToast, t]
   );
 
   return {

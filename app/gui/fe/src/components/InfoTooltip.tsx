@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 interface InfoTooltipProps {
   /** The tooltip text content */
@@ -14,6 +15,7 @@ const GAP = 8; // px between button and tooltip
 const VIEWPORT_PADDING = 8; // px from viewport edges
 
 export default function InfoTooltip({ text, position = 'top', className = '' }: InfoTooltipProps) {
+  const { t } = useTranslation('common');
   const [isVisible, setIsVisible] = useState(false);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -77,7 +79,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         onFocus={show}
         onBlur={hide}
         onKeyDown={(e) => { if (e.key === 'Escape' && isVisible) { e.stopPropagation(); setIsVisible(false); } }}
-        aria-label="More information"
+        aria-label={t('ui.moreInfo')}
         aria-describedby={isVisible ? tooltipId : undefined}
         aria-expanded={isVisible}
         className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:shadow-[var(--focus-ring)] transition-colors duration-[var(--transition-fast)] cursor-help"
