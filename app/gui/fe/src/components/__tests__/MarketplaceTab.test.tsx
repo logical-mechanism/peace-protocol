@@ -30,7 +30,12 @@ vi.mock('../../services/favoritesStorage', () => ({
   toggleFavorite: vi.fn(),
 }));
 
+vi.mock('../../services/onboardingStorage', () => ({
+  getOnboardingState: vi.fn().mockReturnValue({ step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false }),
+}));
+
 import { encryptionsApi, bidsApi } from '../../services/api';
+import { getOnboardingState } from '../../services/onboardingStorage';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -340,5 +345,76 @@ describe('MarketplaceTab', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Showing cached listings/)).not.toBeInTheDocument();
     });
+  });
+
+  it('shows tutorial banner when onboarding complete and firstListingCompleted is false', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+      expect(screen.getByText(/Take a guided tour/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides tutorial banner when firstListingCompleted is true', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('hides tutorial banner when onboarding not complete', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('dismisses tutorial banner on X click (session only)', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+
+    expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+  });
+
+  it('calls onStartTutorial and hides banner when Start Tour is clicked', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    const onStartTutorial = vi.fn();
+    renderTab({ onStartTutorial });
+
+    await waitFor(() => {
+      expect(screen.getByText('Start Tour')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Start Tour'));
+
+    expect(onStartTutorial).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
   });
 });
