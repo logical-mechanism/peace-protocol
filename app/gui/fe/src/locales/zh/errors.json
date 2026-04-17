@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "出现问题",
+    "action": "请重试。如果问题持续，请重启应用。"
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo 不可用",
+    "message": "UTxO 索引器正在启动或无法访问。",
+    "action": "等待节点完成同步后重试。"
+  },
+  "kupoUnavailable": {
+    "title": "Kupo 不可用",
+    "message": "UTxO 索引器无响应。",
+    "action": "等待节点完成同步，或在设置中检查进程状态。"
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios 请求超时",
+    "message": "交易服务未及时响应。节点连接可能不稳定。",
+    "action": "尝试从设置中重启节点，或等待节点完全同步。"
+  },
+  "ogmiosConnectFailed": {
+    "title": "无法连接 Ogmios",
+    "message": "无法在预期端口访问交易服务。",
+    "action": "确保节点正在运行，或从设置中重启。"
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios 不可用",
+    "message": "交易提交服务无响应。",
+    "action": "等待节点完成同步，或在设置中检查进程状态。"
+  },
+  "network": {
+    "title": "网络错误",
+    "message": "无法连接到所需服务。",
+    "action": "检查您的网络连接并确保节点正在运行。"
+  },
+  "noCollateral": {
+    "title": "无抵押品",
+    "message": "您的钱包需要一个专用的 5 ADA 抵押品 UTxO 用于智能合约交易。",
+    "action": "前往设置 > 钱包，点击「设置抵押品」。"
+  },
+  "collateralFundsInsufficient": {
+    "title": "创建抵押品的资金不足",
+    "message": "您的钱包没有足够的 ADA 来创建抵押品 UTxO。",
+    "action": "向您的钱包地址发送至少 10 ADA。"
+  },
+  "collateralInsufficient": {
+    "title": "抵押品不足",
+    "message": "交易所需的抵押品超过可用数量。",
+    "action": "确保您的钱包有设置为抵押品的 UTxO。尝试刷新钱包余额。"
+  },
+  "insufficientBalance": {
+    "title": "余额不足",
+    "message": "您的钱包没有足够的 ADA 来完成此交易。",
+    "action": "向钱包添加更多 ADA 后重试。"
+  },
+  "iagonAuth": {
+    "title": "Iagon 身份验证失败",
+    "message": "您的 Iagon API 密钥无效或已过期。",
+    "action": "前往设置 → 数据层，重新进行身份验证。"
+  },
+  "iagonFileTooLarge": {
+    "title": "文件对 Iagon 来说过大",
+    "message": "Iagon 不支持上传此大小的文件。",
+    "action": "请选择小于 200 MB 的文件。"
+  },
+  "iagonQuota": {
+    "title": "Iagon 存储已满",
+    "message": "您的 Iagon 账户存储配额已满。",
+    "action": "检查您的 Iagon 账户存储使用情况。"
+  },
+  "iagonGeneric": {
+    "title": "存储服务错误",
+    "message": "无法访问 Iagon 去中心化存储服务。",
+    "action": "检查您的网络连接。Iagon 可能暂时不可用。"
+  },
+  "timeout": {
+    "title": "请求超时",
+    "message": "操作耗时过长。",
+    "action": "请重试。如果问题持续，服务可能负载过高。"
+  },
+  "mnemonicChecksum": {
+    "title": "助记词无效",
+    "message": "助记词校验和无效。一个或多个单词可能不正确。",
+    "action": "对照您的书面备份仔细检查每个单词后重试。"
+  },
+  "passwordTooShort": {
+    "title": "密码过短",
+    "message": "密码长度至少为 12 个字符。",
+    "action": "选择满足所有显示要求的更长密码。"
+  },
+  "walletGeneric": {
+    "title": "钱包错误",
+    "message": "钱包操作出现问题。",
+    "action": "尝试重新解锁钱包。如果问题持续，请重启应用。"
+  },
+  "incorrectPassword": {
+    "title": "密码错误",
+    "message": "您输入的密码不正确。",
+    "action": "请仔细检查密码后重试。"
+  },
+  "snarkOom": {
+    "title": "内存不足",
+    "message": "证明生成内存不足。",
+    "action": "关闭其他应用以释放内存后重试。"
+  },
+  "snarkSetupMissing": {
+    "title": "SNARK 配置文件缺失",
+    "message": "找不到所需的 SNARK 配置文件。",
+    "action": "前往设置重新下载 SNARK 配置文件。"
+  },
+  "snarkInProgress": {
+    "title": "证明正在生成",
+    "message": "已有一个零知识证明正在生成中。",
+    "action": "请等待当前证明完成后再开始新的证明。"
+  },
+  "snarkGeneric": {
+    "title": "证明生成错误",
+    "message": "SNARK 证明器遇到错误。",
+    "action": "请重试。如果问题持续，请检查配置文件是否正确安装。"
+  },
+  "scriptValidation": {
+    "title": "脚本验证失败",
+    "message": "智能合约脚本在验证过程中失败。",
+    "action": "链上状态可能已更改。刷新后重试。"
+  },
+  "txConflict": {
+    "title": "交易冲突",
+    "message": "一个或多个输入已被另一笔交易花费。",
+    "action": "其他人可能已操作此商品。刷新页面后重试。"
+  },
+  "feeError": {
+    "title": "交易费用错误",
+    "message": "交易费用计算过低。",
+    "action": "请重试。如果问题持续，请重启应用以刷新费用参数。"
+  },
+  "txFailed": {
+    "title": "交易失败",
+    "message": "交易无法提交到区块链。",
+    "action": "链上状态可能已更改。刷新后重试。"
+  },
+  "accessDenied": {
+    "title": "访问被拒绝",
+    "message": "请求被服务器阻止。",
+    "action": "这可能是配置问题。尝试重启应用。"
+  },
+  "diskFull": {
+    "title": "磁盘已满",
+    "message": "没有足够的磁盘空间来完成此操作。",
+    "action": "释放磁盘空间后重试。在设置 > 存储中查看清理选项。"
+  },
+  "portConflict": {
+    "title": "端口冲突",
+    "message": "所需端口已被其他进程占用。",
+    "action": "关闭可能使用该端口的其他应用，或重启本应用。"
+  }
+}
