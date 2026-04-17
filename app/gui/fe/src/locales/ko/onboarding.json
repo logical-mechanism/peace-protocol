@@ -1,0 +1,29 @@
+{
+  "tourLabel": "온보딩 투어",
+  "skip": "투어 건너뛰기",
+  "skipAria": "온보딩 투어 건너뛰기",
+  "next": "다음",
+  "done": "완료",
+  "nextAria": "다음 단계 ({{total}}개 중 {{current}}번째)",
+  "finishAria": "온보딩 투어 완료",
+  "stepProgress": "{{total}}개 중 {{current}}단계",
+  "stepCounter": "{{current}} / {{total}}",
+  "steps": {
+    "walletSetup": {
+      "title": "지갑 만들기",
+      "description": "Veiled에 오신 것을 환영합니다! 새 지갑을 만들거나 기존 지갑을 가져오세요. 지갑은 마켓플레이스에서의 신원을 보호합니다."
+    },
+    "nodeSync": {
+      "title": "블록체인과 동기화",
+      "description": "노드가 Cardano 블록체인을 다운로드하고 동기화합니다. 최초 설정으로 10-20분이 소요됩니다. 백그라운드에서 계속할 수 있습니다."
+    },
+    "marketplace": {
+      "title": "마켓플레이스 둘러보기",
+      "description": "마켓플레이스 탭에는 사용 가능한 모든 암호화 데이터 목록이 표시됩니다. 카테고리를 탐색하고, 가격을 확인하고, 구매하고 싶은 데이터를 찾으세요."
+    },
+    "firstBid": {
+      "title": "첫 입찰하기",
+      "description": "관심 있는 항목을 찾으셨나요? 목록을 클릭하여 세부 정보를 확인한 후 원하는 가격으로 입찰하세요. 판매자가 입찰을 수락하면 거래가 완료됩니다."
+    }
+  }
+}
