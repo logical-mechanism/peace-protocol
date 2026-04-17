@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "내 목록 숨기기",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW 숨김",
-    "nsfwHide": "NSFW 목록 숨기기"
+    "nsfwHide": "NSFW 목록 숨기기",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "내 목록을 불러오는 중...",

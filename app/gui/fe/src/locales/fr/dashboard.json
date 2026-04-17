@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Masquer vos propres annonces",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW masqué",
-    "nsfwHide": "Masquer les annonces NSFW"
+    "nsfwHide": "Masquer les annonces NSFW",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "Chargement de vos annonces...",

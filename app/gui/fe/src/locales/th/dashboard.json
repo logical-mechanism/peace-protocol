@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "ซ่อนรายการของคุณ",
     "nsfw": "NSFW",
     "nsfwHidden": "ซ่อน NSFW แล้ว",
-    "nsfwHide": "ซ่อนรายการ NSFW"
+    "nsfwHide": "ซ่อนรายการ NSFW",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "กำลังโหลดรายการของคุณ…",

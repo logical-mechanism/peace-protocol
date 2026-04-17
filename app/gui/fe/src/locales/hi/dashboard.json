@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "अपनी लिस्टिंग छिपाएँ",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW छिपी",
-    "nsfwHide": "NSFW लिस्टिंग छिपाएँ"
+    "nsfwHide": "NSFW लिस्टिंग छिपाएँ",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "आपकी लिस्टिंग लोड हो रही हैं…",

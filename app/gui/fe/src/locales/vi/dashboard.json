@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Ẩn danh mục của bạn",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW đã ẩn",
-    "nsfwHide": "Ẩn danh mục NSFW"
+    "nsfwHide": "Ẩn danh mục NSFW",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "Đang tải danh mục của bạn…",

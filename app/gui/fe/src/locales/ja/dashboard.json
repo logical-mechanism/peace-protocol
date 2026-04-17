@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "自分のリスティングを非表示",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW非表示",
-    "nsfwHide": "NSFWリスティングを非表示"
+    "nsfwHide": "NSFWリスティングを非表示",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "リスティングを読み込み中…",

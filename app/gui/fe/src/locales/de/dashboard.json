@@ -154,7 +154,11 @@
     "toggleHideOwnOff": "Eigene Angebote ausblenden",
     "nsfw": "NSFW",
     "nsfwHidden": "NSFW ausgeblendet",
-    "nsfwHide": "NSFW-Angebote ausblenden"
+    "nsfwHide": "NSFW-Angebote ausblenden",
+    "tutorialBannerTitle": "New to Veiled?",
+    "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
+    "tutorialBannerStart": "Start Tour",
+    "tutorialBannerDismiss": "Dismiss"
   },
   "mySales": {
     "loading": "Deine Angebote werden geladen…",
