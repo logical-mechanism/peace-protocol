@@ -4,8 +4,8 @@
     "back": "वापस",
     "searchPlaceholder": "सेटिंग्स खोजें...",
     "searchAria": "सेटिंग्स खोजें",
-    "resultsFor_one": "\u201c{{query}}\u201d के लिए {{count}} परिणाम",
-    "resultsFor_other": "\u201c{{query}}\u201d के लिए {{count}} परिणाम",
+    "resultsFor_one": "“{{query}}” के लिए {{count}} परिणाम",
+    "resultsFor_other": "“{{query}}” के लिए {{count}} परिणाम",
     "noMatches": "कोई मिलान सेटिंग नहीं मिली।",
     "inLabel": "{{label}} में"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "कोई प्रक्रिया पंजीकृत नहीं",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} पुनरारंभ",
-    "restarts_other": "{{count}} पुनरारंभ"
+    "restarts_other": "{{count}} पुनरारंभ",
+    "stageFullySynced": "पूरी तरह सिंक",
+    "stageSyncing": "सिंक हो रहा है ({{progress}}%)",
+    "stageStarting": "शुरू हो रहा है...",
+    "stageBootstrapping": "बूटस्ट्रैपिंग...",
+    "stageStopped": "रुका हुआ",
+    "stageError": "त्रुटि",
+    "processRunning": "चल रहा है",
+    "processReady": "तैयार",
+    "processStarting": "शुरू हो रहा है",
+    "processSyncing": "सिंक हो रहा है",
+    "processError": "त्रुटि",
+    "processStopped": "रुका हुआ"
   },
   "wallet": {
     "infoTitle": "वॉलेट जानकारी",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "सभी सूचना ध्वनियाँ टॉगल करें",
     "eventSoundToggleAria": "{{label}} ध्वनि टॉगल करें",
     "volumeLabel": "वॉल्यूम",
-    "previewSoundAria": "{{label}} ध्वनि पूर्वावलोकन"
+    "previewSoundAria": "{{label}} ध्वनि पूर्वावलोकन",
+    "soundEvents": {
+      "new_bid": "नई बोली",
+      "new_bidDesc": "आपकी किसी लिस्टिंग पर नई बोली लगाई गई",
+      "tx_confirmed": "लेनदेन पुष्टि",
+      "tx_confirmedDesc": "एक लेनदेन 15 पुष्टियों तक पहुँचा",
+      "tx_failed": "लेनदेन विफल",
+      "tx_failedDesc": "एक लेनदेन सबमिशन विफल हुआ",
+      "bid_accepted": "बोली स्वीकृत",
+      "bid_acceptedDesc": "आपकी एक बोली विक्रेता द्वारा स्वीकार की गई"
+    }
   },
   "contact": {
     "title": "संपर्क और सहायता",

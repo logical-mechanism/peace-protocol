@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}dk önce",
     "timeHoursAgo": "{{count}}sa önce",
     "bidDescription": "{{amount}} ADA teklif",
-    "listingDescription": "{{tokenName}} ilanı"
+    "listingDescription": "{{tokenName}} ilanı",
+    "txType": {
+      "create-listing": "İlan oluştur",
+      "remove-listing": "İlanı kaldır",
+      "place-bid": "Teklif ver",
+      "cancel-bid": "Teklifi iptal et",
+      "accept-bid": "Teklifi kabul et",
+      "cancel-pending": "Bekleyeni iptal et",
+      "complete-sale": "Satışı tamamla",
+      "create-collateral": "Teminat ayarla",
+      "optimize-wallet": "Cüzdanı optimize et",
+      "update-price": "Fiyatı güncelle",
+      "update-bid": "Teklifi güncelle"
+    }
   },
   "library": {
     "loading": "Kütüphaneniz yükleniyor…",

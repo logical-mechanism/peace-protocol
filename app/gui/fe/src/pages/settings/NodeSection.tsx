@@ -37,7 +37,7 @@ export default function NodeSection({
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: stageColor(stage) }}
               />
-              {nodeStageLabel(stage, syncProgress)}
+              {nodeStageLabel(stage, syncProgress, t)}
             </p>
           </div>
           <div>
@@ -112,7 +112,7 @@ export default function NodeSection({
                     <span className="text-xs text-[var(--text-muted)] font-mono">{t('node.pid', { pid: proc.pid })}</span>
                   )}
                   <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
-                    {(proc.status as unknown as { type: string }).type}
+                    {t(`node.process${(proc.status as unknown as { type: string }).type}` as never) || (proc.status as unknown as { type: string }).type}
                   </span>
                   {proc.restart_count > 0 && (
                     <span className="text-xs text-[var(--warning)]">

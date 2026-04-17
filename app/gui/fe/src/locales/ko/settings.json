@@ -62,7 +62,19 @@
     "noProcesses": "등록된 프로세스가 없습니다",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}}회 재시작",
-    "restarts_other": "{{count}}회 재시작"
+    "restarts_other": "{{count}}회 재시작",
+    "stageFullySynced": "완전히 동기화됨",
+    "stageSyncing": "동기화 중 ({{progress}}%)",
+    "stageStarting": "시작 중...",
+    "stageBootstrapping": "부트스트래핑...",
+    "stageStopped": "중지됨",
+    "stageError": "오류",
+    "processRunning": "실행 중",
+    "processReady": "준비됨",
+    "processStarting": "시작 중",
+    "processSyncing": "동기화 중",
+    "processError": "오류",
+    "processStopped": "중지됨"
   },
   "wallet": {
     "infoTitle": "지갑 정보",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "모든 알림 소리 전환",
     "eventSoundToggleAria": "{{label}} 소리 전환",
     "volumeLabel": "볼륨",
-    "previewSoundAria": "{{label}} 소리 미리듣기"
+    "previewSoundAria": "{{label}} 소리 미리듣기",
+    "soundEvents": {
+      "new_bid": "새 입찰",
+      "new_bidDesc": "회원님의 목록 중 하나에 새 입찰이 접수되었습니다",
+      "tx_confirmed": "거래 확인됨",
+      "tx_confirmedDesc": "거래가 15회 확인에 도달했습니다",
+      "tx_failed": "거래 실패",
+      "tx_failedDesc": "거래 제출이 실패했습니다",
+      "bid_accepted": "입찰 수락됨",
+      "bid_acceptedDesc": "회원님이 한 입찰이 판매자에 의해 수락되었습니다"
+    }
   },
   "contact": {
     "title": "연락처 및 지원",

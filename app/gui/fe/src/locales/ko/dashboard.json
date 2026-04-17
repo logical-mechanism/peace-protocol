@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}분 전",
     "timeHoursAgo": "{{count}}시간 전",
     "bidDescription": "{{amount}} ADA 입찰",
-    "listingDescription": "{{tokenName}} 등록"
+    "listingDescription": "{{tokenName}} 등록",
+    "txType": {
+      "create-listing": "목록 생성",
+      "remove-listing": "목록 제거",
+      "place-bid": "입찰하기",
+      "cancel-bid": "입찰 취소",
+      "accept-bid": "입찰 수락",
+      "cancel-pending": "보류 취소",
+      "complete-sale": "판매 완료",
+      "create-collateral": "담보 설정",
+      "optimize-wallet": "지갑 최적화",
+      "update-price": "가격 업데이트",
+      "update-bid": "입찰 업데이트"
+    }
   },
   "library": {
     "loading": "라이브러리를 불러오는 중...",

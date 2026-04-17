@@ -58,8 +58,20 @@
     "nodeSync": "Node Sync",
     "kupoIndexer": "Kupo Indexer",
     "synced": "Synced",
+    "stageFullySynced": "Fully Synced",
+    "stageSyncing": "Syncing ({{progress}}%)",
+    "stageStarting": "Starting...",
+    "stageBootstrapping": "Bootstrapping...",
+    "stageStopped": "Stopped",
+    "stageError": "Error",
     "processesTitle": "Processes",
     "noProcesses": "No processes registered",
+    "processRunning": "Running",
+    "processReady": "Ready",
+    "processStarting": "Starting",
+    "processSyncing": "Syncing",
+    "processError": "Error",
+    "processStopped": "Stopped",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} restart",
     "restarts_other": "{{count}} restarts"
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Toggle all notification sounds",
     "eventSoundToggleAria": "Toggle {{label}} sound",
     "volumeLabel": "Volume",
-    "previewSoundAria": "Preview {{label}} sound"
+    "previewSoundAria": "Preview {{label}} sound",
+    "soundEvents": {
+      "new_bid": "New Bid",
+      "new_bidDesc": "A new bid is placed on one of your listings",
+      "tx_confirmed": "Transaction Confirmed",
+      "tx_confirmedDesc": "A transaction reaches 15 confirmations",
+      "tx_failed": "Transaction Failed",
+      "tx_failedDesc": "A transaction submission fails",
+      "bid_accepted": "Bid Accepted",
+      "bid_acceptedDesc": "A bid you placed was accepted by the seller"
+    }
   },
   "contact": {
     "title": "Contact & Support",

@@ -4,8 +4,8 @@
     "back": "Quay lại",
     "searchPlaceholder": "Tìm kiếm cài đặt...",
     "searchAria": "Tìm kiếm cài đặt",
-    "resultsFor_one": "{{count}} kết quả cho \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} kết quả cho \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} kết quả cho “{{query}}”",
+    "resultsFor_other": "{{count}} kết quả cho “{{query}}”",
     "noMatches": "Không tìm thấy cài đặt phù hợp.",
     "inLabel": "trong {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Không có tiến trình nào đăng ký",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} lần khởi động lại",
-    "restarts_other": "{{count}} lần khởi động lại"
+    "restarts_other": "{{count}} lần khởi động lại",
+    "stageFullySynced": "Đồng bộ hoàn toàn",
+    "stageSyncing": "Đang đồng bộ ({{progress}}%)",
+    "stageStarting": "Đang khởi động...",
+    "stageBootstrapping": "Đang khởi tạo...",
+    "stageStopped": "Đã dừng",
+    "stageError": "Lỗi",
+    "processRunning": "Đang chạy",
+    "processReady": "Sẵn sàng",
+    "processStarting": "Đang khởi động",
+    "processSyncing": "Đang đồng bộ",
+    "processError": "Lỗi",
+    "processStopped": "Đã dừng"
   },
   "wallet": {
     "infoTitle": "Thông tin ví",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Bật/tắt tất cả âm thanh thông báo",
     "eventSoundToggleAria": "Bật/tắt âm thanh {{label}}",
     "volumeLabel": "Âm lượng",
-    "previewSoundAria": "Nghe thử âm thanh {{label}}"
+    "previewSoundAria": "Nghe thử âm thanh {{label}}",
+    "soundEvents": {
+      "new_bid": "Đặt giá mới",
+      "new_bidDesc": "Có đặt giá mới trên một trong các danh sách của bạn",
+      "tx_confirmed": "Giao dịch đã xác nhận",
+      "tx_confirmedDesc": "Một giao dịch đạt 15 xác nhận",
+      "tx_failed": "Giao dịch thất bại",
+      "tx_failedDesc": "Việc gửi giao dịch thất bại",
+      "bid_accepted": "Đặt giá được chấp nhận",
+      "bid_acceptedDesc": "Một đặt giá của bạn đã được người bán chấp nhận"
+    }
   },
   "contact": {
     "title": "Liên hệ & Hỗ trợ",

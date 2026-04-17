@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}分前",
     "timeHoursAgo": "{{count}}時間前",
     "bidDescription": "{{amount}} ADAで入札",
-    "listingDescription": "{{tokenName}}を出品"
+    "listingDescription": "{{tokenName}}を出品",
+    "txType": {
+      "create-listing": "リスティング作成",
+      "remove-listing": "リスティング削除",
+      "place-bid": "入札する",
+      "cancel-bid": "入札キャンセル",
+      "accept-bid": "入札承認",
+      "cancel-pending": "保留キャンセル",
+      "complete-sale": "販売完了",
+      "create-collateral": "担保設定",
+      "optimize-wallet": "ウォレット最適化",
+      "update-price": "価格更新",
+      "update-bid": "入札更新"
+    }
   },
   "library": {
     "loading": "ライブラリを読み込み中…",

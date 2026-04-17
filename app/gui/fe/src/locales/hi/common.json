@@ -302,7 +302,7 @@
     "strong": "मज़बूत"
   },
   "select": {
-    "placeholder": "चुनें\u2026",
+    "placeholder": "चुनें…",
     "searchPlaceholder": "खोजें...",
     "noMatches": "कोई मिलान नहीं"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "सभी बंद करें ({{count}} कतार में)"
   },
   "categories": {
-    "text": "टेक्स्ट"
+    "text": "टेक्स्ट",
+    "document": "दस्तावेज़",
+    "audio": "ऑडियो",
+    "image": "चित्र",
+    "video": "वीडियो",
+    "other": "अन्य"
   },
   "overlay": {
     "shuttingDown": "बंद हो रहा है...",

@@ -345,7 +345,12 @@
     "dismissAllQueued": "모두 닫기 ({{count}}개 대기 중)"
   },
   "categories": {
-    "text": "텍스트"
+    "text": "텍스트",
+    "document": "문서",
+    "audio": "오디오",
+    "image": "이미지",
+    "video": "비디오",
+    "other": "기타"
   },
   "overlay": {
     "shuttingDown": "종료 중...",

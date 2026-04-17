@@ -4,8 +4,8 @@
     "back": "戻る",
     "searchPlaceholder": "設定を検索...",
     "searchAria": "設定を検索",
-    "resultsFor_one": "\u201c{{query}}\u201dの{{count}}件の結果",
-    "resultsFor_other": "\u201c{{query}}\u201dの{{count}}件の結果",
+    "resultsFor_one": "“{{query}}”の{{count}}件の結果",
+    "resultsFor_other": "“{{query}}”の{{count}}件の結果",
     "noMatches": "一致する設定が見つかりませんでした。",
     "inLabel": "{{label}}内"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "登録されたプロセスがありません",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}}回の再起動",
-    "restarts_other": "{{count}}回の再起動"
+    "restarts_other": "{{count}}回の再起動",
+    "stageFullySynced": "完全に同期済み",
+    "stageSyncing": "同期中 ({{progress}}%)",
+    "stageStarting": "起動中...",
+    "stageBootstrapping": "ブートストラップ中...",
+    "stageStopped": "停止",
+    "stageError": "エラー",
+    "processRunning": "実行中",
+    "processReady": "準備完了",
+    "processStarting": "起動中",
+    "processSyncing": "同期中",
+    "processError": "エラー",
+    "processStopped": "停止"
   },
   "wallet": {
     "infoTitle": "ウォレット情報",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "すべての通知音を切り替え",
     "eventSoundToggleAria": "{{label}}の通知音を切り替え",
     "volumeLabel": "音量",
-    "previewSoundAria": "{{label}}の通知音をプレビュー"
+    "previewSoundAria": "{{label}}の通知音をプレビュー",
+    "soundEvents": {
+      "new_bid": "新しい入札",
+      "new_bidDesc": "あなたのリスティングに新しい入札がありました",
+      "tx_confirmed": "トランザクション確認済み",
+      "tx_confirmedDesc": "トランザクションが15回の確認に達しました",
+      "tx_failed": "トランザクション失敗",
+      "tx_failedDesc": "トランザクションの送信に失敗しました",
+      "bid_accepted": "入札承認済み",
+      "bid_acceptedDesc": "あなたの入札が売り手に承認されました"
+    }
   },
   "contact": {
     "title": "お問い合わせとサポート",

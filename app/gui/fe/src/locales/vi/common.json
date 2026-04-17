@@ -149,7 +149,7 @@
     "enableRepeat": "Bật lặp lại",
     "disableRepeat": "Tắt lặp lại",
     "playbackSpeed": "Tốc độ phát: {{speed}}x",
-    "speedShortcut": "Tốc độ: {{speed}}x ({{key}}) \u00b7 Nhấp chuột phải để điều chỉnh",
+    "speedShortcut": "Tốc độ: {{speed}}x ({{key}}) · Nhấp chuột phải để điều chỉnh",
     "speedTooltip": "Tốc độ phát (nhấp chuột phải để điều chỉnh chi tiết)",
     "fineSpeedControl": "Điều chỉnh tốc độ chi tiết",
     "toggleRemainingTime": "Chuyển đổi thời gian còn lại",
@@ -167,8 +167,8 @@
     "statusReady": "Sẵn sàng",
     "hintPlayPause": "Phát/Tạm dừng",
     "hintFullscreen": "Toàn màn hình",
-    "hintSeek": "Tua \u00b15 giây",
-    "hintSeekShift": "Tua \u00b15 giây / Shift \u00b130 giây",
+    "hintSeek": "Tua ±5 giây",
+    "hintSeekShift": "Tua ±5 giây / Shift ±30 giây",
     "hintMute": "Tắt tiếng",
     "hintBackPlayFwd": "Lùi / Phát / Tiến",
     "hintStop": "Dừng",
@@ -302,7 +302,7 @@
     "strong": "Mạnh"
   },
   "select": {
-    "placeholder": "Chọn\u2026",
+    "placeholder": "Chọn…",
     "searchPlaceholder": "Tìm kiếm...",
     "noMatches": "Không tìm thấy"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "Bỏ qua tất cả ({{count}} đang chờ)"
   },
   "categories": {
-    "text": "Văn bản"
+    "text": "Văn bản",
+    "document": "Tài liệu",
+    "audio": "Âm thanh",
+    "image": "Hình ảnh",
+    "video": "Video",
+    "other": "Khác"
   },
   "overlay": {
     "shuttingDown": "Đang tắt...",

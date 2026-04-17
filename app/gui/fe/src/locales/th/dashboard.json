@@ -117,7 +117,7 @@
     }
   },
   "marketplace": {
-    "loading": "กำลังโหลดรายการตลาด\u2026",
+    "loading": "กำลังโหลดรายการตลาด…",
     "loadError": "เกิดข้อผิดพลาดในการโหลดรายการตลาด",
     "loadedCount_one": "โหลดแล้ว {{count}} รายการ",
     "loadedCount_other": "โหลดแล้ว {{count}} รายการ",
@@ -157,7 +157,7 @@
     "nsfwHide": "ซ่อนรายการ NSFW"
   },
   "mySales": {
-    "loading": "กำลังโหลดรายการของคุณ\u2026",
+    "loading": "กำลังโหลดรายการของคุณ…",
     "loadError": "เกิดข้อผิดพลาดในการโหลดรายการของคุณ",
     "loadedCount_one": "โหลดแล้ว {{count}} รายการ",
     "loadedCount_other": "โหลดแล้ว {{count}} รายการ",
@@ -192,7 +192,7 @@
     "noListingsDesc": "รายการของคุณจะแสดงที่นี่"
   },
   "myPurchases": {
-    "loading": "กำลังโหลดการซื้อของคุณ\u2026",
+    "loading": "กำลังโหลดการซื้อของคุณ…",
     "loadError": "เกิดข้อผิดพลาดในการโหลดการซื้อของคุณ",
     "loadedCount_one": "โหลดแล้ว {{count}} การเสนอราคา",
     "loadedCount_other": "โหลดแล้ว {{count}} การเสนอราคา",
@@ -227,7 +227,7 @@
     "noBidsDesc": "การเสนอราคาของคุณจะแสดงที่นี่"
   },
   "history": {
-    "loading": "กำลังโหลดประวัติธุรกรรม\u2026",
+    "loading": "กำลังโหลดประวัติธุรกรรม…",
     "loadedCount_one": "โหลดแล้ว {{count}} ธุรกรรม",
     "loadedCount_other": "โหลดแล้ว {{count}} ธุรกรรม",
     "staleBannerMessage": "แสดงประวัติธุรกรรมจากแคช ข้อมูลอาจไม่เป็นปัจจุบัน",
@@ -276,10 +276,23 @@
     "timeMinutesAgo": "{{count}} นาทีที่แล้ว",
     "timeHoursAgo": "{{count}} ชั่วโมงที่แล้ว",
     "bidDescription": "เสนอราคา {{amount}} ADA",
-    "listingDescription": "ลงรายการ {{tokenName}}"
+    "listingDescription": "ลงรายการ {{tokenName}}",
+    "txType": {
+      "create-listing": "สร้างรายการ",
+      "remove-listing": "ลบรายการ",
+      "place-bid": "เสนอราคา",
+      "cancel-bid": "ยกเลิกการเสนอราคา",
+      "accept-bid": "ยอมรับการเสนอราคา",
+      "cancel-pending": "ยกเลิกที่รอดำเนินการ",
+      "complete-sale": "เสร็จสิ้นการขาย",
+      "create-collateral": "ตั้งค่าหลักประกัน",
+      "optimize-wallet": "ปรับปรุงกระเป๋าเงิน",
+      "update-price": "อัปเดตราคา",
+      "update-bid": "อัปเดตการเสนอราคา"
+    }
   },
   "library": {
-    "loading": "กำลังโหลดคลังของคุณ\u2026",
+    "loading": "กำลังโหลดคลังของคุณ…",
     "loadError": "เกิดข้อผิดพลาดในการโหลดคลังของคุณ",
     "loadedCount_one": "โหลดแล้ว {{count}} รายการ",
     "loadedCount_other": "โหลดแล้ว {{count}} รายการ",

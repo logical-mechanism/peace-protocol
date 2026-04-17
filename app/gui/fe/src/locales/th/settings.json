@@ -4,8 +4,8 @@
     "back": "ย้อนกลับ",
     "searchPlaceholder": "ค้นหาการตั้งค่า...",
     "searchAria": "ค้นหาการตั้งค่า",
-    "resultsFor_one": "{{count}} ผลลัพธ์สำหรับ \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} ผลลัพธ์สำหรับ \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} ผลลัพธ์สำหรับ “{{query}}”",
+    "resultsFor_other": "{{count}} ผลลัพธ์สำหรับ “{{query}}”",
     "noMatches": "ไม่พบการตั้งค่าที่ตรงกัน",
     "inLabel": "ใน {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "ไม่มีกระบวนการที่ลงทะเบียน",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} ครั้งที่รีสตาร์ท",
-    "restarts_other": "{{count}} ครั้งที่รีสตาร์ท"
+    "restarts_other": "{{count}} ครั้งที่รีสตาร์ท",
+    "stageFullySynced": "ซิงค์สมบูรณ์",
+    "stageSyncing": "กำลังซิงค์ ({{progress}}%)",
+    "stageStarting": "กำลังเริ่ม...",
+    "stageBootstrapping": "กำลังบูตสแตรป...",
+    "stageStopped": "หยุดแล้ว",
+    "stageError": "ข้อผิดพลาด",
+    "processRunning": "ทำงานอยู่",
+    "processReady": "พร้อม",
+    "processStarting": "กำลังเริ่ม",
+    "processSyncing": "กำลังซิงค์",
+    "processError": "ข้อผิดพลาด",
+    "processStopped": "หยุดแล้ว"
   },
   "wallet": {
     "infoTitle": "ข้อมูลกระเป๋าเงิน",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "สลับเสียงการแจ้งเตือนทั้งหมด",
     "eventSoundToggleAria": "สลับเสียง {{label}}",
     "volumeLabel": "ระดับเสียง",
-    "previewSoundAria": "ตัวอย่างเสียง {{label}}"
+    "previewSoundAria": "ตัวอย่างเสียง {{label}}",
+    "soundEvents": {
+      "new_bid": "การเสนอราคาใหม่",
+      "new_bidDesc": "มีการเสนอราคาใหม่ในรายการของคุณ",
+      "tx_confirmed": "ธุรกรรมได้รับการยืนยัน",
+      "tx_confirmedDesc": "ธุรกรรมได้รับ 15 การยืนยัน",
+      "tx_failed": "ธุรกรรมล้มเหลว",
+      "tx_failedDesc": "การส่งธุรกรรมล้มเหลว",
+      "bid_accepted": "การเสนอราคาถูกยอมรับ",
+      "bid_acceptedDesc": "การเสนอราคาของคุณถูกยอมรับโดยผู้ขาย"
+    }
   },
   "contact": {
     "title": "ติดต่อและสนับสนุน",

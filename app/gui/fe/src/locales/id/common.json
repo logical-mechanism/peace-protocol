@@ -149,7 +149,7 @@
     "enableRepeat": "Aktifkan pengulangan",
     "disableRepeat": "Nonaktifkan pengulangan",
     "playbackSpeed": "Kecepatan putar: {{speed}}x",
-    "speedShortcut": "Kecepatan: {{speed}}x ({{key}}) \u00b7 Klik kanan untuk slider",
+    "speedShortcut": "Kecepatan: {{speed}}x ({{key}}) · Klik kanan untuk slider",
     "speedTooltip": "Kecepatan putar (klik kanan untuk kontrol halus)",
     "fineSpeedControl": "Kontrol kecepatan halus",
     "toggleRemainingTime": "Alihkan waktu tersisa",
@@ -167,8 +167,8 @@
     "statusReady": "Siap",
     "hintPlayPause": "Putar/Jeda",
     "hintFullscreen": "Layar penuh",
-    "hintSeek": "Cari \u00b15d",
-    "hintSeekShift": "Cari \u00b15d / Shift \u00b130d",
+    "hintSeek": "Cari ±5d",
+    "hintSeekShift": "Cari ±5d / Shift ±30d",
     "hintMute": "Bisukan",
     "hintBackPlayFwd": "Mundur / Putar / Maju",
     "hintStop": "Berhenti",
@@ -302,7 +302,7 @@
     "strong": "Kuat"
   },
   "select": {
-    "placeholder": "Pilih\u2026",
+    "placeholder": "Pilih…",
     "searchPlaceholder": "Cari...",
     "noMatches": "Tidak ada kecocokan"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "Tutup semua ({{count}} dalam antrean)"
   },
   "categories": {
-    "text": "Teks"
+    "text": "Teks",
+    "document": "Dokumen",
+    "audio": "Audio",
+    "image": "Gambar",
+    "video": "Video",
+    "other": "Lainnya"
   },
   "overlay": {
     "shuttingDown": "Mematikan...",

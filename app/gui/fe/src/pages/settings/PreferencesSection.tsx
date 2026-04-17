@@ -8,7 +8,7 @@ import {
   isMasterSoundEnabled, setMasterSoundEnabled,
   isEventSoundEnabled, setEventSoundEnabled,
   getEventSoundVolume, setEventSoundVolume,
-  SOUND_EVENTS, SOUND_EVENT_LABELS,
+  SOUND_EVENTS, SOUND_EVENT_KEYS,
   type SoundEvent,
 } from '../../services/soundPreferences'
 import { isDesktopNotificationsEnabled, setDesktopNotificationsEnabled, sendDesktopNotification } from '../../services/desktopNotifications'
@@ -207,7 +207,9 @@ export default function PreferencesSection() {
         {masterSoundEnabled && (
           <div className="space-y-4">
             {SOUND_EVENTS.map(event => {
-              const { label, description } = SOUND_EVENT_LABELS[event]
+              const { labelKey, descKey } = SOUND_EVENT_KEYS[event]
+              const label = t(labelKey)
+              const description = t(descKey)
               const enabled = eventEnabled[event]
               const volume = eventVolume[event]
               return (

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getTransactionUrl, isValidTxHash } from '../utils/network';
 import { getToastDurationMs } from '../services/toastSettings';
-import { getTypeLabel, type TransactionType } from '../services/transactionHistory';
+import { getTypeLabelKey, type TransactionType } from '../services/transactionHistory';
 import { copyToClipboard } from '../utils/clipboard';
 
 export interface TransactionDetails {
@@ -378,7 +378,7 @@ export function useToast() {
       } else if (messageOrDetails) {
         const parts: string[] = [];
         if (messageOrDetails.type) {
-          parts.push(getTypeLabel(messageOrDetails.type));
+          parts.push(t(getTypeLabelKey(messageOrDetails.type), { ns: 'dashboard' }));
         }
         if (messageOrDetails.amountLovelace !== undefined && messageOrDetails.amountLovelace > 0) {
           const ada = (messageOrDetails.amountLovelace / 1_000_000).toLocaleString(undefined, {

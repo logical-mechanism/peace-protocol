@@ -14,7 +14,7 @@ import ConfirmModal from './ConfirmModal';
 import InfoTooltip from './InfoTooltip';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
-  getTypeLabel,
+  getTypeLabelKey,
   clearHistory,
   getTransactions,
   reconcileWithOnChain,
@@ -453,7 +453,7 @@ function HistoryTab({
               value={typeFilter}
               options={[
                 { value: 'all', label: t('history.allTypes') },
-                ...ALL_TX_TYPES.map((txType) => ({ value: txType, label: getTypeLabel(txType) })),
+                ...ALL_TX_TYPES.map((txType) => ({ value: txType, label: t(getTypeLabelKey(txType)) })),
               ]}
               onChange={(v) => dispatch({ type: 'SET_TYPE', payload: v as HistoryFilters['typeFilter'] })}
               ariaLabel={t('history.filterByTypeAria')}
@@ -646,7 +646,7 @@ function VirtualizedHistoryList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {getTypeLabel(tx.type)}
+                      {t(getTypeLabelKey(tx.type))}
                     </span>
                     {tx.amountLovelace !== undefined && (
                       <span className="text-sm text-[var(--text-secondary)] font-mono">

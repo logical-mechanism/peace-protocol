@@ -4,8 +4,8 @@
     "back": "Zurück",
     "searchPlaceholder": "Einstellungen durchsuchen...",
     "searchAria": "Einstellungen durchsuchen",
-    "resultsFor_one": "{{count}} Ergebnis für \u201e{{query}}\u201c",
-    "resultsFor_other": "{{count}} Ergebnisse für \u201e{{query}}\u201c",
+    "resultsFor_one": "{{count}} Ergebnis für „{{query}}“",
+    "resultsFor_other": "{{count}} Ergebnisse für „{{query}}“",
     "noMatches": "Keine passenden Einstellungen gefunden.",
     "inLabel": "in {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Keine Prozesse registriert",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} Neustart",
-    "restarts_other": "{{count}} Neustarts"
+    "restarts_other": "{{count}} Neustarts",
+    "stageFullySynced": "Vollständig synchronisiert",
+    "stageSyncing": "Synchronisierung ({{progress}}%)",
+    "stageStarting": "Wird gestartet...",
+    "stageBootstrapping": "Bootstrapping...",
+    "stageStopped": "Gestoppt",
+    "stageError": "Fehler",
+    "processRunning": "Läuft",
+    "processReady": "Bereit",
+    "processStarting": "Startet",
+    "processSyncing": "Synchronisiert",
+    "processError": "Fehler",
+    "processStopped": "Gestoppt"
   },
   "wallet": {
     "infoTitle": "Wallet-Informationen",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Alle Benachrichtigungstöne umschalten",
     "eventSoundToggleAria": "{{label}}-Ton umschalten",
     "volumeLabel": "Lautstärke",
-    "previewSoundAria": "{{label}}-Ton vorhören"
+    "previewSoundAria": "{{label}}-Ton vorhören",
+    "soundEvents": {
+      "new_bid": "Neues Gebot",
+      "new_bidDesc": "Ein neues Gebot wurde auf eines deiner Angebote abgegeben",
+      "tx_confirmed": "Transaktion bestätigt",
+      "tx_confirmedDesc": "Eine Transaktion erreicht 15 Bestätigungen",
+      "tx_failed": "Transaktion fehlgeschlagen",
+      "tx_failedDesc": "Die Übermittlung einer Transaktion schlägt fehl",
+      "bid_accepted": "Gebot angenommen",
+      "bid_acceptedDesc": "Ein von dir abgegebenes Gebot wurde vom Verkäufer angenommen"
+    }
   },
   "contact": {
     "title": "Kontakt & Support",

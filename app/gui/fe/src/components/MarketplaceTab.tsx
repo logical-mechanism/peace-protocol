@@ -23,7 +23,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
 import { getNsfwEnabled } from '../services/nsfwStorage';
 import { truncateHex } from '../utils/truncate';
-import { getCategoryLabel } from '../utils/formatListing';
+// Category labels resolved via t('common:categories.{id}')
 import Select from './Select';
 
 interface MarketplaceTabProps {
@@ -357,9 +357,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           type="button"
           onClick={handleClearCategoryFilter}
           className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
-          aria-label={t('marketplace.clearCategoryAria', { category: getCategoryLabel(singleCategorySelected) })}
+          aria-label={t('marketplace.clearCategoryAria', { category: t(`common:categories.${singleCategorySelected || 'text'}`) })}
         >
-          <span>{t('marketplace.categoryChipPrefix')} {getCategoryLabel(singleCategorySelected)}</span>
+          <span>{t('marketplace.categoryChipPrefix')} {t(`common:categories.${singleCategorySelected || 'text'}`)}</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
           </svg>

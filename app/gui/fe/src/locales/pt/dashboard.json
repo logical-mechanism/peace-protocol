@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}m atrás",
     "timeHoursAgo": "{{count}}h atrás",
     "bidDescription": "Lance de {{amount}} ADA",
-    "listingDescription": "Listagem {{tokenName}}"
+    "listingDescription": "Listagem {{tokenName}}",
+    "txType": {
+      "create-listing": "Criar anúncio",
+      "remove-listing": "Remover anúncio",
+      "place-bid": "Fazer oferta",
+      "cancel-bid": "Cancelar oferta",
+      "accept-bid": "Aceitar oferta",
+      "cancel-pending": "Cancelar pendente",
+      "complete-sale": "Concluir venda",
+      "create-collateral": "Definir colateral",
+      "optimize-wallet": "Otimizar carteira",
+      "update-price": "Atualizar preço",
+      "update-bid": "Atualizar oferta"
+    }
   },
   "library": {
     "loading": "Carregando sua biblioteca…",

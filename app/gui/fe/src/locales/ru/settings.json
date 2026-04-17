@@ -62,7 +62,19 @@
     "noProcesses": "Нет зарегистрированных процессов",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} перезапуск",
-    "restarts_other": "{{count}} перезапусков"
+    "restarts_other": "{{count}} перезапусков",
+    "stageFullySynced": "Полностью синхронизирован",
+    "stageSyncing": "Синхронизация ({{progress}}%)",
+    "stageStarting": "Запуск...",
+    "stageBootstrapping": "Начальная загрузка...",
+    "stageStopped": "Остановлен",
+    "stageError": "Ошибка",
+    "processRunning": "Работает",
+    "processReady": "Готов",
+    "processStarting": "Запуск",
+    "processSyncing": "Синхронизация",
+    "processError": "Ошибка",
+    "processStopped": "Остановлен"
   },
   "wallet": {
     "infoTitle": "Информация о кошельке",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Переключить все звуки уведомлений",
     "eventSoundToggleAria": "Переключить звук «{{label}}»",
     "volumeLabel": "Громкость",
-    "previewSoundAria": "Предпрослушивание звука «{{label}}»"
+    "previewSoundAria": "Предпрослушивание звука «{{label}}»",
+    "soundEvents": {
+      "new_bid": "Новая ставка",
+      "new_bidDesc": "На одно из ваших объявлений поступила новая ставка",
+      "tx_confirmed": "Транзакция подтверждена",
+      "tx_confirmedDesc": "Транзакция достигает 15 подтверждений",
+      "tx_failed": "Транзакция не удалась",
+      "tx_failedDesc": "Отправка транзакции завершилась ошибкой",
+      "bid_accepted": "Ставка принята",
+      "bid_acceptedDesc": "Ваша ставка была принята продавцом"
+    }
   },
   "contact": {
     "title": "Контакт и поддержка",

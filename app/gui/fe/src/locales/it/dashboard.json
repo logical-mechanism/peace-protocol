@@ -20,7 +20,7 @@
     "iagonOfflineTitle": "Iagon non connesso - clicca per configurare",
     "collateralSet": "Collaterale impostato",
     "noCollateral": "Nessun collaterale",
-    "noCollateralTitle": "Nessun UTxO collaterale trovato \u2014 clicca per configurare nelle Impostazioni",
+    "noCollateralTitle": "Nessun UTxO collaterale trovato — clicca per configurare nelle Impostazioni",
     "createListing": "Crea annuncio",
     "moreListingOptionsAria": "Altre opzioni annuncio",
     "newListing": "Nuovo annuncio",
@@ -32,7 +32,7 @@
     "settingsAria": "Impostazioni",
     "disconnect": "Disconnetti",
     "unfinishedListingTitle": "Annuncio incompleto trovato",
-    "unfinishedListingBody": "Un annuncio per il file \"{{filename}}\" e stato caricato ma la transazione non e stata completata. Il file e ancora su Iagon \u2014 puoi riprendere senza ricaricare.",
+    "unfinishedListingBody": "Un annuncio per il file \"{{filename}}\" e stato caricato ma la transazione non e stata completata. Il file e ancora su Iagon — puoi riprendere senza ricaricare.",
     "discard": "Scarta",
     "resumeListing": "Riprendi annuncio",
     "dismissTitle": "Chiudi",
@@ -79,8 +79,8 @@
     "sortPriceHigh": "Prezzo: dal piu alto",
     "sortPriceLow": "Prezzo: dal piu basso",
     "sortMostBids": "Piu offerte",
-    "sortAlphaAsc": "A \u2192 Z (Descrizione)",
-    "sortAlphaDesc": "Z \u2192 A (Descrizione)",
+    "sortAlphaAsc": "A → Z (Descrizione)",
+    "sortAlphaDesc": "Z → A (Descrizione)",
     "sortAmountHigh": "Importo: dal piu alto",
     "sortAmountLow": "Importo: dal piu basso",
     "sortNameAsc": "Nome: da A a Z",
@@ -117,11 +117,11 @@
     }
   },
   "marketplace": {
-    "loading": "Caricamento annunci del marketplace\u2026",
+    "loading": "Caricamento annunci del marketplace…",
     "loadError": "Errore nel caricamento degli annunci del marketplace",
     "loadedCount_one": "{{count}} annuncio caricato",
     "loadedCount_other": "{{count}} annunci caricati",
-    "staleBannerMessage": "Visualizzazione annunci dalla cache \u2014 i dati potrebbero non essere aggiornati.",
+    "staleBannerMessage": "Visualizzazione annunci dalla cache — i dati potrebbero non essere aggiornati.",
     "staleRetry": "Riprova",
     "staleRetryAria": "Riprova a caricare gli annunci del marketplace",
     "staleDismissAria": "Chiudi avviso dati obsoleti",
@@ -141,8 +141,8 @@
     "showingOf_other": "Visualizzazione {{shown}} di {{count}} annunci",
     "totalCount_one": "{{count}} annuncio",
     "totalCount_other": "{{count}} annunci",
-    "activeFilters_one": "{{count}} filtro attivo \u2014 Cancella",
-    "activeFilters_other": "{{count}} filtri attivi \u2014 Cancella",
+    "activeFilters_one": "{{count}} filtro attivo — Cancella",
+    "activeFilters_other": "{{count}} filtri attivi — Cancella",
     "noMatchingTitle": "Nessun annuncio corrispondente",
     "noMatchingDesc": "Prova a modificare la ricerca o i filtri",
     "emptyTitle": "Nessun annuncio ancora disponibile",
@@ -157,7 +157,7 @@
     "nsfwHide": "Nascondi annunci NSFW"
   },
   "mySales": {
-    "loading": "Caricamento dei tuoi annunci\u2026",
+    "loading": "Caricamento dei tuoi annunci…",
     "loadError": "Errore nel caricamento dei tuoi annunci",
     "loadedCount_one": "{{count}} annuncio caricato",
     "loadedCount_other": "{{count}} annunci caricati",
@@ -192,7 +192,7 @@
     "noListingsDesc": "I tuoi annunci appariranno qui"
   },
   "myPurchases": {
-    "loading": "Caricamento dei tuoi acquisti\u2026",
+    "loading": "Caricamento dei tuoi acquisti…",
     "loadError": "Errore nel caricamento dei tuoi acquisti",
     "loadedCount_one": "{{count}} offerta caricata",
     "loadedCount_other": "{{count}} offerte caricate",
@@ -227,7 +227,7 @@
     "noBidsDesc": "Le tue offerte appariranno qui"
   },
   "history": {
-    "loading": "Caricamento cronologia transazioni\u2026",
+    "loading": "Caricamento cronologia transazioni…",
     "loadedCount_one": "{{count}} transazione caricata",
     "loadedCount_other": "{{count}} transazioni caricate",
     "staleBannerMessage": "Visualizzazione cronologia transazioni dalla cache. I dati potrebbero non essere aggiornati.",
@@ -276,10 +276,23 @@
     "timeMinutesAgo": "{{count}}m fa",
     "timeHoursAgo": "{{count}}h fa",
     "bidDescription": "Offerta {{amount}} ADA",
-    "listingDescription": "Annuncio {{tokenName}}"
+    "listingDescription": "Annuncio {{tokenName}}",
+    "txType": {
+      "create-listing": "Crea annuncio",
+      "remove-listing": "Rimuovi annuncio",
+      "place-bid": "Fai offerta",
+      "cancel-bid": "Annulla offerta",
+      "accept-bid": "Accetta offerta",
+      "cancel-pending": "Annulla in sospeso",
+      "complete-sale": "Completa vendita",
+      "create-collateral": "Imposta collaterale",
+      "optimize-wallet": "Ottimizza portafoglio",
+      "update-price": "Aggiorna prezzo",
+      "update-bid": "Aggiorna offerta"
+    }
   },
   "library": {
-    "loading": "Caricamento della tua libreria\u2026",
+    "loading": "Caricamento della tua libreria…",
     "loadError": "Errore nel caricamento della tua libreria",
     "loadedCount_one": "{{count}} elemento caricato",
     "loadedCount_other": "{{count}} elementi caricati",

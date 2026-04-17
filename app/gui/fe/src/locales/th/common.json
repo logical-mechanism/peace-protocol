@@ -302,7 +302,7 @@
     "strong": "แข็งแรง"
   },
   "select": {
-    "placeholder": "เลือก\u2026",
+    "placeholder": "เลือก…",
     "searchPlaceholder": "ค้นหา...",
     "noMatches": "ไม่พบผลลัพธ์"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "ปิดทั้งหมด ({{count}} ในคิว)"
   },
   "categories": {
-    "text": "ข้อความ"
+    "text": "ข้อความ",
+    "document": "เอกสาร",
+    "audio": "เสียง",
+    "image": "รูปภาพ",
+    "video": "วิดีโอ",
+    "other": "อื่นๆ"
   },
   "overlay": {
     "shuttingDown": "กำลังปิดระบบ...",

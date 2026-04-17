@@ -242,8 +242,13 @@ export async function resolvePendingTxs(walletPkh: string): Promise<TransactionR
   return records;
 }
 
+/** i18n key for a transaction type — resolve via t(`history.txType.${type}`) in dashboard namespace. */
+export function getTypeLabelKey(type: TransactionType): string {
+  return `history.txType.${type}`;
+}
+
 /**
- * Human-readable label for a transaction type.
+ * Human-readable label for a transaction type (English fallback for non-component contexts like CSV export).
  */
 export function getTypeLabel(type: TransactionType): string {
   switch (type) {

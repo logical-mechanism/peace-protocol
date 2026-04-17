@@ -25,6 +25,7 @@ vi.mock('../../services/transactionHistory', () => ({
   updateTransactionStatus: vi.fn(),
   clearHistory: vi.fn(),
   toCSV: vi.fn().mockReturnValue('txHash,type,status\n'),
+  getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
   getTypeLabel: vi.fn((type: string) => {
     const labels: Record<string, string> = {
       'create-listing': 'Create Listing',

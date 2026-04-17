@@ -4,8 +4,8 @@
     "back": "Terug",
     "searchPlaceholder": "Instellingen zoeken...",
     "searchAria": "Instellingen zoeken",
-    "resultsFor_one": "{{count}} resultaat voor \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} resultaten voor \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} resultaat voor “{{query}}”",
+    "resultsFor_other": "{{count}} resultaten voor “{{query}}”",
     "noMatches": "Geen overeenkomende instellingen gevonden.",
     "inLabel": "in {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Geen processen geregistreerd",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} herstart",
-    "restarts_other": "{{count}} herstarts"
+    "restarts_other": "{{count}} herstarts",
+    "stageFullySynced": "Volledig gesynchroniseerd",
+    "stageSyncing": "Synchroniseren ({{progress}}%)",
+    "stageStarting": "Starten...",
+    "stageBootstrapping": "Bootstrappen...",
+    "stageStopped": "Gestopt",
+    "stageError": "Fout",
+    "processRunning": "Actief",
+    "processReady": "Gereed",
+    "processStarting": "Starten",
+    "processSyncing": "Synchroniseren",
+    "processError": "Fout",
+    "processStopped": "Gestopt"
   },
   "wallet": {
     "infoTitle": "Wallet-info",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Alle meldingsgeluiden in-/uitschakelen",
     "eventSoundToggleAria": "{{label}}-geluid in-/uitschakelen",
     "volumeLabel": "Volume",
-    "previewSoundAria": "{{label}}-geluid voorbeluisteren"
+    "previewSoundAria": "{{label}}-geluid voorbeluisteren",
+    "soundEvents": {
+      "new_bid": "Nieuw bod",
+      "new_bidDesc": "Er is een nieuw bod geplaatst op een van je aanbiedingen",
+      "tx_confirmed": "Transactie bevestigd",
+      "tx_confirmedDesc": "Een transactie bereikt 15 bevestigingen",
+      "tx_failed": "Transactie mislukt",
+      "tx_failedDesc": "Het indienen van een transactie mislukt",
+      "bid_accepted": "Bod geaccepteerd",
+      "bid_acceptedDesc": "Een bod dat je hebt geplaatst is geaccepteerd door de verkoper"
+    }
   },
   "contact": {
     "title": "Contact & Ondersteuning",

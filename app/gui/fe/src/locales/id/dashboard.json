@@ -20,7 +20,7 @@
     "iagonOfflineTitle": "Iagon tidak terhubung - klik untuk mengonfigurasi",
     "collateralSet": "Kolateral Ditetapkan",
     "noCollateral": "Tidak Ada Kolateral",
-    "noCollateralTitle": "UTxO kolateral tidak ditemukan \u2014 klik untuk mengatur di Pengaturan",
+    "noCollateralTitle": "UTxO kolateral tidak ditemukan — klik untuk mengatur di Pengaturan",
     "createListing": "Buat Daftar",
     "moreListingOptionsAria": "Opsi daftar lainnya",
     "newListing": "Daftar Baru",
@@ -32,7 +32,7 @@
     "settingsAria": "Pengaturan",
     "disconnect": "Putuskan",
     "unfinishedListingTitle": "Daftar yang Belum Selesai Ditemukan",
-    "unfinishedListingBody": "Daftar berkas untuk \"{{filename}}\" telah diunggah tetapi transaksi belum diselesaikan. Berkas masih ada di Iagon \u2014 Anda dapat melanjutkan tanpa mengunggah ulang.",
+    "unfinishedListingBody": "Daftar berkas untuk \"{{filename}}\" telah diunggah tetapi transaksi belum diselesaikan. Berkas masih ada di Iagon — Anda dapat melanjutkan tanpa mengunggah ulang.",
     "discard": "Buang",
     "resumeListing": "Lanjutkan Daftar",
     "dismissTitle": "Tutup",
@@ -79,8 +79,8 @@
     "sortPriceHigh": "Harga: Tinggi ke Rendah",
     "sortPriceLow": "Harga: Rendah ke Tinggi",
     "sortMostBids": "Tawaran Terbanyak",
-    "sortAlphaAsc": "A \u2192 Z (Deskripsi)",
-    "sortAlphaDesc": "Z \u2192 A (Deskripsi)",
+    "sortAlphaAsc": "A → Z (Deskripsi)",
+    "sortAlphaDesc": "Z → A (Deskripsi)",
     "sortAmountHigh": "Jumlah: Tinggi ke Rendah",
     "sortAmountLow": "Jumlah: Rendah ke Tinggi",
     "sortNameAsc": "Nama: A ke Z",
@@ -117,11 +117,11 @@
     }
   },
   "marketplace": {
-    "loading": "Memuat daftar pasar\u2026",
+    "loading": "Memuat daftar pasar…",
     "loadError": "Kesalahan memuat daftar pasar",
     "loadedCount_one": "{{count}} daftar dimuat",
     "loadedCount_other": "{{count}} daftar dimuat",
-    "staleBannerMessage": "Menampilkan daftar dalam cache \u2014 data mungkin sudah usang.",
+    "staleBannerMessage": "Menampilkan daftar dalam cache — data mungkin sudah usang.",
     "staleRetry": "Coba Lagi",
     "staleRetryAria": "Coba muat ulang daftar pasar",
     "staleDismissAria": "Tutup peringatan data usang",
@@ -141,8 +141,8 @@
     "showingOf_other": "Menampilkan {{shown}} dari {{count}} daftar",
     "totalCount_one": "{{count}} daftar",
     "totalCount_other": "{{count}} daftar",
-    "activeFilters_one": "{{count}} filter aktif \u2014 Hapus",
-    "activeFilters_other": "{{count}} filter aktif \u2014 Hapus",
+    "activeFilters_one": "{{count}} filter aktif — Hapus",
+    "activeFilters_other": "{{count}} filter aktif — Hapus",
     "noMatchingTitle": "Tidak ada daftar yang cocok",
     "noMatchingDesc": "Coba sesuaikan pencarian atau filter Anda",
     "emptyTitle": "Belum ada daftar tersedia",
@@ -157,7 +157,7 @@
     "nsfwHide": "Sembunyikan daftar NSFW"
   },
   "mySales": {
-    "loading": "Memuat daftar Anda\u2026",
+    "loading": "Memuat daftar Anda…",
     "loadError": "Kesalahan memuat daftar Anda",
     "loadedCount_one": "{{count}} daftar dimuat",
     "loadedCount_other": "{{count}} daftar dimuat",
@@ -192,7 +192,7 @@
     "noListingsDesc": "Daftar Anda akan muncul di sini"
   },
   "myPurchases": {
-    "loading": "Memuat pembelian Anda\u2026",
+    "loading": "Memuat pembelian Anda…",
     "loadError": "Kesalahan memuat pembelian Anda",
     "loadedCount_one": "{{count}} tawaran dimuat",
     "loadedCount_other": "{{count}} tawaran dimuat",
@@ -227,7 +227,7 @@
     "noBidsDesc": "Tawaran Anda akan muncul di sini"
   },
   "history": {
-    "loading": "Memuat riwayat transaksi\u2026",
+    "loading": "Memuat riwayat transaksi…",
     "loadedCount_one": "{{count}} transaksi dimuat",
     "loadedCount_other": "{{count}} transaksi dimuat",
     "staleBannerMessage": "Menampilkan riwayat transaksi dalam cache. Data mungkin sudah usang.",
@@ -276,10 +276,23 @@
     "timeMinutesAgo": "{{count}}m yang lalu",
     "timeHoursAgo": "{{count}}j yang lalu",
     "bidDescription": "Tawaran {{amount}} ADA",
-    "listingDescription": "Mendaftarkan {{tokenName}}"
+    "listingDescription": "Mendaftarkan {{tokenName}}",
+    "txType": {
+      "create-listing": "Buat daftar",
+      "remove-listing": "Hapus daftar",
+      "place-bid": "Buat tawaran",
+      "cancel-bid": "Batalkan tawaran",
+      "accept-bid": "Terima tawaran",
+      "cancel-pending": "Batalkan tertunda",
+      "complete-sale": "Selesaikan penjualan",
+      "create-collateral": "Atur jaminan",
+      "optimize-wallet": "Optimalkan dompet",
+      "update-price": "Perbarui harga",
+      "update-bid": "Perbarui tawaran"
+    }
   },
   "library": {
-    "loading": "Memuat perpustakaan Anda\u2026",
+    "loading": "Memuat perpustakaan Anda…",
     "loadError": "Kesalahan memuat perpustakaan Anda",
     "loadedCount_one": "{{count}} item dimuat",
     "loadedCount_other": "{{count}} item dimuat",

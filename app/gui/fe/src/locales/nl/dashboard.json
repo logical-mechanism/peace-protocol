@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}m geleden",
     "timeHoursAgo": "{{count}}u geleden",
     "bidDescription": "Bod {{amount}} ADA",
-    "listingDescription": "Vermelding {{tokenName}}"
+    "listingDescription": "Vermelding {{tokenName}}",
+    "txType": {
+      "create-listing": "Aanbieding maken",
+      "remove-listing": "Aanbieding verwijderen",
+      "place-bid": "Bod plaatsen",
+      "cancel-bid": "Bod annuleren",
+      "accept-bid": "Bod accepteren",
+      "cancel-pending": "In afwachting annuleren",
+      "complete-sale": "Verkoop voltooien",
+      "create-collateral": "Onderpand instellen",
+      "optimize-wallet": "Wallet optimaliseren",
+      "update-price": "Prijs bijwerken",
+      "update-bid": "Bod bijwerken"
+    }
   },
   "library": {
     "loading": "Je bibliotheek laden…",

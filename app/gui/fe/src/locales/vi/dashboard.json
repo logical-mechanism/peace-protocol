@@ -20,7 +20,7 @@
     "iagonOfflineTitle": "Iagon chưa kết nối - nhấp để cấu hình",
     "collateralSet": "Đã đặt tài sản thế chấp",
     "noCollateral": "Chưa có tài sản thế chấp",
-    "noCollateralTitle": "Không tìm thấy UTxO tài sản thế chấp \u2014 nhấp để thiết lập trong Cài đặt",
+    "noCollateralTitle": "Không tìm thấy UTxO tài sản thế chấp — nhấp để thiết lập trong Cài đặt",
     "createListing": "Tạo danh mục",
     "moreListingOptionsAria": "Thêm tùy chọn danh mục",
     "newListing": "Danh mục mới",
@@ -32,7 +32,7 @@
     "settingsAria": "Cài đặt",
     "disconnect": "Ngắt kết nối",
     "unfinishedListingTitle": "Tìm thấy danh mục chưa hoàn thành",
-    "unfinishedListingBody": "Một danh mục tệp cho \"{{filename}}\" đã được tải lên nhưng giao dịch chưa hoàn thành. Tệp vẫn còn trên Iagon \u2014 bạn có thể tiếp tục mà không cần tải lại.",
+    "unfinishedListingBody": "Một danh mục tệp cho \"{{filename}}\" đã được tải lên nhưng giao dịch chưa hoàn thành. Tệp vẫn còn trên Iagon — bạn có thể tiếp tục mà không cần tải lại.",
     "discard": "Bỏ",
     "resumeListing": "Tiếp tục danh mục",
     "dismissTitle": "Bỏ qua",
@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}} phút trước",
     "timeHoursAgo": "{{count}} giờ trước",
     "bidDescription": "Đặt giá {{amount}} ADA",
-    "listingDescription": "Danh mục {{tokenName}}"
+    "listingDescription": "Danh mục {{tokenName}}",
+    "txType": {
+      "create-listing": "Tạo danh sách",
+      "remove-listing": "Xóa danh sách",
+      "place-bid": "Đặt giá",
+      "cancel-bid": "Hủy đặt giá",
+      "accept-bid": "Chấp nhận đặt giá",
+      "cancel-pending": "Hủy đang chờ",
+      "complete-sale": "Hoàn tất bán",
+      "create-collateral": "Thiết lập tài sản thế chấp",
+      "optimize-wallet": "Tối ưu ví",
+      "update-price": "Cập nhật giá",
+      "update-bid": "Cập nhật đặt giá"
+    }
   },
   "library": {
     "loading": "Đang tải thư viện của bạn…",

@@ -4,8 +4,8 @@
     "back": "Retour",
     "searchPlaceholder": "Rechercher dans les paramètres...",
     "searchAria": "Rechercher dans les paramètres",
-    "resultsFor_one": "{{count}} résultat pour \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} résultats pour \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} résultat pour “{{query}}”",
+    "resultsFor_other": "{{count}} résultats pour “{{query}}”",
     "noMatches": "Aucun paramètre correspondant trouvé.",
     "inLabel": "dans {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Aucun processus enregistré",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} redémarrage",
-    "restarts_other": "{{count}} redémarrages"
+    "restarts_other": "{{count}} redémarrages",
+    "stageFullySynced": "Entièrement synchronisé",
+    "stageSyncing": "Synchronisation ({{progress}}%)",
+    "stageStarting": "Démarrage...",
+    "stageBootstrapping": "Amorçage...",
+    "stageStopped": "Arrêté",
+    "stageError": "Erreur",
+    "processRunning": "En cours",
+    "processReady": "Prêt",
+    "processStarting": "Démarrage",
+    "processSyncing": "Synchronisation",
+    "processError": "Erreur",
+    "processStopped": "Arrêté"
   },
   "wallet": {
     "infoTitle": "Informations du portefeuille",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Activer/désactiver tous les sons de notification",
     "eventSoundToggleAria": "Activer/désactiver le son {{label}}",
     "volumeLabel": "Volume",
-    "previewSoundAria": "Aperçu du son {{label}}"
+    "previewSoundAria": "Aperçu du son {{label}}",
+    "soundEvents": {
+      "new_bid": "Nouvelle offre",
+      "new_bidDesc": "Une nouvelle offre est placée sur une de vos annonces",
+      "tx_confirmed": "Transaction confirmée",
+      "tx_confirmedDesc": "Une transaction atteint 15 confirmations",
+      "tx_failed": "Transaction échouée",
+      "tx_failedDesc": "La soumission d'une transaction échoue",
+      "bid_accepted": "Offre acceptée",
+      "bid_acceptedDesc": "Une offre que vous avez placée a été acceptée par le vendeur"
+    }
   },
   "contact": {
     "title": "Contact et support",

@@ -149,7 +149,7 @@
     "enableRepeat": "リピートを有効にする",
     "disableRepeat": "リピートを無効にする",
     "playbackSpeed": "再生速度: {{speed}}x",
-    "speedShortcut": "速度: {{speed}}x ({{key}}) \u00b7 右クリックでスライダー",
+    "speedShortcut": "速度: {{speed}}x ({{key}}) · 右クリックでスライダー",
     "speedTooltip": "再生速度（右クリックで細かく調整）",
     "fineSpeedControl": "速度の微調整",
     "toggleRemainingTime": "残り時間を切り替え",
@@ -167,8 +167,8 @@
     "statusReady": "準備完了",
     "hintPlayPause": "再生/一時停止",
     "hintFullscreen": "全画面",
-    "hintSeek": "シーク \u00b15秒",
-    "hintSeekShift": "シーク \u00b15秒 / Shift \u00b130秒",
+    "hintSeek": "シーク ±5秒",
+    "hintSeekShift": "シーク ±5秒 / Shift ±30秒",
     "hintMute": "ミュート",
     "hintBackPlayFwd": "戻る / 再生 / 進む",
     "hintStop": "停止",
@@ -302,7 +302,7 @@
     "strong": "強い"
   },
   "select": {
-    "placeholder": "選択\u2026",
+    "placeholder": "選択…",
     "searchPlaceholder": "検索...",
     "noMatches": "一致なし"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "すべて閉じる（{{count}}件待機中）"
   },
   "categories": {
-    "text": "テキスト"
+    "text": "テキスト",
+    "document": "ドキュメント",
+    "audio": "オーディオ",
+    "image": "画像",
+    "video": "動画",
+    "other": "その他"
   },
   "overlay": {
     "shuttingDown": "シャットダウン中...",

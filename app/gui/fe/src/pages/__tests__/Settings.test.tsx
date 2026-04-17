@@ -133,11 +133,11 @@ vi.mock('../../services/soundPreferences', () => ({
   getEventSoundVolume: vi.fn().mockReturnValue(0.5),
   setEventSoundVolume: vi.fn(),
   SOUND_EVENTS: ['new_bid', 'tx_confirmed', 'tx_failed', 'bid_accepted'],
-  SOUND_EVENT_LABELS: {
-    new_bid: { label: 'New Bid', description: 'A new bid is placed on one of your listings' },
-    tx_confirmed: { label: 'Transaction Confirmed', description: 'A transaction reaches 15 confirmations' },
-    tx_failed: { label: 'Transaction Failed', description: 'A transaction submission fails' },
-    bid_accepted: { label: 'Bid Accepted', description: 'A bid you placed was accepted by the seller' },
+  SOUND_EVENT_KEYS: {
+    new_bid: { labelKey: 'preferences.soundEvents.new_bid', descKey: 'preferences.soundEvents.new_bidDesc' },
+    tx_confirmed: { labelKey: 'preferences.soundEvents.tx_confirmed', descKey: 'preferences.soundEvents.tx_confirmedDesc' },
+    tx_failed: { labelKey: 'preferences.soundEvents.tx_failed', descKey: 'preferences.soundEvents.tx_failedDesc' },
+    bid_accepted: { labelKey: 'preferences.soundEvents.bid_accepted', descKey: 'preferences.soundEvents.bid_acceptedDesc' },
   },
 }));
 

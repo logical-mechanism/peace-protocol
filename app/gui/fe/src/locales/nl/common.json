@@ -345,7 +345,12 @@
     "dismissAllQueued": "Alles sluiten ({{count}} in wachtrij)"
   },
   "categories": {
-    "text": "Tekst"
+    "text": "Tekst",
+    "document": "Document",
+    "audio": "Audio",
+    "image": "Afbeelding",
+    "video": "Video",
+    "other": "Overig"
   },
   "overlay": {
     "shuttingDown": "Afsluiten...",

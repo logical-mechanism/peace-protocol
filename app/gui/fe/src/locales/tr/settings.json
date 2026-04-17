@@ -4,8 +4,8 @@
     "back": "Geri",
     "searchPlaceholder": "Ayarları ara...",
     "searchAria": "Ayarları ara",
-    "resultsFor_one": "\u201c{{query}}\u201d için {{count}} sonuç",
-    "resultsFor_other": "\u201c{{query}}\u201d için {{count}} sonuç",
+    "resultsFor_one": "“{{query}}” için {{count}} sonuç",
+    "resultsFor_other": "“{{query}}” için {{count}} sonuç",
     "noMatches": "Eşleşen ayar bulunamadı.",
     "inLabel": "{{label}} içinde"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Kayıtlı işlem yok",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} yeniden başlatma",
-    "restarts_other": "{{count}} yeniden başlatma"
+    "restarts_other": "{{count}} yeniden başlatma",
+    "stageFullySynced": "Tamamen senkronize",
+    "stageSyncing": "Senkronize ediliyor ({{progress}}%)",
+    "stageStarting": "Başlatılıyor...",
+    "stageBootstrapping": "Önyükleniyor...",
+    "stageStopped": "Durduruldu",
+    "stageError": "Hata",
+    "processRunning": "Çalışıyor",
+    "processReady": "Hazır",
+    "processStarting": "Başlatılıyor",
+    "processSyncing": "Senkronize ediliyor",
+    "processError": "Hata",
+    "processStopped": "Durduruldu"
   },
   "wallet": {
     "infoTitle": "Cüzdan Bilgisi",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Tüm bildirim seslerini aç/kapat",
     "eventSoundToggleAria": "{{label}} sesini aç/kapat",
     "volumeLabel": "Ses Düzeyi",
-    "previewSoundAria": "{{label}} sesini önizle"
+    "previewSoundAria": "{{label}} sesini önizle",
+    "soundEvents": {
+      "new_bid": "Yeni teklif",
+      "new_bidDesc": "İlanlarınızdan birine yeni bir teklif verildi",
+      "tx_confirmed": "İşlem onaylandı",
+      "tx_confirmedDesc": "Bir işlem 15 onaya ulaştı",
+      "tx_failed": "İşlem başarısız",
+      "tx_failedDesc": "Bir işlem gönderimi başarısız oldu",
+      "bid_accepted": "Teklif kabul edildi",
+      "bid_acceptedDesc": "Verdiğiniz bir teklif satıcı tarafından kabul edildi"
+    }
   },
   "contact": {
     "title": "İletişim ve Destek",

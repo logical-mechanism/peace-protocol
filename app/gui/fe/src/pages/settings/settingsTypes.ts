@@ -11,14 +11,14 @@ export interface ProcessLog {
   lines: string[]
 }
 
-export function nodeStageLabel(s: string, syncProgress: number): string {
+export function nodeStageLabel(s: string, syncProgress: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
   switch (s) {
-    case 'synced': return 'Fully Synced'
-    case 'syncing': return `Syncing (${syncProgress.toFixed(1)}%)`
-    case 'starting': return 'Starting...'
-    case 'bootstrapping': return 'Bootstrapping...'
-    case 'stopped': return 'Stopped'
-    case 'error': return 'Error'
+    case 'synced': return t('node.stageFullySynced')
+    case 'syncing': return t('node.stageSyncing', { progress: syncProgress.toFixed(1) })
+    case 'starting': return t('node.stageStarting')
+    case 'bootstrapping': return t('node.stageBootstrapping')
+    case 'stopped': return t('node.stageStopped')
+    case 'error': return t('node.stageError')
     default: return s
   }
 }

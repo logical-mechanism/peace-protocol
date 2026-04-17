@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}मि पहले",
     "timeHoursAgo": "{{count}}घं पहले",
     "bidDescription": "बोली {{amount}} ADA",
-    "listingDescription": "लिस्टिंग {{tokenName}}"
+    "listingDescription": "लिस्टिंग {{tokenName}}",
+    "txType": {
+      "create-listing": "लिस्टिंग बनाएँ",
+      "remove-listing": "लिस्टिंग हटाएँ",
+      "place-bid": "बोली लगाएँ",
+      "cancel-bid": "बोली रद्द करें",
+      "accept-bid": "बोली स्वीकारें",
+      "cancel-pending": "लंबित रद्द करें",
+      "complete-sale": "बिक्री पूरी करें",
+      "create-collateral": "संपार्श्विक सेट करें",
+      "optimize-wallet": "वॉलेट ऑप्टिमाइज़ करें",
+      "update-price": "मूल्य अपडेट करें",
+      "update-bid": "बोली अपडेट करें"
+    }
   },
   "library": {
     "loading": "आपकी लाइब्रेरी लोड हो रही है…",

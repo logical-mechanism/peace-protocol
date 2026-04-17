@@ -149,7 +149,7 @@
     "enableRepeat": "Wlacz powtarzanie",
     "disableRepeat": "Wylacz powtarzanie",
     "playbackSpeed": "Predkosc odtwarzania: {{speed}}x",
-    "speedShortcut": "Predkosc: {{speed}}x ({{key}}) \u00b7 Prawy przycisk dla suwaka",
+    "speedShortcut": "Predkosc: {{speed}}x ({{key}}) · Prawy przycisk dla suwaka",
     "speedTooltip": "Predkosc odtwarzania (prawy przycisk dla precyzyjnej kontroli)",
     "fineSpeedControl": "Precyzyjna kontrola predkosci",
     "toggleRemainingTime": "Przelacz pozostaly czas",
@@ -167,8 +167,8 @@
     "statusReady": "Gotowy",
     "hintPlayPause": "Odtwarzaj/Pauza",
     "hintFullscreen": "Pelny ekran",
-    "hintSeek": "Przewijanie \u00b15s",
-    "hintSeekShift": "Przewijanie \u00b15s / Shift \u00b130s",
+    "hintSeek": "Przewijanie ±5s",
+    "hintSeekShift": "Przewijanie ±5s / Shift ±30s",
     "hintMute": "Wycisz",
     "hintBackPlayFwd": "Wstecz / Odtwarzaj / Dalej",
     "hintStop": "Zatrzymaj",
@@ -302,7 +302,7 @@
     "strong": "Silne"
   },
   "select": {
-    "placeholder": "Wybierz\u2026",
+    "placeholder": "Wybierz…",
     "searchPlaceholder": "Szukaj...",
     "noMatches": "Brak wynikow"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "Odrzuc wszystkie ({{count}} w kolejce)"
   },
   "categories": {
-    "text": "Tekst"
+    "text": "Tekst",
+    "document": "Dokument",
+    "audio": "Audio",
+    "image": "Obraz",
+    "video": "Wideo",
+    "other": "Inne"
   },
   "overlay": {
     "shuttingDown": "Zamykanie...",

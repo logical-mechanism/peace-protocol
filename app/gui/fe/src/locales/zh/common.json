@@ -345,7 +345,12 @@
     "dismissAllQueued": "全部关闭（{{count}} 个排队中）"
   },
   "categories": {
-    "text": "文本"
+    "text": "文本",
+    "document": "文档",
+    "audio": "音频",
+    "image": "图片",
+    "video": "视频",
+    "other": "其他"
   },
   "overlay": {
     "shuttingDown": "正在关闭...",

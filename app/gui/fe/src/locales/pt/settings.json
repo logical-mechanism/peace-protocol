@@ -4,8 +4,8 @@
     "back": "Voltar",
     "searchPlaceholder": "Buscar configurações...",
     "searchAria": "Buscar configurações",
-    "resultsFor_one": "{{count}} resultado para \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} resultados para \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} resultado para “{{query}}”",
+    "resultsFor_other": "{{count}} resultados para “{{query}}”",
     "noMatches": "Nenhuma configuração correspondente encontrada.",
     "inLabel": "em {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Nenhum processo registrado",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} reinício",
-    "restarts_other": "{{count}} reinícios"
+    "restarts_other": "{{count}} reinícios",
+    "stageFullySynced": "Totalmente sincronizado",
+    "stageSyncing": "Sincronizando ({{progress}}%)",
+    "stageStarting": "Iniciando...",
+    "stageBootstrapping": "Inicializando...",
+    "stageStopped": "Parado",
+    "stageError": "Erro",
+    "processRunning": "Executando",
+    "processReady": "Pronto",
+    "processStarting": "Iniciando",
+    "processSyncing": "Sincronizando",
+    "processError": "Erro",
+    "processStopped": "Parado"
   },
   "wallet": {
     "infoTitle": "Informações da Carteira",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Alternar todos os sons de notificação",
     "eventSoundToggleAria": "Alternar som de {{label}}",
     "volumeLabel": "Volume",
-    "previewSoundAria": "Pré-ouvir som de {{label}}"
+    "previewSoundAria": "Pré-ouvir som de {{label}}",
+    "soundEvents": {
+      "new_bid": "Nova oferta",
+      "new_bidDesc": "Uma nova oferta foi feita em um dos seus anúncios",
+      "tx_confirmed": "Transação confirmada",
+      "tx_confirmedDesc": "Uma transação atinge 15 confirmações",
+      "tx_failed": "Transação falhou",
+      "tx_failedDesc": "O envio de uma transação falha",
+      "bid_accepted": "Oferta aceita",
+      "bid_acceptedDesc": "Uma oferta que você fez foi aceita pelo vendedor"
+    }
   },
   "contact": {
     "title": "Contato e Suporte",

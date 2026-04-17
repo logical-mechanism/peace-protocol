@@ -276,7 +276,20 @@
     "timeMinutesAgo": "{{count}}分钟前",
     "timeHoursAgo": "{{count}}小时前",
     "bidDescription": "出价 {{amount}} ADA",
-    "listingDescription": "上架 {{tokenName}}"
+    "listingDescription": "上架 {{tokenName}}",
+    "txType": {
+      "create-listing": "创建列表",
+      "remove-listing": "移除列表",
+      "place-bid": "出价",
+      "cancel-bid": "取消出价",
+      "accept-bid": "接受出价",
+      "cancel-pending": "取消待处理",
+      "complete-sale": "完成销售",
+      "create-collateral": "设置抵押品",
+      "optimize-wallet": "优化钱包",
+      "update-price": "更新价格",
+      "update-bid": "更新出价"
+    }
   },
   "library": {
     "loading": "加载资料库中…",

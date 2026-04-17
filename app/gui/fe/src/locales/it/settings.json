@@ -4,8 +4,8 @@
     "back": "Indietro",
     "searchPlaceholder": "Cerca impostazioni...",
     "searchAria": "Cerca impostazioni",
-    "resultsFor_one": "{{count}} risultato per \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} risultati per \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} risultato per “{{query}}”",
+    "resultsFor_other": "{{count}} risultati per “{{query}}”",
     "noMatches": "Nessuna impostazione corrispondente trovata.",
     "inLabel": "in {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Nessun processo registrato",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} riavvio",
-    "restarts_other": "{{count}} riavvii"
+    "restarts_other": "{{count}} riavvii",
+    "stageFullySynced": "Completamente sincronizzato",
+    "stageSyncing": "Sincronizzazione ({{progress}}%)",
+    "stageStarting": "Avvio...",
+    "stageBootstrapping": "Avvio iniziale...",
+    "stageStopped": "Fermato",
+    "stageError": "Errore",
+    "processRunning": "In esecuzione",
+    "processReady": "Pronto",
+    "processStarting": "Avvio",
+    "processSyncing": "Sincronizzazione",
+    "processError": "Errore",
+    "processStopped": "Fermato"
   },
   "wallet": {
     "infoTitle": "Informazioni portafoglio",
@@ -94,7 +106,7 @@
     "optimizationPreview": "Anteprima ottimizzazione:",
     "utxoLabel_one": "{{count}} UTxO",
     "utxoLabel_other": "{{count}} UTxO",
-    "previewUtxoChange": "{{from}} \u2192 {{to}}",
+    "previewUtxoChange": "{{from}} → {{to}}",
     "tokensConsolidated_one": "({{count}} token consolidato)",
     "tokensConsolidated_other": "({{count}} token consolidati)",
     "previewCapped": "Limitato ai primi 200 UTxO. Esegui di nuovo per continuare.",
@@ -112,7 +124,7 @@
     "walletOptimizedTitle": "Portafoglio ottimizzato",
     "walletPartiallyOptimizedTitle": "Portafoglio parzialmente ottimizzato",
     "walletOptimizedDescription": "UTxO consolidati per una costruzione ottimale delle transazioni",
-    "walletOptimizedPartialDescription": "Portafoglio ottimizzato (parziale \u2014 {{error}})",
+    "walletOptimizedPartialDescription": "Portafoglio ottimizzato (parziale — {{error}})",
     "optimizationFailedTitle": "Ottimizzazione non riuscita",
     "unknownError": "Errore sconosciuto",
     "confirmCollateralTitle": "Imposta collaterale",
@@ -148,7 +160,7 @@
   },
   "dataLayer": {
     "iagonTitle": "Archiviazione decentralizzata Iagon",
-    "iagonDescription": "Collega il tuo account Iagon per caricare e scaricare file per annunci non testuali. La firma del portafoglio viene utilizzata per l'autenticazione \u2014 nessuna password necessaria.",
+    "iagonDescription": "Collega il tuo account Iagon per caricare e scaricare file per annunci non testuali. La firma del portafoglio viene utilizzata per l'autenticazione — nessuna password necessaria.",
     "connected": "Connesso",
     "notConnected": "Non connesso",
     "connectedSubtitle": "Chiave API memorizzata in modo sicuro. Categorie file disponibili.",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Attiva/disattiva tutti i suoni delle notifiche",
     "eventSoundToggleAria": "Attiva/disattiva suono {{label}}",
     "volumeLabel": "Volume",
-    "previewSoundAria": "Anteprima suono {{label}}"
+    "previewSoundAria": "Anteprima suono {{label}}",
+    "soundEvents": {
+      "new_bid": "Nuova offerta",
+      "new_bidDesc": "Una nuova offerta è stata fatta su un tuo annuncio",
+      "tx_confirmed": "Transazione confermata",
+      "tx_confirmedDesc": "Una transazione raggiunge 15 conferme",
+      "tx_failed": "Transazione fallita",
+      "tx_failedDesc": "L'invio di una transazione fallisce",
+      "bid_accepted": "Offerta accettata",
+      "bid_acceptedDesc": "Un'offerta che hai fatto è stata accettata dal venditore"
+    }
   },
   "contact": {
     "title": "Contatti e supporto",

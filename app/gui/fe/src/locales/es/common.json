@@ -302,7 +302,7 @@
     "strong": "Fuerte"
   },
   "select": {
-    "placeholder": "Seleccionar\u2026",
+    "placeholder": "Seleccionar…",
     "searchPlaceholder": "Buscar...",
     "noMatches": "Sin coincidencias"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "Descartar todas ({{count}} en cola)"
   },
   "categories": {
-    "text": "Texto"
+    "text": "Texto",
+    "document": "Documento",
+    "audio": "Audio",
+    "image": "Imagen",
+    "video": "Video",
+    "other": "Otro"
   },
   "overlay": {
     "shuttingDown": "Cerrando...",

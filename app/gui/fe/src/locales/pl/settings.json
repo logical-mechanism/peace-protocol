@@ -4,8 +4,8 @@
     "back": "Wstecz",
     "searchPlaceholder": "Szukaj ustawien...",
     "searchAria": "Szukaj ustawien",
-    "resultsFor_one": "{{count}} wynik dla \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} wynikow dla \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} wynik dla “{{query}}”",
+    "resultsFor_other": "{{count}} wynikow dla “{{query}}”",
     "noMatches": "Nie znaleziono pasujacych ustawien.",
     "inLabel": "w {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Brak zarejestrowanych procesow",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} restart",
-    "restarts_other": "{{count}} restartow"
+    "restarts_other": "{{count}} restartow",
+    "stageFullySynced": "W pełni zsynchronizowany",
+    "stageSyncing": "Synchronizacja ({{progress}}%)",
+    "stageStarting": "Uruchamianie...",
+    "stageBootstrapping": "Inicjalizacja...",
+    "stageStopped": "Zatrzymany",
+    "stageError": "Błąd",
+    "processRunning": "Działa",
+    "processReady": "Gotowy",
+    "processStarting": "Uruchamianie",
+    "processSyncing": "Synchronizacja",
+    "processError": "Błąd",
+    "processStopped": "Zatrzymany"
   },
   "wallet": {
     "infoTitle": "Informacje o portfelu",
@@ -94,7 +106,7 @@
     "optimizationPreview": "Podglad optymalizacji:",
     "utxoLabel_one": "{{count}} UTxO",
     "utxoLabel_other": "{{count}} UTxO",
-    "previewUtxoChange": "{{from}} \u2192 {{to}}",
+    "previewUtxoChange": "{{from}} → {{to}}",
     "tokensConsolidated_one": "({{count}} token skonsolidowany)",
     "tokensConsolidated_other": "({{count}} tokenow skonsolidowanych)",
     "previewCapped": "Ograniczone do pierwszych 200 UTxO. Uruchom ponownie, aby kontynuowac.",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Przelacz wszystkie dzwieki powiadomien",
     "eventSoundToggleAria": "Przelacz dzwiek {{label}}",
     "volumeLabel": "Glosnosc",
-    "previewSoundAria": "Podsluchaj dzwiek {{label}}"
+    "previewSoundAria": "Podsluchaj dzwiek {{label}}",
+    "soundEvents": {
+      "new_bid": "Nowa oferta",
+      "new_bidDesc": "Nowa oferta została złożona na jedno z twoich ogłoszeń",
+      "tx_confirmed": "Transakcja potwierdzona",
+      "tx_confirmedDesc": "Transakcja osiąga 15 potwierdzeń",
+      "tx_failed": "Transakcja nieudana",
+      "tx_failedDesc": "Przesłanie transakcji nie powiodło się",
+      "bid_accepted": "Oferta zaakceptowana",
+      "bid_acceptedDesc": "Oferta, którą złożyłeś, została zaakceptowana przez sprzedającego"
+    }
   },
   "contact": {
     "title": "Kontakt i wsparcie",

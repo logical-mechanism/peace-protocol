@@ -276,7 +276,20 @@
     "timeMinutesAgo": "il y a {{count}}m",
     "timeHoursAgo": "il y a {{count}}h",
     "bidDescription": "Offre de {{amount}} ADA",
-    "listingDescription": "Annonce {{tokenName}}"
+    "listingDescription": "Annonce {{tokenName}}",
+    "txType": {
+      "create-listing": "Créer une annonce",
+      "remove-listing": "Supprimer l'annonce",
+      "place-bid": "Placer une offre",
+      "cancel-bid": "Annuler l'offre",
+      "accept-bid": "Accepter l'offre",
+      "cancel-pending": "Annuler en attente",
+      "complete-sale": "Finaliser la vente",
+      "create-collateral": "Définir le collatéral",
+      "optimize-wallet": "Optimiser le portefeuille",
+      "update-price": "Mettre à jour le prix",
+      "update-bid": "Mettre à jour l'offre"
+    }
   },
   "library": {
     "loading": "Chargement de votre bibliothèque...",

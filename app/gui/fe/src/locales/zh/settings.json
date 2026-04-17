@@ -62,7 +62,19 @@
     "noProcesses": "未注册任何进程",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} 次重启",
-    "restarts_other": "{{count}} 次重启"
+    "restarts_other": "{{count}} 次重启",
+    "stageFullySynced": "完全同步",
+    "stageSyncing": "同步中 ({{progress}}%)",
+    "stageStarting": "正在启动...",
+    "stageBootstrapping": "引导中...",
+    "stageStopped": "已停止",
+    "stageError": "错误",
+    "processRunning": "运行中",
+    "processReady": "就绪",
+    "processStarting": "正在启动",
+    "processSyncing": "同步中",
+    "processError": "错误",
+    "processStopped": "已停止"
   },
   "wallet": {
     "infoTitle": "钱包信息",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "切换所有通知声音",
     "eventSoundToggleAria": "切换 {{label}} 声音",
     "volumeLabel": "音量",
-    "previewSoundAria": "预览 {{label}} 声音"
+    "previewSoundAria": "预览 {{label}} 声音",
+    "soundEvents": {
+      "new_bid": "新出价",
+      "new_bidDesc": "您的某个列表收到了新出价",
+      "tx_confirmed": "交易已确认",
+      "tx_confirmedDesc": "一笔交易达到15次确认",
+      "tx_failed": "交易失败",
+      "tx_failedDesc": "一笔交易提交失败",
+      "bid_accepted": "出价已接受",
+      "bid_acceptedDesc": "您的一个出价被卖家接受"
+    }
   },
   "contact": {
     "title": "联系与支持",

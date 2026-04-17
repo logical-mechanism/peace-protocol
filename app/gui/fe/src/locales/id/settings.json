@@ -4,8 +4,8 @@
     "back": "Kembali",
     "searchPlaceholder": "Cari pengaturan...",
     "searchAria": "Cari pengaturan",
-    "resultsFor_one": "{{count}} hasil untuk \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} hasil untuk \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} hasil untuk “{{query}}”",
+    "resultsFor_other": "{{count}} hasil untuk “{{query}}”",
     "noMatches": "Tidak ada pengaturan yang cocok.",
     "inLabel": "di {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "Tidak ada proses terdaftar",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} restart",
-    "restarts_other": "{{count}} restart"
+    "restarts_other": "{{count}} restart",
+    "stageFullySynced": "Sepenuhnya tersinkron",
+    "stageSyncing": "Menyinkronkan ({{progress}}%)",
+    "stageStarting": "Memulai...",
+    "stageBootstrapping": "Memulai awal...",
+    "stageStopped": "Dihentikan",
+    "stageError": "Kesalahan",
+    "processRunning": "Berjalan",
+    "processReady": "Siap",
+    "processStarting": "Memulai",
+    "processSyncing": "Menyinkronkan",
+    "processError": "Kesalahan",
+    "processStopped": "Dihentikan"
   },
   "wallet": {
     "infoTitle": "Info Dompet",
@@ -94,7 +106,7 @@
     "optimizationPreview": "Pratinjau optimasi:",
     "utxoLabel_one": "{{count}} UTxO",
     "utxoLabel_other": "{{count}} UTxO",
-    "previewUtxoChange": "{{from}} \u2192 {{to}}",
+    "previewUtxoChange": "{{from}} → {{to}}",
     "tokensConsolidated_one": "({{count}} token dikonsolidasi)",
     "tokensConsolidated_other": "({{count}} token dikonsolidasi)",
     "previewCapped": "Dibatasi pada 200 UTxO pertama. Jalankan lagi untuk melanjutkan.",
@@ -112,7 +124,7 @@
     "walletOptimizedTitle": "Dompet Dioptimalkan",
     "walletPartiallyOptimizedTitle": "Dompet Dioptimalkan Sebagian",
     "walletOptimizedDescription": "UTxO dikonsolidasi untuk pembangunan transaksi yang optimal",
-    "walletOptimizedPartialDescription": "Dompet dioptimalkan (sebagian \u2014 {{error}})",
+    "walletOptimizedPartialDescription": "Dompet dioptimalkan (sebagian — {{error}})",
     "optimizationFailedTitle": "Optimasi Gagal",
     "unknownError": "Kesalahan tidak diketahui",
     "confirmCollateralTitle": "Tetapkan Kolateral",
@@ -148,7 +160,7 @@
   },
   "dataLayer": {
     "iagonTitle": "Penyimpanan Terdesentralisasi Iagon",
-    "iagonDescription": "Hubungkan akun Iagon Anda untuk mengunggah dan mengunduh berkas untuk daftar non-teks. Tanda tangan dompet Anda digunakan untuk autentikasi \u2014 tidak perlu kata sandi.",
+    "iagonDescription": "Hubungkan akun Iagon Anda untuk mengunggah dan mengunduh berkas untuk daftar non-teks. Tanda tangan dompet Anda digunakan untuk autentikasi — tidak perlu kata sandi.",
     "connected": "Terhubung",
     "notConnected": "Tidak Terhubung",
     "connectedSubtitle": "Kunci API tersimpan dengan aman. Kategori berkas tersedia.",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Alihkan semua suara notifikasi",
     "eventSoundToggleAria": "Alihkan suara {{label}}",
     "volumeLabel": "Volume",
-    "previewSoundAria": "Pratinjau suara {{label}}"
+    "previewSoundAria": "Pratinjau suara {{label}}",
+    "soundEvents": {
+      "new_bid": "Tawaran baru",
+      "new_bidDesc": "Tawaran baru ditempatkan pada salah satu daftar Anda",
+      "tx_confirmed": "Transaksi dikonfirmasi",
+      "tx_confirmedDesc": "Sebuah transaksi mencapai 15 konfirmasi",
+      "tx_failed": "Transaksi gagal",
+      "tx_failedDesc": "Pengiriman transaksi gagal",
+      "bid_accepted": "Tawaran diterima",
+      "bid_acceptedDesc": "Tawaran yang Anda buat telah diterima oleh penjual"
+    }
   },
   "contact": {
     "title": "Kontak & Dukungan",

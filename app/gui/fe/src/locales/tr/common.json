@@ -345,7 +345,12 @@
     "dismissAllQueued": "Tümünü kapat ({{count}} sırada)"
   },
   "categories": {
-    "text": "Metin"
+    "text": "Metin",
+    "document": "Belge",
+    "audio": "Ses",
+    "image": "Görsel",
+    "video": "Video",
+    "other": "Diğer"
   },
   "overlay": {
     "shuttingDown": "Kapatılıyor...",

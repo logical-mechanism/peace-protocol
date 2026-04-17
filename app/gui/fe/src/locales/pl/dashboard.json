@@ -79,8 +79,8 @@
     "sortPriceHigh": "Cena: od najwyzszej",
     "sortPriceLow": "Cena: od najnizszej",
     "sortMostBids": "Najwiecej ofert",
-    "sortAlphaAsc": "A \u2192 Z (Opis)",
-    "sortAlphaDesc": "Z \u2192 A (Opis)",
+    "sortAlphaAsc": "A → Z (Opis)",
+    "sortAlphaDesc": "Z → A (Opis)",
     "sortAmountHigh": "Kwota: od najwyzszej",
     "sortAmountLow": "Kwota: od najnizszej",
     "sortNameAsc": "Nazwa: A do Z",
@@ -117,7 +117,7 @@
     }
   },
   "marketplace": {
-    "loading": "Wczytywanie aukcji na rynku\u2026",
+    "loading": "Wczytywanie aukcji na rynku…",
     "loadError": "Blad wczytywania aukcji na rynku",
     "loadedCount_one": "Wczytano {{count}} aukcje",
     "loadedCount_other": "Wczytano {{count}} aukcji",
@@ -157,7 +157,7 @@
     "nsfwHide": "Ukryj aukcje NSFW"
   },
   "mySales": {
-    "loading": "Wczytywanie Twoich aukcji\u2026",
+    "loading": "Wczytywanie Twoich aukcji…",
     "loadError": "Blad wczytywania Twoich aukcji",
     "loadedCount_one": "Wczytano {{count}} aukcje",
     "loadedCount_other": "Wczytano {{count}} aukcji",
@@ -192,7 +192,7 @@
     "noListingsDesc": "Twoje aukcje pojawia sie tutaj"
   },
   "myPurchases": {
-    "loading": "Wczytywanie Twoich zakupow\u2026",
+    "loading": "Wczytywanie Twoich zakupow…",
     "loadError": "Blad wczytywania Twoich zakupow",
     "loadedCount_one": "Wczytano {{count}} oferte",
     "loadedCount_other": "Wczytano {{count}} ofert",
@@ -227,7 +227,7 @@
     "noBidsDesc": "Twoje oferty pojawia sie tutaj"
   },
   "history": {
-    "loading": "Wczytywanie historii transakcji\u2026",
+    "loading": "Wczytywanie historii transakcji…",
     "loadedCount_one": "Wczytano {{count}} transakcje",
     "loadedCount_other": "Wczytano {{count}} transakcji",
     "staleBannerMessage": "Wyswietlanie historii transakcji z pamieci podrecznej. Dane moga byc nieaktualne.",
@@ -276,10 +276,23 @@
     "timeMinutesAgo": "{{count}}min temu",
     "timeHoursAgo": "{{count}}godz. temu",
     "bidDescription": "Oferta {{amount}} ADA",
-    "listingDescription": "Aukcja {{tokenName}}"
+    "listingDescription": "Aukcja {{tokenName}}",
+    "txType": {
+      "create-listing": "Utwórz ogłoszenie",
+      "remove-listing": "Usuń ogłoszenie",
+      "place-bid": "Złóż ofertę",
+      "cancel-bid": "Anuluj ofertę",
+      "accept-bid": "Zaakceptuj ofertę",
+      "cancel-pending": "Anuluj oczekujące",
+      "complete-sale": "Zakończ sprzedaż",
+      "create-collateral": "Ustaw zabezpieczenie",
+      "optimize-wallet": "Optymalizuj portfel",
+      "update-price": "Zaktualizuj cenę",
+      "update-bid": "Zaktualizuj ofertę"
+    }
   },
   "library": {
-    "loading": "Wczytywanie Twojej biblioteki\u2026",
+    "loading": "Wczytywanie Twojej biblioteki…",
     "loadError": "Blad wczytywania Twojej biblioteki",
     "loadedCount_one": "Wczytano {{count}} element",
     "loadedCount_other": "Wczytano {{count}} elementow",

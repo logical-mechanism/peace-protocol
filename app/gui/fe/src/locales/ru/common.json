@@ -302,7 +302,7 @@
     "strong": "Надёжный"
   },
   "select": {
-    "placeholder": "Выберите\u2026",
+    "placeholder": "Выберите…",
     "searchPlaceholder": "Поиск...",
     "noMatches": "Совпадений не найдено"
   },
@@ -345,7 +345,12 @@
     "dismissAllQueued": "Закрыть все ({{count}} в очереди)"
   },
   "categories": {
-    "text": "Текст"
+    "text": "Текст",
+    "document": "Документ",
+    "audio": "Аудио",
+    "image": "Изображение",
+    "video": "Видео",
+    "other": "Другое"
   },
   "overlay": {
     "shuttingDown": "Завершение работы...",

@@ -27,10 +27,7 @@ interface LibraryCardProps {
 }
 
 
-const getCategoryLabel = (category: string): string => {
-  if (!category) return 'Text';
-  return category.charAt(0).toUpperCase() + category.slice(1);
-};
+// Category labels are resolved via i18n in the component below
 
 
 function CategoryIcon({ category, fileExtension, size = 'md' }: { category: string; fileExtension?: string; size?: 'sm' | 'md' }) {
@@ -152,7 +149,7 @@ function LibraryCard({
                   <span className="text-xs font-mono text-[var(--text-muted)]" title={item.tokenName}>
                     {truncateHex(item.tokenName, 8, 4)}
                   </span>
-                  <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
+                  <Badge variant="neutral">{t(`common:categories.${item.category || 'text'}`)}</Badge>
                   {item.contentMissing && (
                     <Badge variant="warning">{t('library.missingBadge')}</Badge>
                   )}
@@ -298,7 +295,7 @@ function LibraryCard({
                 truncateHex(item.tokenName, 12, 8)
               )}
             </span>
-            <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
+            <Badge variant="neutral">{t(`common:categories.${item.category || 'text'}`)}</Badge>
             {item.contentMissing && (
               <Badge variant="warning">{t('library.missingBadge')}</Badge>
             )}

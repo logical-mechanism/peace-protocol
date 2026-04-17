@@ -4,8 +4,8 @@
     "back": "Atrás",
     "searchPlaceholder": "Buscar ajustes...",
     "searchAria": "Buscar ajustes",
-    "resultsFor_one": "{{count}} resultado para \u201c{{query}}\u201d",
-    "resultsFor_other": "{{count}} resultados para \u201c{{query}}\u201d",
+    "resultsFor_one": "{{count}} resultado para “{{query}}”",
+    "resultsFor_other": "{{count}} resultados para “{{query}}”",
     "noMatches": "No se encontraron ajustes coincidentes.",
     "inLabel": "en {{label}}"
   },
@@ -62,7 +62,19 @@
     "noProcesses": "No hay procesos registrados",
     "pid": "PID {{pid}}",
     "restarts_one": "{{count}} reinicio",
-    "restarts_other": "{{count}} reinicios"
+    "restarts_other": "{{count}} reinicios",
+    "stageFullySynced": "Completamente sincronizado",
+    "stageSyncing": "Sincronizando ({{progress}}%)",
+    "stageStarting": "Iniciando...",
+    "stageBootstrapping": "Arrancando...",
+    "stageStopped": "Detenido",
+    "stageError": "Error",
+    "processRunning": "Ejecutando",
+    "processReady": "Listo",
+    "processStarting": "Iniciando",
+    "processSyncing": "Sincronizando",
+    "processError": "Error",
+    "processStopped": "Detenido"
   },
   "wallet": {
     "infoTitle": "Info de billetera",
@@ -326,7 +338,17 @@
     "notifSoundsToggleAria": "Alternar todos los sonidos de notificación",
     "eventSoundToggleAria": "Alternar sonido de {{label}}",
     "volumeLabel": "Volumen",
-    "previewSoundAria": "Vista previa del sonido {{label}}"
+    "previewSoundAria": "Vista previa del sonido {{label}}",
+    "soundEvents": {
+      "new_bid": "Nueva oferta",
+      "new_bidDesc": "Se realizó una nueva oferta en uno de tus anuncios",
+      "tx_confirmed": "Transacción confirmada",
+      "tx_confirmedDesc": "Una transacción alcanza 15 confirmaciones",
+      "tx_failed": "Transacción fallida",
+      "tx_failedDesc": "El envío de una transacción falla",
+      "bid_accepted": "Oferta aceptada",
+      "bid_acceptedDesc": "Una oferta que realizaste fue aceptada por el vendedor"
+    }
   },
   "contact": {
     "title": "Contacto y soporte",
