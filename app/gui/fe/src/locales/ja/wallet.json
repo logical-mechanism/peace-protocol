@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Cardano上の暗号化データマーケットプレイス",
+    "chooseCreateTitle": "新しいウォレットを作成",
+    "chooseCreateSubtitle": "24単語のリカバリーフレーズを生成します",
+    "chooseImportTitle": "既存のウォレットをインポート",
+    "chooseImportSubtitle": "24単語のリカバリーフレーズから復元します",
+    "back": "戻る",
+    "steps": {
+      "backup": "バックアップ",
+      "verify": "確認",
+      "password": "パスワード",
+      "recoveryPhrase": "リカバリーフレーズ"
+    },
+    "create": {
+      "recoveryPhraseTitle": "リカバリーフレーズ",
+      "verifyTitle": "フレーズを確認",
+      "passwordTitle": "パスワードを設定",
+      "warning": "これらの24単語を順番にメモしてください。ウォレットを復元する唯一の方法です。決して他人と共有しないでください。",
+      "copyToClipboard": "クリップボードにコピー",
+      "copied": "コピーしました！",
+      "wroteItDown": "メモしました",
+      "verifyInstructions": "以下の単語を入力してリカバリーフレーズを確認してください。入力を開始すると一致する単語が表示されます。",
+      "continue": "続行"
+    },
+    "import": {
+      "enterTitle": "リカバリーフレーズを入力",
+      "passwordTitle": "パスワードを設定",
+      "instructions": "24単語のリカバリーフレーズを入力してください。各単語を入力し始めると候補が表示されます。",
+      "pasteAll": "24単語すべてを貼り付け",
+      "wordCount": "{{count}} / 24 単語",
+      "continue": "続行"
+    },
+    "password": {
+      "description": "リカバリーフレーズを暗号化するためのウォレットパスワードを設定してください。アプリを開くたびにこのパスワードが必要です。",
+      "label": "パスワード",
+      "confirmLabel": "パスワードの確認",
+      "placeholder": "パスワードを入力",
+      "confirmPlaceholder": "パスワードを再入力",
+      "show": "表示",
+      "hide": "非表示",
+      "capsLockOn": "Caps Lockがオンです",
+      "creating": "ウォレットを作成中...",
+      "submit": "ウォレットを作成"
+    },
+    "errors": {
+      "allWordsRequired": "24単語すべてが必要です",
+      "passwordRequirements": "パスワードがすべての要件を満たしていません",
+      "passwordMismatch": "パスワードが一致しません",
+      "createFailed": "ウォレットの作成に失敗しました",
+      "copyFailedTitle": "コピーに失敗",
+      "copyFailedBody": "mnemonicをクリップボードにコピーできませんでした。",
+      "clipboardUnavailableTitle": "クリップボードが利用できません",
+      "clipboardUnavailableBody": "クリップボードにアクセスできませんでした。Ctrl+Vで各単語フィールドに直接貼り付けてください。"
+    }
+  },
+  "unlock": {
+    "passwordLabel": "パスワード",
+    "togglePasswordVisibility": "パスワードの表示を切り替え",
+    "capsLockOn": "Caps Lockがオンです",
+    "unlock": "ロック解除",
+    "unlocking": "ロック解除中...",
+    "forgotPassword": "パスワードをお忘れですか？",
+    "details": "詳細",
+    "copyErrorTitle": "エラーの詳細をコピー",
+    "delete": {
+      "title": "ウォレットを削除しますか？",
+      "description": "暗号化されたウォレットをこのデバイスから削除します。24単語のリカバリーフレーズのバックアップがあれば資金は安全です。削除後に再インポートできます。",
+      "warning": "リカバリーフレーズがない場合、資金は永久に失われます。",
+      "acknowledge": "24単語のリカバリーフレーズをバックアップしました",
+      "cancel": "キャンセル",
+      "confirm": "ウォレットを削除",
+      "deleting": "削除中..."
+    }
+  }
+}

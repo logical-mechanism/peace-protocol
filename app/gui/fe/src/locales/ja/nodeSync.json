@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "ノードセットアップ",
+    "bootstrapping": "スナップショットをダウンロード中",
+    "starting": "ノードを起動中",
+    "syncing": "チェーンを同期中",
+    "synced": "ノード準備完了",
+    "error": "ノードエラー"
+  },
+  "network": {
+    "preprod": "Preprodネットワーク",
+    "mainnet": "Mainnetネットワーク"
+  },
+  "stages": {
+    "bootstrap": "ブートストラップ",
+    "starting": "起動中",
+    "syncing": "同期中",
+    "ready": "準備完了"
+  },
+  "progressLabel": "同期の進捗",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "台帳をリプレイ中...",
+      "description": "Cardanoブロックチェーンからブロックを検証し、台帳のローカルコピーを維持します。"
+    },
+    "ogmios": {
+      "label": "Ogmiosブリッジ",
+      "startingText": "接続中...",
+      "description": "ノードのデータをWebSocketプロトコルに変換し、トランザクションの構築と送信を行います。"
+    },
+    "kupo": {
+      "label": "Kupoインデクサー",
+      "startingText": "起動中...",
+      "description": "コントラクトとウォレットアドレスのUTxOをインデックスし、残高とリスティングの高速クエリを提供します。"
+    },
+    "states": {
+      "waiting": "待機中...",
+      "starting": "起動中...",
+      "ready": "準備完了",
+      "error": "エラー"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupoインデクサー",
+    "backendServer": "バックエンドサーバー",
+    "syncing": "同期中 {{percent}}%",
+    "indexing": "インデックス中 {{percent}}%",
+    "disconnected": "切断",
+    "stalled": "停滞",
+    "starting": "起動中...",
+    "waiting": "待機中...",
+    "synced": "同期済み"
+  },
+  "syncInfo": {
+    "block": "ブロック {{height}} — {{percent}}%",
+    "epoch": "エポック {{epoch}} ({{era}})",
+    "slot": "スロット {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "ブロックチェーンデータが見つかりません。スナップショットをダウンロードして開始してください。",
+    "stopped": "ノードインフラストラクチャは停止しています。",
+    "bootstrapDownloading": "スナップショットをダウンロード中: {{current}} / {{total}} ファイル",
+    "bootstrapLedgerState": "台帳状態をダウンロード中: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "ブロックチェーンスナップショットのダウンロードを準備中...",
+    "bootstrapGeneric": "スナップショットをダウンロード中...",
+    "startingNode": "Cardanoノードを起動中...",
+    "waitingChainBridge": "チェーンブリッジを待機中...",
+    "connectingNetwork": "ネットワークに接続中...",
+    "fullySyncedStartingBackend": "完全同期済み、バックエンドサービスを起動中...",
+    "fullySynced": "{{network}}ネットワークと完全同期済み",
+    "nodeSyncedWaitingKupo": "ノード同期済み、Kupoインデクサーを待機中...",
+    "syncing": "{{network}}ネットワークと同期中...",
+    "syncedAtBlock": "{{network}}ネットワークとブロック{{height}}で完全同期済み",
+    "genericError": "エラーが発生しました"
+  },
+  "stuckMessage": "最後のいくつかのブロックは、ノードが最近のトランザクションを検証するため時間がかかります。これは正常です。最後の数パーセントはノードが最近のブロックを検証するため5〜15分かかる場合があります。",
+  "diskSpace": {
+    "low": "ディスク空き容量不足: {{available}} GB利用可能、{{network}}には約{{required}} GB必要です。ディスク容量が不足すると同期に失敗する場合があります。",
+    "unknown": "ディスク容量を確認できませんでした。同期前に少なくとも10 GBの空き容量を確保してください。"
+  },
+  "actions": {
+    "starting": "起動中...",
+    "downloadSnapshot": "スナップショットをダウンロードして開始",
+    "startNode": "ノードを起動",
+    "retry": "再試行",
+    "continueDashboard": "ダッシュボードへ進む",
+    "continueBackground": "バックグラウンドで続行",
+    "stop": "停止"
+  },
+  "console": {
+    "show": "コンソール出力を表示（{{count}}行）",
+    "hide": "コンソール出力を非表示（{{count}}行）",
+    "copyLogs": "ログをコピー",
+    "copyLogsAria": "ログをクリップボードにコピー",
+    "noLogsTitle": "ログなし",
+    "noLogsBody": "コピーするログがありません。",
+    "copiedTitle": "ログをコピーしました",
+    "copiedBody": "コンソール出力をクリップボードにコピーしました。",
+    "copyFailedTitle": "コピーに失敗",
+    "copyFailedBody": "ログをクリップボードにコピーできませんでした。"
+  },
+  "errorDetails": {
+    "summary": "詳細",
+    "copyAria": "エラーの詳細をコピー",
+    "errorFallback": "エラー"
+  },
+  "wasm": {
+    "checkingSetup": "SNARKセットアップファイルを確認中...",
+    "checkingExist": "セットアップファイルの存在を確認中...",
+    "proverReady": "SNARKプルーバー準備完了",
+    "setupFound": "セットアップファイルが見つかりました",
+    "decompressing": "SNARKセットアップファイルを展開中...",
+    "decompressingDetail": "pk.binとccs.binを展開中（約500MB）...",
+    "decompressed": "セットアップファイルの展開完了"
+  },
+  "firstTimeSetup": {
+    "title": "初回セットアップ",
+    "description": "Cardanoノードをブートストラップするため、Mithrilスナップショットがダウンロードされます。接続速度に応じて約10〜20分かかります。スナップショットは使用前に暗号学的に検証されます。"
+  }
+}
