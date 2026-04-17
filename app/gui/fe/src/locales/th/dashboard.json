@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "เพิ่งเริ่มใช้ Veiled?",
     "tutorialBannerDesc": "ทำทัวร์แนะนำเพื่อเรียนรู้วิธีสร้างรายการแรกของคุณ",
     "tutorialBannerStart": "เริ่มทัวร์",
-    "tutorialBannerDismiss": "ปิด"
+    "tutorialBannerDismiss": "ปิด",
+    "bidBannerTitle": "พร้อมที่จะเสนอราคาครั้งแรกหรือยัง?",
+    "bidBannerDesc": "คลิก \"เสนอราคา\" ในรายการใดก็ได้เพื่อดูคำแนะนำที่เป็นประโยชน์"
   },
   "mySales": {
     "loading": "กำลังโหลดรายการของคุณ…",

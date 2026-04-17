@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Впервые в Veiled?",
     "tutorialBannerDesc": "Пройдите обзорную экскурсию, чтобы узнать, как создать своё первое объявление.",
     "tutorialBannerStart": "Начать экскурсию",
-    "tutorialBannerDismiss": "Закрыть"
+    "tutorialBannerDismiss": "Закрыть",
+    "bidBannerTitle": "Готовы сделать первую ставку?",
+    "bidBannerDesc": "Нажмите \"Сделать ставку\" на любом объявлении, чтобы увидеть полезные подсказки."
   },
   "mySales": {
     "loading": "Загрузка ваших объявлений…",

@@ -417,4 +417,43 @@ describe('MarketplaceTab', () => {
     expect(onStartTutorial).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
   });
+
+  // --- Bid tutorial banner ---
+
+  it('shows bid banner when onboarding complete and firstBidCompleted is false', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides bid banner when firstBidCompleted is true', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('does not show bid banner when listing banner is visible', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+      expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+    });
+  });
 });

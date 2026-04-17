@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Nuovo su Veiled?",
     "tutorialBannerDesc": "Fai un tour guidato per imparare a creare il tuo primo annuncio.",
     "tutorialBannerStart": "Inizia il tour",
-    "tutorialBannerDismiss": "Chiudi"
+    "tutorialBannerDismiss": "Chiudi",
+    "bidBannerTitle": "Pronto a fare la tua prima offerta?",
+    "bidBannerDesc": "Clicca \"Fai un'offerta\" su qualsiasi inserzione per vedere suggerimenti utili."
   },
   "mySales": {
     "loading": "Caricamento dei tuoi annunci…",

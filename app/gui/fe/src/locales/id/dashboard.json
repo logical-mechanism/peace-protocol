@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Baru di Veiled?",
     "tutorialBannerDesc": "Ikuti tur panduan untuk mempelajari cara membuat daftar pertama Anda.",
     "tutorialBannerStart": "Mulai Tur",
-    "tutorialBannerDismiss": "Tutup"
+    "tutorialBannerDismiss": "Tutup",
+    "bidBannerTitle": "Siap menempatkan tawaran pertama Anda?",
+    "bidBannerDesc": "Klik \"Tempatkan Tawaran\" pada listing mana pun untuk melihat petunjuk yang membantu."
   },
   "mySales": {
     "loading": "Memuat daftar Anda…",

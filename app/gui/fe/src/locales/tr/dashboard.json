@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Veiled'da yeni misiniz?",
     "tutorialBannerDesc": "İlk ilanınızı nasıl oluşturacağınızı öğrenmek için rehberli bir tur yapın.",
     "tutorialBannerStart": "Turu Başlat",
-    "tutorialBannerDismiss": "Kapat"
+    "tutorialBannerDismiss": "Kapat",
+    "bidBannerTitle": "İlk teklifinizi vermeye hazır mısınız?",
+    "bidBannerDesc": "Yardımcı ipuçlarını görmek için herhangi bir ilandaki \"Teklif Ver\" düğmesine tıklayın."
   },
   "mySales": {
     "loading": "İlanlarınız yükleniyor…",

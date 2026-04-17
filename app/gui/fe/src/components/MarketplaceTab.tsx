@@ -54,6 +54,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [nsfwEnabled] = useState(() => getNsfwEnabled());
   const [tutorialBannerDismissed, setTutorialBannerDismissed] = useState(false);
+  const [bidBannerDismissed, setBidBannerDismissed] = useState(false);
 
   // Show tutorial banner when base onboarding is done but first listing hasn't been completed
   const showTutorialBanner = useMemo(() => {
@@ -61,6 +62,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     const state = getOnboardingState();
     return state.completed && !state.firstListingCompleted;
   }, [tutorialBannerDismissed]);
+
+  // Show bid tutorial banner when onboarding is done and first bid hasn't been completed
+  // (don't also show listing banner — only one tutorial banner at a time)
+  const showBidBanner = useMemo(() => {
+    if (bidBannerDismissed) return false;
+    if (showTutorialBanner) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstBidCompleted;
+  }, [bidBannerDismissed, showTutorialBanner]);
 
   // Close filters panel on Escape key
   useEffect(() => {
@@ -427,6 +437,46 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
           <button
             onClick={() => setTutorialBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('marketplace.tutorialBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {showBidBanner && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('marketplace.bidBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('marketplace.bidBannerDesc')}</span>
+          </div>
+          <button
+            onClick={() => setBidBannerDismissed(true)}
             className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
             style={{ color: 'var(--accent)' }}
             aria-label={t('marketplace.tutorialBannerDismiss')}

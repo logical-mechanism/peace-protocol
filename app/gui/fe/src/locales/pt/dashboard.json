@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Novo no Veiled?",
     "tutorialBannerDesc": "Faça um tour guiado para aprender a criar sua primeira listagem.",
     "tutorialBannerStart": "Iniciar tour",
-    "tutorialBannerDismiss": "Dispensar"
+    "tutorialBannerDismiss": "Dispensar",
+    "bidBannerTitle": "Pronto para fazer a sua primeira oferta?",
+    "bidBannerDesc": "Clique em \"Fazer oferta\" em qualquer listagem para ver dicas úteis."
   },
   "mySales": {
     "loading": "Carregando suas listagens…",

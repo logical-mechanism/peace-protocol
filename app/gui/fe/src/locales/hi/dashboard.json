@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Veiled पर नए हैं?",
     "tutorialBannerDesc": "अपनी पहली लिस्टिंग बनाना सीखने के लिए एक गाइडेड टूर लें।",
     "tutorialBannerStart": "टूर शुरू करें",
-    "tutorialBannerDismiss": "बंद करें"
+    "tutorialBannerDismiss": "बंद करें",
+    "bidBannerTitle": "अपनी पहली बोली लगाने के लिए तैयार?",
+    "bidBannerDesc": "प्रक्रिया को समझने के लिए किसी भी लिस्टिंग पर \"बोली लगाएं\" पर क्लिक करें।"
   },
   "mySales": {
     "loading": "आपकी लिस्टिंग लोड हो रही हैं…",
