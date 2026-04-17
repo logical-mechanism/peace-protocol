@@ -8,6 +8,7 @@ import {
   markFirstListingCompleted,
   markFirstBidCompleted,
   resetTutorials,
+  resetTutorialFlag,
 } from '../onboardingStorage'
 
 const DEFAULT = {
@@ -134,6 +135,30 @@ describe('onboardingStorage', () => {
         completed: true,
         firstListingCompleted: false,
         firstBidCompleted: false,
+      })
+    })
+  })
+
+  describe('resetTutorialFlag', () => {
+    it('resets only firstBidCompleted without touching firstListingCompleted', () => {
+      setOnboardingState({ step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: true })
+      resetTutorialFlag('firstBidCompleted')
+      expect(getOnboardingState()).toEqual({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: false,
+      })
+    })
+
+    it('resets only firstListingCompleted without touching firstBidCompleted', () => {
+      setOnboardingState({ step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: true })
+      resetTutorialFlag('firstListingCompleted')
+      expect(getOnboardingState()).toEqual({
+        step: 3,
+        completed: true,
+        firstListingCompleted: false,
+        firstBidCompleted: true,
       })
     })
   })

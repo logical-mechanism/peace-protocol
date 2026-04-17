@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { getOnboardingState, resetTutorials } from '../../services/onboardingStorage'
+import { getOnboardingState, resetTutorials, resetTutorialFlag } from '../../services/onboardingStorage'
 
 interface TutorialFlow {
   id: string
@@ -71,8 +71,8 @@ export default function TutorialsSection() {
   }, [])
 
   const handleStartFlow = useCallback((flow: TutorialFlow) => {
-    // Reset tutorials so the tour re-triggers on arrival
-    resetTutorials()
+    // Reset only this flow's flag so other tutorials aren't affected
+    resetTutorialFlag(flow.completedFlag)
     setOnboardingState(getOnboardingState())
     if (flow.navigateTo) {
       navigate(flow.navigateTo.path, { state: flow.navigateTo.state })
