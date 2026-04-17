@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "नोड सेटअप",
+    "bootstrapping": "स्नैपशॉट डाउनलोड हो रहा है",
+    "starting": "नोड शुरू हो रहा है",
+    "syncing": "चेन सिंक हो रही है",
+    "synced": "नोड तैयार",
+    "error": "नोड त्रुटि"
+  },
+  "network": {
+    "preprod": "Preprod नेटवर्क",
+    "mainnet": "Mainnet नेटवर्क"
+  },
+  "stages": {
+    "bootstrap": "बूटस्ट्रैप",
+    "starting": "शुरू हो रहा है",
+    "syncing": "सिंक हो रहा है",
+    "ready": "तैयार"
+  },
+  "progressLabel": "सिंक प्रगति",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "लेजर रीप्ले हो रहा है...",
+      "description": "Cardano ब्लॉकचेन से ब्लॉक सत्यापित करता है और लेजर की स्थानीय प्रतिलिपि बनाए रखता है।"
+    },
+    "ogmios": {
+      "label": "Ogmios ब्रिज",
+      "startingText": "कनेक्ट हो रहा है...",
+      "description": "लेनदेन निर्माण और सबमिशन के लिए नोड डेटा को WebSocket प्रोटोकॉल में अनुवाद करता है।"
+    },
+    "kupo": {
+      "label": "Kupo इंडेक्सर",
+      "startingText": "शुरू हो रहा है...",
+      "description": "तेज़ बैलेंस और लिस्टिंग क्वेरी के लिए कॉन्ट्रैक्ट और वॉलेट पतों पर UTxO को इंडेक्स करता है।"
+    },
+    "states": {
+      "waiting": "प्रतीक्षा...",
+      "starting": "शुरू हो रहा है...",
+      "ready": "तैयार",
+      "error": "त्रुटि"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo इंडेक्सर",
+    "backendServer": "बैकएंड सर्वर",
+    "syncing": "सिंक हो रहा है {{percent}}%",
+    "indexing": "इंडेक्सिंग {{percent}}%",
+    "disconnected": "डिस्कनेक्ट",
+    "stalled": "रुका हुआ",
+    "starting": "शुरू हो रहा है...",
+    "waiting": "प्रतीक्षा...",
+    "synced": "सिंक हो गया"
+  },
+  "syncInfo": {
+    "block": "ब्लॉक {{height}} — {{percent}}%",
+    "epoch": "एपॉक {{epoch}} ({{era}})",
+    "slot": "स्लॉट {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "ब्लॉकचेन डेटा नहीं मिला। शुरू करने के लिए स्नैपशॉट डाउनलोड करें।",
+    "stopped": "नोड इन्फ्रास्ट्रक्चर बंद है।",
+    "bootstrapDownloading": "स्नैपशॉट डाउनलोड हो रहा है: {{current}} / {{total}} फ़ाइलें",
+    "bootstrapLedgerState": "लेजर स्थिति डाउनलोड हो रही है: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "ब्लॉकचेन स्नैपशॉट डाउनलोड की तैयारी...",
+    "bootstrapGeneric": "स्नैपशॉट डाउनलोड हो रहा है...",
+    "startingNode": "Cardano नोड शुरू हो रहा है...",
+    "waitingChainBridge": "चेन ब्रिज की प्रतीक्षा...",
+    "connectingNetwork": "नेटवर्क से कनेक्ट हो रहा है...",
+    "fullySyncedStartingBackend": "पूर्ण रूप से सिंक, बैकएंड सेवाएँ शुरू हो रही हैं...",
+    "fullySynced": "{{network}} नेटवर्क के साथ पूर्ण रूप से सिंक",
+    "nodeSyncedWaitingKupo": "नोड सिंक हो गया, Kupo इंडेक्सर की प्रतीक्षा...",
+    "syncing": "{{network}} नेटवर्क के साथ सिंक हो रहा है...",
+    "syncedAtBlock": "{{network}} नेटवर्क के साथ ब्लॉक {{height}} पर पूर्ण सिंक",
+    "genericError": "एक त्रुटि हुई"
+  },
+  "stuckMessage": "अंतिम कुछ ब्लॉक में अधिक समय लगता है क्योंकि नोड हाल के लेनदेनों को सत्यापित करता है। यह सामान्य है। अंतिम कुछ प्रतिशत में 5-15 मिनट लग सकते हैं।",
+  "diskSpace": {
+    "low": "कम डिस्क स्थान: {{available}} GB उपलब्ध, {{network}} के लिए ~{{required}} GB आवश्यक। डिस्क स्थान समाप्त होने पर सिंक विफल हो सकता है।",
+    "unknown": "डिस्क स्थान सत्यापित नहीं हो सका। सिंक करने से पहले कम से कम 10 GB खाली स्थान सुनिश्चित करें।"
+  },
+  "actions": {
+    "starting": "शुरू हो रहा है...",
+    "downloadSnapshot": "स्नैपशॉट डाउनलोड करें और शुरू करें",
+    "startNode": "नोड शुरू करें",
+    "retry": "पुनः प्रयास",
+    "continueDashboard": "डैशबोर्ड पर जाएँ",
+    "continueBackground": "पृष्ठभूमि में जारी रखें",
+    "stop": "रोकें"
+  },
+  "console": {
+    "show": "कंसोल आउटपुट दिखाएँ ({{count}} पंक्तियाँ)",
+    "hide": "कंसोल आउटपुट छिपाएँ ({{count}} पंक्तियाँ)",
+    "copyLogs": "लॉग कॉपी करें",
+    "copyLogsAria": "लॉग क्लिपबोर्ड पर कॉपी करें",
+    "noLogsTitle": "कोई लॉग नहीं",
+    "noLogsBody": "कॉपी करने के लिए कोई लॉग पंक्तियाँ नहीं हैं।",
+    "copiedTitle": "लॉग कॉपी हो गए",
+    "copiedBody": "कंसोल आउटपुट क्लिपबोर्ड पर कॉपी हो गया।",
+    "copyFailedTitle": "कॉपी विफल",
+    "copyFailedBody": "लॉग क्लिपबोर्ड पर कॉपी नहीं हो सके।"
+  },
+  "errorDetails": {
+    "summary": "विवरण",
+    "copyAria": "त्रुटि विवरण कॉपी करें",
+    "errorFallback": "त्रुटि"
+  },
+  "wasm": {
+    "checkingSetup": "SNARK सेटअप फ़ाइलें जाँची जा रही हैं...",
+    "checkingExist": "सेटअप फ़ाइलों की जाँच हो रही है...",
+    "proverReady": "SNARK प्रूवर तैयार",
+    "setupFound": "सेटअप फ़ाइलें मिलीं",
+    "decompressing": "SNARK सेटअप फ़ाइलें डीकंप्रेस हो रही हैं...",
+    "decompressingDetail": "pk.bin और ccs.bin डीकंप्रेस हो रही हैं (~500MB)...",
+    "decompressed": "सेटअप फ़ाइलें डीकंप्रेस हो गईं"
+  },
+  "firstTimeSetup": {
+    "title": "पहली बार का सेटअप",
+    "description": "Cardano नोड को बूटस्ट्रैप करने के लिए एक Mithril स्नैपशॉट डाउनलोड किया जाएगा। आपकी कनेक्शन गति के आधार पर इसमें लगभग 10-20 मिनट लगते हैं। उपयोग से पहले स्नैपशॉट क्रिप्टोग्राफ़िक रूप से सत्यापित किया जाता है।"
+  }
+}
