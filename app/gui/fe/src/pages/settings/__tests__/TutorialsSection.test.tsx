@@ -26,6 +26,7 @@ describe('TutorialsSection', () => {
       firstListingCompleted: false,
       firstBidCompleted: false,
       firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
     })
   })
 
@@ -52,6 +53,7 @@ describe('TutorialsSection', () => {
       firstListingCompleted: true,
       firstBidCompleted: true,
       firstDecryptCompleted: true,
+      firstBidAcceptedCompleted: true,
     })
     render(<TutorialsSection />)
     const badges = screen.getAllByText('Completed')
@@ -61,7 +63,7 @@ describe('TutorialsSection', () => {
   it('shows Start buttons for incomplete flows with navigation', () => {
     render(<TutorialsSection />)
     const starts = screen.getAllByText('Start')
-    expect(starts.length).toBe(3) // first-listing + first-bid + first-decrypt
+    expect(starts.length).toBe(4) // first-listing + first-bid + first-decrypt + first-bid-accepted
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -71,6 +73,7 @@ describe('TutorialsSection', () => {
       firstListingCompleted: true,
       firstBidCompleted: false,
       firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
     })
     render(<TutorialsSection />)
     expect(screen.getByText('Replay')).toBeInTheDocument()
@@ -109,6 +112,16 @@ describe('TutorialsSection', () => {
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstDecryptCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'my-purchases', startTutorial: 'first-decrypt' },
+    })
+  })
+
+  it('resets only first-bid-accepted flag and navigates to my-sales on Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[3]) // first-bid-accepted Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstBidAcceptedCompleted')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+      state: { tab: 'my-sales', startTutorial: 'first-bid-accepted' },
     })
   })
 

@@ -49,7 +49,13 @@ import TutorialOverlay from '../components/TutorialOverlay'
 import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
 import { BID_TUTORIAL_STEPS } from '../tutorials/bidTutorial'
 import { DECRYPT_TUTORIAL_STEPS } from '../tutorials/decryptTutorial'
-import { markFirstListingCompleted, markFirstBidCompleted, markFirstDecryptCompleted } from '../services/onboardingStorage'
+import { FIRST_BID_ACCEPTED_TUTORIAL_STEPS, queueStateToTourStep } from '../tutorials/firstBidAcceptedTutorial'
+import {
+  markFirstListingCompleted,
+  markFirstBidCompleted,
+  markFirstDecryptCompleted,
+  markFirstBidAcceptedCompleted,
+} from '../services/onboardingStorage'
 import type { EncryptionDisplay } from '../services/api'
 import type { DecryptTutorialTarget } from '../components/MyPurchasesTab'
 
@@ -129,7 +135,7 @@ export default function Dashboard() {
   const tutorial = useTutorial()
   // Which tutorial is currently running — disambiguates the auto-open effects
   // so e.g. the listing-tutorial effect doesn't fire during a bid-tutorial run.
-  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | 'decrypt' | null>(null)
+  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | 'decrypt' | 'first-bid-accepted' | null>(null)
   // Encryption the bid tutorial should target; used by the auto-open effect below.
   const [bidTutorialTarget, setBidTutorialTarget] = useState<{ encryption: EncryptionDisplay; bidCount: number } | null>(null)
   // Target the decrypt tutorial should drive; used by the orchestration effect below.
@@ -203,6 +209,32 @@ export default function Dashboard() {
     )
   }, [tutorial, t, setActiveTab])
 
+  // First-bid-accepted (seller) tour — event-driven. Steps advance as the
+  // accept-bid queue state machine transitions; users don't click Next.
+  // `startStep` lets callers join mid-flow (e.g. the auto-trigger kicks in
+  // after the user has already clicked Accept, so it skips the step-1 anchor).
+  const handleStartFirstBidAcceptedTutorial = useCallback((options?: { startStep?: number }) => {
+    setActiveTutorialKey('first-bid-accepted')
+    tutorial.startTutorial(
+      FIRST_BID_ACCEPTED_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        startStep: options?.startStep,
+        onComplete: () => {
+          markFirstBidAcceptedCompleted()
+          setActiveTutorialKey(null)
+        },
+        onSkip: () => {
+          markFirstBidAcceptedCompleted()
+          setActiveTutorialKey(null)
+        },
+      },
+    )
+  }, [tutorial, t])
+
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -274,7 +306,14 @@ export default function Dashboard() {
 
   // ── Seller actions hook ───────────────────────────────────────────
   // ── Accept-bid queue — supply optional UI handles ────────────────
-  const { setToast: setQueueToast, setRefreshTrigger: setQueueRefresh } = useAcceptBidQueue()
+  const queueCtx = useAcceptBidQueue()
+  const {
+    setToast: setQueueToast,
+    setRefreshTrigger: setQueueRefresh,
+    currentItem: queueCurrentItem,
+    completedCount: queueCompletedCount,
+    queue: queueItems,
+  } = queueCtx
   useEffect(() => {
     setQueueToast(toast)
     setQueueRefresh(triggerTransactionRefresh)
@@ -315,17 +354,21 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, bidTutorialTarget])
 
-  // Settings "Replay" for first-decrypt navigates here with
-  // { startTutorial: 'first-decrypt' }. We can't start the tutorial from
-  // Dashboard directly because MyPurchasesTab owns the list of eligible
-  // targets — instead we flip an autoStart flag that MyPurchasesTab consumes
-  // once data is loaded. We clear the nav state immediately so a later tab
-  // switch or refresh doesn't re-arm the flow.
+  // Settings "Replay" navigations arrive with `location.state.startTutorial`.
+  // Both tours are one-shot — we clear the nav state immediately so a later tab
+  // switch or refresh doesn't re-arm the flow. first-decrypt hands off to
+  // MyPurchasesTab (which owns the list of eligible targets); first-bid-accepted
+  // starts directly on Dashboard.
   useEffect(() => {
     const navState = location.state as { startTutorial?: string } | null
     if (navState?.startTutorial === 'first-decrypt') {
       setActiveTab('my-purchases')
       setAutoStartDecryptTutorial(true)
+      navigate(location.pathname, { replace: true, state: null })
+    } else if (navState?.startTutorial === 'first-bid-accepted') {
+      if (activeTutorialKey) return
+      setActiveTab('my-sales')
+      handleStartFirstBidAcceptedTutorial({ startStep: 0 })
       navigate(location.pathname, { replace: true, state: null })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -368,6 +411,39 @@ export default function Dashboard() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, decryptTutorialTarget])
+
+  // First-bid-accepted auto-start on queue activity — catches users who click
+  // Accept without seeing Settings. Joins at step 2 (index 1) since the user
+  // has already clicked Accept by the time the queue has work.
+  useEffect(() => {
+    if (activeTutorialKey) return
+    if (getOnboardingState().firstBidAcceptedCompleted) return
+    const hasQueueActivity = queueCurrentItem !== null || queueItems.some(i => i.status === 'queued')
+    if (hasQueueActivity) {
+      setActiveTab('my-sales')
+      handleStartFirstBidAcceptedTutorial({ startStep: 1 })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueCurrentItem, queueItems])
+
+  // Event-driven step advancement: watch queue state transitions and move the
+  // tour forward without user Next clicks. Completion (step 4) is detected via
+  // completedCount increasing since the queue clears `currentItem` at that point.
+  const prevCompletedCountRef = useRef(queueCompletedCount)
+  const queueCurrentItemStatus = queueCurrentItem?.status
+  useEffect(() => {
+    if (activeTutorialKey !== 'first-bid-accepted') {
+      prevCompletedCountRef.current = queueCompletedCount
+      return
+    }
+    const didJustComplete = queueCompletedCount > prevCompletedCountRef.current
+    const targetStep = queueStateToTourStep({
+      currentItemStatus: queueCurrentItemStatus,
+      didJustComplete,
+    })
+    if (targetStep !== null) tutorial.goToStep(targetStep)
+    prevCompletedCountRef.current = queueCompletedCount
+  }, [activeTutorialKey, queueCurrentItemStatus, queueCompletedCount, tutorial])
 
   // Refresh handler for manual data refresh
   const handleRefresh = useCallback(() => {

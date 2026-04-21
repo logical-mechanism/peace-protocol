@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { getOnboardingState, resetTutorials, resetTutorialFlag } from '../../services/onboardingStorage'
+import { getOnboardingState, resetTutorials, resetTutorialFlag, type TutorialFlag } from '../../services/onboardingStorage'
 
 interface TutorialFlow {
   id: string
   titleKey: string
   descriptionKey: string
-  completedFlag: keyof Pick<ReturnType<typeof getOnboardingState>, 'firstListingCompleted' | 'firstBidCompleted' | 'firstDecryptCompleted'>
+  completedFlag: TutorialFlag
   navigateTo?: { path: string; state?: Record<string, unknown> }
 }
 
@@ -37,7 +37,8 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     id: 'first-bid-accepted',
     titleKey: 'tutorials.flows.firstBidAccepted.title',
     descriptionKey: 'tutorials.flows.firstBidAccepted.description',
-    completedFlag: 'firstListingCompleted', // placeholder — not yet tracked
+    completedFlag: 'firstBidAcceptedCompleted',
+    navigateTo: { path: '/dashboard', state: { tab: 'my-sales', startTutorial: 'first-bid-accepted' } },
   },
   {
     id: 'iagon-primer',
