@@ -19,10 +19,10 @@ export const DECRYPT_TUTORIAL_STEPS: TutorialStep[] = [
     placement: 'top',
   },
   {
-    targetSelector: '#tutorial-decrypt-modal-header',
+    targetSelector: '[data-tutorial="decrypt-now-button"]',
     title: 'tutorial.decrypt.step2Title',
     description: 'tutorial.decrypt.step2Desc',
-    placement: 'bottom',
+    placement: 'top',
   },
   {
     targetSelector: '#tab-library',

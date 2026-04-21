@@ -19,8 +19,8 @@ describe('DECRYPT_TUTORIAL_STEPS', () => {
     expect(DECRYPT_TUTORIAL_STEPS[0].targetSelector).toBe('[data-tutorial="decrypt-button"]')
   })
 
-  it('step 2 targets the DecryptModal header', () => {
-    expect(DECRYPT_TUTORIAL_STEPS[1].targetSelector).toBe('#tutorial-decrypt-modal-header')
+  it('step 2 targets the Decrypt Now button inside DecryptModal', () => {
+    expect(DECRYPT_TUTORIAL_STEPS[1].targetSelector).toBe('[data-tutorial="decrypt-now-button"]')
   })
 
   it('step 3 targets the Library tab', () => {
