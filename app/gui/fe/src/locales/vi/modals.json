@@ -374,7 +374,7 @@
     "futurePriceOptional": "(tùy chọn)",
     "futurePriceTooltip": "Giá bạn dự định đăng lại dữ liệu này sau khi thắng đặt giá. Được ghi trên chuỗi dưới dạng siêu dữ liệu cho người mua tương lai.",
     "futurePriceHelp": "Giá đề xuất cho danh mục tiếp theo sau khi bạn thắng. Mặc định là giá hiện tại.",
-    "infoNote": "Đặt giá sẽ tạo khóa mã hóa duy nhất và khóa ADA của bạn trong hợp đồng. Bạn có thể hủy đặt giá bất cứ lúc nào trước khi người bán chấp nhận.",
+    "infoNote": "Đặt giá thầu sẽ khóa ADA của bạn trong hợp đồng. Bạn có thể hủy giá thầu sau khi thời gian khóa hết hạn nếu người bán chưa chấp nhận.",
     "infoNoteLabel": "Lưu ý:",
     "submit": "Đặt giá",
     "submitting": "Đang đặt giá...",

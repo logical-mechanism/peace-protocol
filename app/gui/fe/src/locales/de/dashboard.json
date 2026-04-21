@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Neu bei Veiled?",
     "tutorialBannerDesc": "Mache eine geführte Tour, um zu lernen, wie du dein erstes Angebot erstellst.",
     "tutorialBannerStart": "Tour starten",
-    "tutorialBannerDismiss": "Schließen"
+    "tutorialBannerDismiss": "Schließen",
+    "bidBannerTitle": "Bereit für Ihr erstes Gebot?",
+    "bidBannerDesc": "Klicken Sie auf \"Gebot abgeben\" bei einem Angebot unten, um hilfreiche Hinweise zu sehen."
   },
   "mySales": {
     "loading": "Deine Angebote werden geladen…",

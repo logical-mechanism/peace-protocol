@@ -346,6 +346,16 @@
       "step4Desc": "Inserisci un prezzo suggerito in ADA. Gli acquirenti possono offrire qualsiasi importo, ma questo aiuta a definire le aspettative.",
       "step5Title": "Invia e firma",
       "step5Desc": "Controlla il tuo annuncio e clicca su invia. Il tuo portafoglio ti chiederà di firmare la transazione."
+    },
+    "bid": {
+      "step1Title": "Fai un'offerta",
+      "step1Desc": "Clicca sul pulsante 'Fai un'offerta' su qualsiasi inserzione per fare una proposta. I tuoi ADA saranno bloccati in uno smart contract finché il venditore non accetta o il periodo di blocco scade.",
+      "step2Title": "Inserisci l'importo",
+      "step2Desc": "Questo è l'importo di ADA che offri per l'inserzione. Il minimo è 2 ADA. Viene bloccato on-chain finché il venditore non accetta.",
+      "step3Title": "Opzionale: Prezzo futuro",
+      "step3Desc": "Se vinci questa offerta, puoi rimettere in vendita i dati per altri acquirenti. Questo imposta il prezzo suggerito per quella prossima inserzione. Lascia vuoto per saltare.",
+      "step4Title": "Invia la tua offerta",
+      "step4Desc": "L'invio crea un token di offerta on-chain e blocca i tuoi ADA. Puoi annullare dopo la scadenza del periodo di blocco se il venditore non ha accettato."
     }
   },
   "mnemonic": {

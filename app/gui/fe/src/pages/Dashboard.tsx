@@ -47,7 +47,9 @@ import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
 import { useTutorial } from '../hooks/useTutorial'
 import TutorialOverlay from '../components/TutorialOverlay'
 import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
-import { markFirstListingCompleted } from '../services/onboardingStorage'
+import { BID_TUTORIAL_STEPS } from '../tutorials/bidTutorial'
+import { markFirstListingCompleted, markFirstBidCompleted } from '../services/onboardingStorage'
+import type { EncryptionDisplay } from '../services/api'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -122,8 +124,14 @@ export default function Dashboard() {
 
   // ── Tutorial hook ─────────────────────────────────────────────────
   const tutorial = useTutorial()
+  // Which tutorial is currently running — disambiguates the auto-open effect
+  // so the listing-tutorial effect doesn't fire during a bid-tutorial run.
+  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | null>(null)
+  // Encryption the bid tutorial should target; used by the auto-open effect below.
+  const [bidTutorialTarget, setBidTutorialTarget] = useState<{ encryption: EncryptionDisplay; bidCount: number } | null>(null)
 
   const handleStartListingTutorial = useCallback(() => {
+    setActiveTutorialKey('listing')
     tutorial.startTutorial(
       LISTING_TUTORIAL_STEPS.map(step => ({
         ...step,
@@ -131,8 +139,32 @@ export default function Dashboard() {
         description: t(`common:${step.description}`),
       })),
       {
-        onComplete: () => markFirstListingCompleted(),
-        onSkip: () => markFirstListingCompleted(),
+        onComplete: () => { markFirstListingCompleted(); setActiveTutorialKey(null) },
+        onSkip: () => { markFirstListingCompleted(); setActiveTutorialKey(null) },
+      },
+    )
+  }, [tutorial, t])
+
+  const handleStartBidTutorial = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
+    setActiveTutorialKey('bid')
+    setBidTutorialTarget({ encryption, bidCount })
+    tutorial.startTutorial(
+      BID_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => {
+          markFirstBidCompleted()
+          setActiveTutorialKey(null)
+          setBidTutorialTarget(null)
+        },
+        onSkip: () => {
+          markFirstBidCompleted()
+          setActiveTutorialKey(null)
+          setBidTutorialTarget(null)
+        },
       },
     )
   }, [tutorial, t])
@@ -220,20 +252,34 @@ export default function Dashboard() {
     iagonConnected: effects.iagonConnected,
   })
 
-  // Open CreateListingModal when tutorial advances past step 1 (the button)
+  // Open CreateListingModal when listing tutorial advances past step 1 (the button)
   // into steps 2-5 (modal fields). Close is handled normally by the user.
   useEffect(() => {
-    if (tutorial.isTutorialActive && tutorial.currentStepIndex >= 1) {
+    if (activeTutorialKey === 'listing' && tutorial.isTutorialActive && tutorial.currentStepIndex >= 1) {
       seller.setShowCreateListing(true)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tutorial.isTutorialActive, tutorial.currentStepIndex])
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex])
 
   // ── Buyer actions hook ────────────────────────────────────────────
   const buyer = useBuyerActions({
     actions: dashboardActions,
     lovelace,
   })
+
+  // Open PlaceBidModal when bid tutorial advances past step 1 (the button)
+  // into steps 2-4 (modal fields). Uses the encryption captured at tutorial start.
+  useEffect(() => {
+    if (
+      activeTutorialKey === 'bid' &&
+      tutorial.isTutorialActive &&
+      tutorial.currentStepIndex >= 1 &&
+      bidTutorialTarget
+    ) {
+      buyer.handlePlaceBid(bidTutorialTarget.encryption, bidTutorialTarget.bidCount)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, bidTutorialTarget])
 
   // Refresh handler for manual data refresh
   const handleRefresh = useCallback(() => {
@@ -792,6 +838,7 @@ export default function Dashboard() {
                 onPlaceBid={buyer.handlePlaceBid}
                 onCreateListing={handleOpenCreateListing}
                 onStartTutorial={handleStartListingTutorial}
+                onStartBidTutorial={handleStartBidTutorial}
                 onLocalRefresh={handleLocalRefresh}
                 filters={marketplaceFilters}
                 dispatch={marketplaceDispatch}

@@ -346,6 +346,16 @@
       "step4Desc": "Podaj sugerowaną cenę w ADA. Kupujący mogą złożyć ofertę na dowolną kwotę, ale to pomaga ustalić oczekiwania.",
       "step5Title": "Wyślij i podpisz",
       "step5Desc": "Przejrzyj swoją aukcję i kliknij wyślij. Portfel poprosi o podpisanie transakcji."
+    },
+    "bid": {
+      "step1Title": "Złóż ofertę",
+      "step1Desc": "Kliknij przycisk 'Złóż ofertę' przy dowolnym ogłoszeniu, aby złożyć propozycję. Twoje ADA zostanie zablokowane w smart kontrakcie, dopóki sprzedawca nie zaakceptuje lub blokada czasowa nie wygaśnie.",
+      "step2Title": "Wprowadź kwotę oferty",
+      "step2Desc": "To jest kwota ADA, którą oferujesz za ogłoszenie. Minimum to 2 ADA. Jest zablokowana on-chain, dopóki sprzedawca nie zaakceptuje.",
+      "step3Title": "Opcjonalnie: Przyszła cena",
+      "step3Desc": "Jeśli wygrasz tę ofertę, możesz ponownie wystawić dane dla innych kupujących. To ustala sugerowaną cenę dla tego kolejnego ogłoszenia. Pozostaw puste, aby pominąć.",
+      "step4Title": "Wyślij swoją ofertę",
+      "step4Desc": "Wysłanie tworzy token oferty on-chain i blokuje Twoje ADA. Możesz anulować po wygaśnięciu okresu blokady, jeśli sprzedawca nie zaakceptował."
     }
   },
   "mnemonic": {

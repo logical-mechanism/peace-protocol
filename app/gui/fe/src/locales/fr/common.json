@@ -346,6 +346,16 @@
       "step4Desc": "Entrez un prix suggéré en ADA. Les acheteurs peuvent offrir n'importe quel montant, mais cela aide à fixer les attentes.",
       "step5Title": "Soumettre et signer",
       "step5Desc": "Vérifiez votre annonce et cliquez sur soumettre. Votre portefeuille vous demandera de signer la transaction."
+    },
+    "bid": {
+      "step1Title": "Placer une offre",
+      "step1Desc": "Cliquez sur le bouton 'Placer une offre' sur n'importe quelle annonce pour faire une proposition. Vos ADA seront verrouillés dans un contrat intelligent jusqu'à ce que le vendeur accepte ou que le délai expire.",
+      "step2Title": "Entrez votre montant",
+      "step2Desc": "C'est le montant d'ADA que vous offrez pour l'annonce. Le minimum est de 2 ADA. Il est verrouillé sur la chaîne jusqu'à ce que le vendeur accepte.",
+      "step3Title": "Optionnel : Prix futur",
+      "step3Desc": "Si vous gagnez cette offre, vous pouvez remettre les données en vente pour d'autres acheteurs. Cela définit le prix suggéré pour cette prochaine annonce. Laissez vide pour ignorer.",
+      "step4Title": "Soumettre votre offre",
+      "step4Desc": "Soumettre crée un jeton d'offre sur la chaîne et verrouille vos ADA. Vous pouvez annuler après l'expiration du délai de verrouillage si le vendeur n'a pas accepté."
     }
   },
   "mnemonic": {

@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "New to Veiled?",
     "tutorialBannerDesc": "Take a guided tour to learn how to create your first listing.",
     "tutorialBannerStart": "Start Tour",
-    "tutorialBannerDismiss": "Dismiss"
+    "tutorialBannerDismiss": "Dismiss",
+    "bidBannerTitle": "Ready to place your first bid?",
+    "bidBannerDesc": "Click \"Place Bid\" on any listing below to see helpful hints that walk you through the process."
   },
   "mySales": {
     "loading": "Loading your listings…",

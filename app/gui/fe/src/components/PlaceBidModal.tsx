@@ -318,7 +318,7 @@ export default function PlaceBidModal({
             )}
 
             {/* Bid Amount */}
-            <div>
+            <div id="tutorial-bid-amount">
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="bidAmount"
@@ -439,7 +439,7 @@ export default function PlaceBidModal({
             </div>
 
             {/* Future Listing Price (collapsible) */}
-            <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+            <div id="tutorial-future-price" className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowFuturePrice(!showFuturePrice)}
@@ -581,6 +581,7 @@ export default function PlaceBidModal({
               </p>
             </div>
 
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -591,6 +592,7 @@ export default function PlaceBidModal({
                 {t('common:actions.cancel')}
               </button>
               <button
+                id="tutorial-submit-bid"
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"

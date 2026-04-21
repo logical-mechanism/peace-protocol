@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Mới sử dụng Veiled?",
     "tutorialBannerDesc": "Tham gia tour hướng dẫn để tìm hiểu cách tạo danh mục đầu tiên của bạn.",
     "tutorialBannerStart": "Bắt đầu tour",
-    "tutorialBannerDismiss": "Bỏ qua"
+    "tutorialBannerDismiss": "Bỏ qua",
+    "bidBannerTitle": "Sẵn sàng đặt giá thầu đầu tiên?",
+    "bidBannerDesc": "Nhấp \"Đặt giá\" trên bất kỳ danh sách nào để xem gợi ý hữu ích."
   },
   "mySales": {
     "loading": "Đang tải danh mục của bạn…",

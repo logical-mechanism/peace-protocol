@@ -33,13 +33,15 @@ interface MarketplaceTabProps {
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onCreateListing?: () => void;
   onStartTutorial?: () => void;
+  /** Starts the bid tutorial on the first available listing. No-op if none are bid-eligible. */
+  onStartBidTutorial?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStartTutorial, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStartTutorial, onStartBidTutorial, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const { t } = useTranslation('dashboard');
   const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
@@ -54,6 +56,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [nsfwEnabled] = useState(() => getNsfwEnabled());
   const [tutorialBannerDismissed, setTutorialBannerDismissed] = useState(false);
+  const [bidBannerDismissed, setBidBannerDismissed] = useState(false);
 
   // Show tutorial banner when base onboarding is done but first listing hasn't been completed
   const showTutorialBanner = useMemo(() => {
@@ -250,6 +253,25 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
   }, [filteredAndSorted, currentPage]);
 
+  // First listing the user can actually bid on — used for the bid tutorial's
+  // "Start Tour" button and to mark which card's Place Bid button gets the
+  // tutorial target id.
+  const firstBidEligible = useMemo(() => {
+    return paginatedResults.find(
+      (e) => !isOwnListing(e) && !userBidEncryptionTokens.has(e.tokenName) && e.status === 'active'
+    );
+  }, [paginatedResults, isOwnListing, userBidEncryptionTokens]);
+
+  // Show bid tutorial banner when onboarding is done, first bid not completed, AND
+  // there is actually a bid-eligible listing on screen. Hiding when the marketplace
+  // has nothing to bid on avoids a dead-end banner ("click Place Bid" with no cards).
+  const showBidBanner = useMemo(() => {
+    if (bidBannerDismissed) return false;
+    if (!firstBidEligible) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstBidCompleted;
+  }, [bidBannerDismissed, firstBidEligible]);
+
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
   const sentinelRef = useInfiniteScroll({
@@ -427,6 +449,61 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
           <button
             onClick={() => setTutorialBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('marketplace.tutorialBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {showBidBanner && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('marketplace.bidBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('marketplace.bidBannerDesc')}</span>
+          </div>
+          {onStartBidTutorial && firstBidEligible && (
+            <button
+              onClick={() => {
+                setBidBannerDismissed(true);
+                onStartBidTutorial(firstBidEligible, getBidCount(firstBidEligible.tokenName));
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('marketplace.tutorialBannerStart')}
+            </button>
+          )}
+          <button
+            onClick={() => setBidBannerDismissed(true)}
             className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
             style={{ color: 'var(--accent)' }}
             aria-label={t('marketplace.tutorialBannerDismiss')}
@@ -720,6 +797,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}
@@ -744,6 +822,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}

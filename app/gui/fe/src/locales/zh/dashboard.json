@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "初次使用 Veiled？",
     "tutorialBannerDesc": "参加引导之旅，了解如何创建您的第一个商品。",
     "tutorialBannerStart": "开始引导",
-    "tutorialBannerDismiss": "关闭"
+    "tutorialBannerDismiss": "关闭",
+    "bidBannerTitle": "准备好进行首次出价了吗？",
+    "bidBannerDesc": "点击任意列表上的\"出价\"按钮，查看有用的提示。"
   },
   "mySales": {
     "loading": "加载您的商品中…",

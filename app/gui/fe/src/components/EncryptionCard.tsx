@@ -31,6 +31,8 @@ interface EncryptionCardProps {
   onFilterByCategory?: (category: string) => void;
   searchQuery?: string;
   nsfwEnabled?: boolean;
+  /** When true, sets id="tutorial-place-bid" on the Place Bid button so the bid tutorial can target it. */
+  tutorialTarget?: boolean;
 }
 
 function EncryptionCard({
@@ -50,6 +52,7 @@ function EncryptionCard({
   onFilterByCategory,
   searchQuery = '',
   nsfwEnabled = false,
+  tutorialTarget = false,
 }: EncryptionCardProps) {
   const { t } = useTranslation('common');
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
@@ -151,6 +154,7 @@ function EncryptionCard({
             {canBid && onPlaceBid && (
               <div className="flex items-center gap-[var(--space-2)]">
                 <button
+                  id={tutorialTarget ? 'tutorial-place-bid' : undefined}
                   onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
                   disabled={hasLowBalance}
                   title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
@@ -325,6 +329,7 @@ function EncryptionCard({
         {canBid && onPlaceBid && (
           <>
             <button
+              id={tutorialTarget ? 'tutorial-place-bid' : undefined}
               onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
               disabled={hasLowBalance}
               title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
@@ -398,7 +403,8 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.onPlaceBid === next.onPlaceBid &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onFilterBySeller === next.onFilterBySeller &&
-    prev.onFilterByCategory === next.onFilterByCategory
+    prev.onFilterByCategory === next.onFilterByCategory &&
+    prev.tutorialTarget === next.tutorialTarget
   );
 }
 

@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Nowy w Veiled?",
     "tutorialBannerDesc": "Przejdź przewodnik, aby dowiedzieć się, jak utworzyć swoją pierwszą aukcję.",
     "tutorialBannerStart": "Rozpocznij przewodnik",
-    "tutorialBannerDismiss": "Odrzuć"
+    "tutorialBannerDismiss": "Odrzuć",
+    "bidBannerTitle": "Gotowy na pierwszą ofertę?",
+    "bidBannerDesc": "Kliknij \"Złóż ofertę\" przy dowolnym ogłoszeniu, aby zobaczyć pomocne wskazówki."
   },
   "mySales": {
     "loading": "Wczytywanie Twoich aukcji…",

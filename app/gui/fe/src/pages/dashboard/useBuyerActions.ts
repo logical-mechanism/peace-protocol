@@ -7,6 +7,7 @@ import {
 import { encryptionsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
 import { playSound } from '../../services/notificationSound'
+import { markFirstBidCompleted } from '../../services/onboardingStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 
@@ -106,6 +107,9 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         counterparty: selectedEncryption?.sellerPkh,
       })
     }
+
+    // Mark first-bid tutorial as completed on successful bid
+    markFirstBidCompleted()
 
     // Optimistic update — bid appears immediately in tabs
     if (result.txHash && result.tokenName && userPkh && address) {

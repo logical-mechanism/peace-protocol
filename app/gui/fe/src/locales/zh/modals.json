@@ -374,7 +374,7 @@
     "futurePriceOptional": "（可选）",
     "futurePriceTooltip": "您中标后计划重新上架此数据的价格。作为元数据记录在链上，供未来买家参考。",
     "futurePriceHelp": "中标后下一次上架的建议价格。默认为当前价格。",
-    "infoNote": "出价将生成唯一的加密密钥并将您的 ADA 锁定在合约中。在卖家接受之前，您可以随时取消出价。",
+    "infoNote": "出价会将您的 ADA 锁定在合约中。如果卖家未接受，您可以在时间锁期限到期后取消出价。",
     "infoNoteLabel": "注意：",
     "submit": "出价",
     "submitting": "正在出价...",

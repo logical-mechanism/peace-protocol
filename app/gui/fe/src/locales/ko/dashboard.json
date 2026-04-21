@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Veiled가 처음이신가요?",
     "tutorialBannerDesc": "가이드 투어를 통해 첫 번째 목록을 만드는 방법을 알아보세요.",
     "tutorialBannerStart": "투어 시작",
-    "tutorialBannerDismiss": "닫기"
+    "tutorialBannerDismiss": "닫기",
+    "bidBannerTitle": "첫 입찰을 할 준비가 되셨나요?",
+    "bidBannerDesc": "아래 목록에서 \"입찰하기\"를 클릭하여 도움이 되는 힌트를 확인하세요."
   },
   "mySales": {
     "loading": "내 목록을 불러오는 중...",

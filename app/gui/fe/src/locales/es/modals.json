@@ -374,7 +374,7 @@
     "futurePriceOptional": "(opcional)",
     "futurePriceTooltip": "El precio al que pretendes re-listar estos datos después de ganar la oferta. Se registra on-chain como metadatos para futuros compradores.",
     "futurePriceHelp": "El precio sugerido para el siguiente anuncio después de ganar. Por defecto es el precio actual.",
-    "infoNote": "Hacer una oferta generará una clave de cifrado única y bloqueará tus ADA en el contrato. Puedes cancelar la oferta en cualquier momento antes de que el vendedor la acepte.",
+    "infoNote": "Colocar una oferta bloquea tu ADA en el contrato. Puedes cancelar la oferta después de que expire el período de bloqueo si el vendedor no ha aceptado.",
     "infoNoteLabel": "Nota:",
     "submit": "Hacer oferta",
     "submitting": "Haciendo oferta...",

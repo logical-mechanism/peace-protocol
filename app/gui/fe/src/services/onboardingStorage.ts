@@ -89,6 +89,12 @@ export function resetTutorials(): void {
   })
 }
 
+/** Reset a single tutorial flag by key. */
+export function resetTutorialFlag(flag: 'firstListingCompleted' | 'firstBidCompleted'): void {
+  const current = getOnboardingState()
+  setOnboardingState({ ...current, [flag]: false })
+}
+
 /** Reset onboarding (for testing or re-triggering). */
 export function resetOnboarding(): void {
   storageRemove(ONBOARDING_KEY)

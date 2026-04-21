@@ -374,7 +374,7 @@
     "futurePriceOptional": "(optioneel)",
     "futurePriceTooltip": "De prijs waarvoor je deze gegevens wilt hervermelden nadat je het bod wint. On-chain opgeslagen als metadata voor toekomstige kopers.",
     "futurePriceHelp": "De adviesprijs voor de volgende vermelding nadat je wint. Standaard de huidige prijs.",
-    "infoNote": "Een bod plaatsen genereert een unieke versleutelingssleutel en vergrendelt je ADA in het contract. Je kunt het bod op elk moment annuleren voordat de verkoper accepteert.",
+    "infoNote": "Een bod plaatsen vergrendelt uw ADA in het contract. U kunt het bod annuleren nadat de vergrendelperiode is verlopen als de verkoper niet heeft geaccepteerd.",
     "infoNoteLabel": "Opmerking:",
     "submit": "Bod plaatsen",
     "submitting": "Bod plaatsen...",

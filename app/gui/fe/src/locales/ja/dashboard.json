@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Veiledは初めてですか？",
     "tutorialBannerDesc": "ガイドツアーで最初のリスティングの作成方法を学びましょう。",
     "tutorialBannerStart": "ツアーを開始",
-    "tutorialBannerDismiss": "閉じる"
+    "tutorialBannerDismiss": "閉じる",
+    "bidBannerTitle": "初めての入札の準備はできましたか？",
+    "bidBannerDesc": "リスティングの「入札する」をクリックして、手順のヒントをご覧ください。"
   },
   "mySales": {
     "loading": "リスティングを読み込み中…",

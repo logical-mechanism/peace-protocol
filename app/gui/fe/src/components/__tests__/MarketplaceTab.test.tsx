@@ -385,8 +385,9 @@ describe('MarketplaceTab', () => {
   });
 
   it('dismisses tutorial banner on X click (session only)', async () => {
+    // firstBidCompleted: true so only the listing banner renders — isolates this test
     (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
-      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: true,
     });
 
     renderTab();
@@ -416,5 +417,80 @@ describe('MarketplaceTab', () => {
 
     expect(onStartTutorial).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+  });
+
+  // --- Bid tutorial banner ---
+
+  it('shows bid banner when onboarding complete, firstBidCompleted is false, and an eligible listing exists', async () => {
+    const enc = makeEncryption(); // default sellerPkh != USER_PKH so it's eligible
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides bid banner when no eligible listings exist (empty marketplace)', async () => {
+    // default beforeEach mocks return empty data
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    // Wait for the loaded state (no listings) to settle, then confirm banner is absent
+    await waitFor(() => {
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+  });
+
+  it('hides bid banner when the only listing is the user\'s own (not eligible)', async () => {
+    const own = makeEncryption({ sellerPkh: USER_PKH });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [own], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+  });
+
+  it('hides bid banner when firstBidCompleted is true', async () => {
+    const enc = makeEncryption();
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows both banners when both tutorials are incomplete and an eligible listing exists', async () => {
+    const enc = makeEncryption();
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
+    });
   });
 });

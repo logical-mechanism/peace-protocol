@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Nouveau sur Veiled ?",
     "tutorialBannerDesc": "Suivez une visite guidée pour apprendre à créer votre première annonce.",
     "tutorialBannerStart": "Commencer la visite",
-    "tutorialBannerDismiss": "Ignorer"
+    "tutorialBannerDismiss": "Ignorer",
+    "bidBannerTitle": "Prêt à placer votre première offre ?",
+    "bidBannerDesc": "Cliquez sur \"Placer une offre\" sur n'importe quelle annonce pour voir des conseils utiles."
   },
   "mySales": {
     "loading": "Chargement de vos annonces...",

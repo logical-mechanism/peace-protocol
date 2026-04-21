@@ -346,6 +346,16 @@
       "step4Desc": "Voer een adviesprijs in ADA in. Kopers kunnen elk bedrag bieden, maar dit helpt verwachtingen te scheppen.",
       "step5Title": "Versturen en ondertekenen",
       "step5Desc": "Controleer je vermelding en klik op versturen. Je wallet vraagt je om de transactie te ondertekenen."
+    },
+    "bid": {
+      "step1Title": "Een bod plaatsen",
+      "step1Desc": "Klik op de knop 'Bod plaatsen' bij een aanbieding om een aanbod te doen. Uw ADA wordt vergrendeld in een slim contract totdat de verkoper accepteert of de vergrendelperiode verloopt.",
+      "step2Title": "Voer uw bodbedrag in",
+      "step2Desc": "Dit is het ADA-bedrag dat u biedt voor de aanbieding. Het minimum is 2 ADA. Het wordt on-chain vergrendeld totdat de verkoper accepteert.",
+      "step3Title": "Optioneel: Toekomstige aanbiedingsprijs",
+      "step3Desc": "Als u dit bod wint, kunt u de data opnieuw aanbieden voor andere kopers. Dit stelt de voorgestelde prijs in voor die volgende aanbieding. Laat leeg om over te slaan.",
+      "step4Title": "Dien uw bod in",
+      "step4Desc": "Indienen maakt een bod-token on-chain aan en vergrendelt uw ADA. U kunt annuleren nadat de vergrendelperiode is verlopen als de verkoper niet heeft geaccepteerd."
     }
   },
   "mnemonic": {

@@ -346,6 +346,16 @@
       "step4Desc": "Gib einen empfohlenen Preis in ADA ein. Käufer können jeden Betrag bieten, aber dies hilft bei der Orientierung.",
       "step5Title": "Absenden & Signieren",
       "step5Desc": "Überprüfe dein Angebot und klicke auf Absenden. Dein Wallet fordert dich auf, die Transaktion zu signieren."
+    },
+    "bid": {
+      "step1Title": "Gebot abgeben",
+      "step1Desc": "Klicken Sie auf die Schaltfläche 'Gebot abgeben' bei einem Angebot, um ein Gebot zu machen. Ihre ADA werden in einem Smart Contract gesperrt, bis der Verkäufer akzeptiert oder die Sperrfrist abläuft.",
+      "step2Title": "Gebotsbetrag eingeben",
+      "step2Desc": "Dies ist der ADA-Betrag, den Sie für das Angebot bieten. Das Minimum beträgt 2 ADA. Der Betrag wird on-chain gesperrt, bis der Verkäufer akzeptiert.",
+      "step3Title": "Optional: Zukünftiger Angebotspreis",
+      "step3Desc": "Wenn Sie dieses Gebot gewinnen, können Sie die Daten für andere Käufer erneut listen. Dies legt den vorgeschlagenen Preis für dieses nächste Angebot fest. Leer lassen, um zu überspringen.",
+      "step4Title": "Gebot absenden",
+      "step4Desc": "Das Absenden erstellt ein Gebot-Token on-chain und sperrt Ihre ADA. Sie können nach Ablauf der Sperrfrist stornieren, wenn der Verkäufer nicht akzeptiert hat."
     }
   },
   "mnemonic": {

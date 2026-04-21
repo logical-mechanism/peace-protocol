@@ -10,9 +10,11 @@ vi.mock('react-router-dom', () => ({
 
 const mockGetOnboardingState = vi.fn()
 const mockResetTutorials = vi.fn()
+const mockResetTutorialFlag = vi.fn()
 vi.mock('../../../services/onboardingStorage', () => ({
   getOnboardingState: (...args: unknown[]) => mockGetOnboardingState(...args),
   resetTutorials: (...args: unknown[]) => mockResetTutorials(...args),
+  resetTutorialFlag: (...args: unknown[]) => mockResetTutorialFlag(...args),
 }))
 
 describe('TutorialsSection', () => {
@@ -54,9 +56,10 @@ describe('TutorialsSection', () => {
     expect(badges.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows Start button for incomplete flow with navigation', () => {
+  it('shows Start buttons for incomplete flows with navigation', () => {
     render(<TutorialsSection />)
-    expect(screen.getByText('Start')).toBeInTheDocument()
+    const starts = screen.getAllByText('Start')
+    expect(starts.length).toBe(2) // first-listing + first-bid
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -76,12 +79,23 @@ describe('TutorialsSection', () => {
     expect(comingSoon.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('calls resetTutorials and navigates on Start click', () => {
+  it('resets only first-listing flag and navigates on first-listing Start click', () => {
     render(<TutorialsSection />)
-    fireEvent.click(screen.getByText('Start'))
-    expect(mockResetTutorials).toHaveBeenCalled()
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[0]) // first-listing Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstListingCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'marketplace', startTutorial: 'first-listing' },
+    })
+  })
+
+  it('resets only first-bid flag and navigates on first-bid Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[1]) // first-bid Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstBidCompleted')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+      state: { tab: 'marketplace' },
     })
   })
 

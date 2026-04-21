@@ -374,7 +374,7 @@
     "futurePriceOptional": "(optional)",
     "futurePriceTooltip": "The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers.",
     "futurePriceHelp": "The suggested price for the next listing after you win. Defaults to the current price.",
-    "infoNote": "Placing a bid will generate a unique encryption key and lock your ADA in the contract. You can cancel the bid anytime before the seller accepts.",
+    "infoNote": "Placing a bid locks your ADA in the contract. You can cancel the bid after the timelock period expires if the seller has not accepted.",
     "infoNoteLabel": "Note:",
     "submit": "Place Bid",
     "submitting": "Placing Bid...",

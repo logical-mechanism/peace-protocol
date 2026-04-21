@@ -158,7 +158,9 @@
     "tutorialBannerTitle": "Nieuw bij Veiled?",
     "tutorialBannerDesc": "Volg een rondleiding om te leren hoe je je eerste vermelding aanmaakt.",
     "tutorialBannerStart": "Rondleiding starten",
-    "tutorialBannerDismiss": "Sluiten"
+    "tutorialBannerDismiss": "Sluiten",
+    "bidBannerTitle": "Klaar om uw eerste bod te plaatsen?",
+    "bidBannerDesc": "Klik op \"Bod plaatsen\" bij een aanbieding om nuttige tips te zien."
   },
   "mySales": {
     "loading": "Je vermeldingen laden…",
