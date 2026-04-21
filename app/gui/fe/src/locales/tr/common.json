@@ -346,6 +346,16 @@
       "step4Desc": "ADA cinsinden önerilen bir fiyat girin. Alıcılar herhangi bir tutar teklif edebilir, ancak bu beklentileri belirlemeye yardımcı olur.",
       "step5Title": "Gönder ve İmzala",
       "step5Desc": "İlanınızı gözden geçirin ve gönder'e tıklayın. Cüzdanınız işlemi imzalamanızı isteyecektir."
+    },
+    "bid": {
+      "step1Title": "Teklif Ver",
+      "step1Desc": "Teklif yapmak için herhangi bir ilandaki 'Teklif Ver' düğmesine tıklayın. ADA'nız, satıcı kabul edene veya zaman kilidi süresi dolana kadar bir akıllı sözleşmede kilitlenecektir.",
+      "step2Title": "Teklif miktarını girin",
+      "step2Desc": "Bu, ilan için teklif ettiğiniz ADA miktarıdır. Minimum 2 ADA'dır. Satıcı kabul edene kadar zincir üzerinde kilitlenir.",
+      "step3Title": "İsteğe bağlı: Gelecekteki ilan fiyatı",
+      "step3Desc": "Bu teklifi kazanırsanız, verileri diğer alıcılar için yeniden listeleyebilirsiniz. Bu, bir sonraki ilan için önerilen fiyatı belirler. Atlamak için boş bırakın.",
+      "step4Title": "Teklifinizi gönderin",
+      "step4Desc": "Göndermek zincir üzerinde bir teklif tokeni oluşturur ve ADA'nızı kilitler. Satıcı kabul etmediyse zaman kilidi süresi dolduktan sonra iptal edebilirsiniz."
     }
   },
   "mnemonic": {

@@ -346,6 +346,16 @@
       "step4Desc": "Masukkan harga yang disarankan dalam ADA. Pembeli dapat menawar berapa pun, tetapi ini membantu menetapkan ekspektasi.",
       "step5Title": "Kirim & Tanda Tangani",
       "step5Desc": "Tinjau daftar Anda dan klik kirim. Dompet Anda akan meminta Anda untuk menandatangani transaksi."
+    },
+    "bid": {
+      "step1Title": "Tempatkan Tawaran",
+      "step1Desc": "Klik tombol 'Tempatkan Tawaran' pada listing mana pun untuk membuat penawaran. ADA Anda akan dikunci dalam smart contract sampai penjual menerima atau periode kunci waktu berakhir.",
+      "step2Title": "Masukkan Jumlah Tawaran",
+      "step2Desc": "Ini adalah jumlah ADA yang Anda tawarkan untuk listing. Minimum adalah 2 ADA. Ini dikunci di on-chain sampai penjual menerima.",
+      "step3Title": "Opsional: Harga Listing Masa Depan",
+      "step3Desc": "Jika Anda memenangkan tawaran ini, Anda dapat mendaftarkan ulang data untuk pembeli lain. Ini menetapkan harga yang disarankan untuk listing berikutnya. Biarkan kosong untuk melewati.",
+      "step4Title": "Kirim Tawaran Anda",
+      "step4Desc": "Mengirim membuat token tawaran on-chain dan mengunci ADA Anda. Anda dapat membatalkan setelah periode kunci waktu berakhir jika penjual belum menerima."
     }
   },
   "mnemonic": {

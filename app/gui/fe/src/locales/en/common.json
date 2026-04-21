@@ -346,6 +346,16 @@
       "step4Desc": "Enter a suggested price in ADA. Buyers can bid any amount, but this helps set expectations.",
       "step5Title": "Submit & Sign",
       "step5Desc": "Review your listing and click submit. Your wallet will prompt you to sign the transaction."
+    },
+    "bid": {
+      "step1Title": "Place a Bid",
+      "step1Desc": "Click the Place Bid button on any listing to make an offer. Your ADA will be locked in a smart contract until the seller accepts or the timelock expires.",
+      "step2Title": "Enter Your Bid Amount",
+      "step2Desc": "This is how much ADA you're offering for the listing. The minimum is 2 ADA. It gets locked on-chain until the seller accepts.",
+      "step3Title": "Optional: Future Listing Price",
+      "step3Desc": "If you win this bid, you can re-list the data for other buyers. This sets the suggested price for that next listing. Leave blank to skip.",
+      "step4Title": "Submit Your Bid",
+      "step4Desc": "Submitting creates a bid token on-chain and locks your ADA. You can cancel after the timelock period expires if the seller hasn't accepted."
     }
   },
   "mnemonic": {

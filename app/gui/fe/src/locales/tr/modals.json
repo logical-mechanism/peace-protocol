@@ -389,12 +389,6 @@
       "futureMax": "Gelecek fiyat maksimumu aşıyor (45B ADA)",
       "noEncryption": "Şifreleme seçilmedi",
       "submitFailed": "Teklif verilemedi. Lütfen tekrar deneyin."
-    },
-    "hints": {
-      "tipLabel": "İpucu:",
-      "bidAmount": "Bu, teklif ettiğiniz ADA miktarıdır. Satıcı kabul edene veya zaman kilidi süresi dolana ve iptal edene kadar zincir üzerinde kilitlenir.",
-      "futurePrice": "Kazanırsanız verileri yeniden listeleyebilirsiniz. Bu, bir sonraki alıcı için önerilen fiyatı belirler.",
-      "submit": "Göndermek zincir üzerinde bir teklif tokeni oluşturur. ADA'nız sözleşmede kilitlenir — zaman kilidi süresi dolduktan sonra iptal edebilirsiniz."
     }
   }
 }

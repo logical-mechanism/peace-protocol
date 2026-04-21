@@ -33,13 +33,15 @@ interface MarketplaceTabProps {
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onCreateListing?: () => void;
   onStartTutorial?: () => void;
+  /** Starts the bid tutorial on the first available listing. No-op if none are bid-eligible. */
+  onStartBidTutorial?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStartTutorial, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStartTutorial, onStartBidTutorial, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
   const { t } = useTranslation('dashboard');
   const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
@@ -260,6 +262,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
   }, [filteredAndSorted, currentPage]);
 
+  // First listing the user can actually bid on — used for the bid tutorial's
+  // "Start Tour" button and to mark which card's Place Bid button gets the
+  // tutorial target id.
+  const firstBidEligible = useMemo(() => {
+    return paginatedResults.find(
+      (e) => !isOwnListing(e) && !userBidEncryptionTokens.has(e.tokenName) && e.status === 'active'
+    );
+  }, [paginatedResults, isOwnListing, userBidEncryptionTokens]);
+
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
   const sentinelRef = useInfiniteScroll({
@@ -475,6 +486,21 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
             <span className="font-medium">{t('marketplace.bidBannerTitle')}</span>{' '}
             <span className="text-[var(--text-secondary)]">{t('marketplace.bidBannerDesc')}</span>
           </div>
+          {onStartBidTutorial && firstBidEligible && (
+            <button
+              onClick={() => {
+                setBidBannerDismissed(true);
+                onStartBidTutorial(firstBidEligible, getBidCount(firstBidEligible.tokenName));
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('marketplace.tutorialBannerStart')}
+            </button>
+          )}
           <button
             onClick={() => setBidBannerDismissed(true)}
             className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
@@ -770,6 +796,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}
@@ -794,6 +821,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}

@@ -346,6 +346,16 @@
       "step4Desc": "Introduce un precio sugerido en ADA. Los compradores pueden ofertar cualquier cantidad, pero esto ayuda a establecer expectativas.",
       "step5Title": "Enviar y firmar",
       "step5Desc": "Revisa tu anuncio y haz clic en enviar. Tu billetera te pedirá firmar la transacción."
+    },
+    "bid": {
+      "step1Title": "Hacer una oferta",
+      "step1Desc": "Haz clic en el botón 'Hacer oferta' en cualquier listado para hacer una propuesta. Tu ADA quedará bloqueado en un contrato inteligente hasta que el vendedor acepte o expire el período de bloqueo.",
+      "step2Title": "Introduce tu oferta",
+      "step2Desc": "Esta es la cantidad de ADA que ofreces por el listado. El mínimo es 2 ADA. Queda bloqueado en la cadena hasta que el vendedor acepte.",
+      "step3Title": "Opcional: Precio futuro",
+      "step3Desc": "Si ganas esta oferta, puedes volver a listar los datos para otros compradores. Esto establece el precio sugerido para ese próximo listado. Déjalo en blanco para omitir.",
+      "step4Title": "Enviar tu oferta",
+      "step4Desc": "Enviar crea un token de oferta en la cadena y bloquea tu ADA. Puedes cancelar después de que expire el período de bloqueo si el vendedor no ha aceptado."
     }
   },
   "mnemonic": {

@@ -389,12 +389,6 @@
       "futureMax": "El precio futuro excede el máximo (45B ADA)",
       "noEncryption": "No se seleccionó cifrado",
       "submitFailed": "Error al hacer oferta. Inténtalo de nuevo."
-    },
-    "hints": {
-      "tipLabel": "Consejo:",
-      "bidAmount": "Esta es la cantidad de ADA que ofreces. Se bloquea en la cadena hasta que el vendedor acepte o expire el período de bloqueo y canceles.",
-      "futurePrice": "Si ganas, puedes volver a listar los datos. Esto establece el precio sugerido para el próximo comprador.",
-      "submit": "Enviar crea un token de oferta en la cadena. Tu ADA queda bloqueado en el contrato — puedes cancelar después de que expire el período de bloqueo."
     }
   }
 }

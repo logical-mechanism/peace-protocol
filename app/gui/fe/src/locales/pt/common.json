@@ -346,6 +346,16 @@
       "step4Desc": "Insira um preço sugerido em ADA. Os compradores podem dar lances de qualquer valor, mas isso ajuda a definir expectativas.",
       "step5Title": "Enviar e assinar",
       "step5Desc": "Revise sua listagem e clique em enviar. Sua carteira pedirá para assinar a transação."
+    },
+    "bid": {
+      "step1Title": "Fazer uma oferta",
+      "step1Desc": "Clique no botão 'Fazer oferta' em qualquer listagem para fazer uma proposta. Os seus ADA ficarão bloqueados num contrato inteligente até o vendedor aceitar ou o período de bloqueio expirar.",
+      "step2Title": "Insira o valor da sua oferta",
+      "step2Desc": "Este é o montante de ADA que está a oferecer pela listagem. O mínimo é 2 ADA. Fica bloqueado on-chain até o vendedor aceitar.",
+      "step3Title": "Opcional: Preço futuro",
+      "step3Desc": "Se ganhar esta oferta, pode voltar a listar os dados para outros compradores. Isto define o preço sugerido para essa próxima listagem. Deixe em branco para ignorar.",
+      "step4Title": "Submeter a sua oferta",
+      "step4Desc": "Submeter cria um token de oferta on-chain e bloqueia os seus ADA. Pode cancelar após o período de bloqueio expirar se o vendedor não tiver aceitado."
     }
   },
   "mnemonic": {

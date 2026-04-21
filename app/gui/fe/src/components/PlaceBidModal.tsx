@@ -9,7 +9,6 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
-import { getOnboardingState } from '../services/onboardingStorage';
 import { formatAda } from '../utils/formatAda';
 
 interface PlaceBidFormData {
@@ -63,9 +62,6 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
-  // Re-read on every open so Settings "Reset All" takes effect without remounting.
-  // Not a useState — reads directly from localStorage each render while the modal is open.
-  const showBidHints = isOpen && !getOnboardingState().firstBidCompleted;
   const bidAmountRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -322,7 +318,7 @@ export default function PlaceBidModal({
             )}
 
             {/* Bid Amount */}
-            <div>
+            <div id="tutorial-bid-amount">
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="bidAmount"
@@ -410,16 +406,6 @@ export default function PlaceBidModal({
                   {t('modals:placeBid.bidHint', { amount: MIN_BID_ADA })}
                   <InfoTooltip text={t('modals:placeBid.minimumTooltip')} />
                 </p>
-                {showBidHints && (
-                  <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]" data-testid="bid-hint-amount">
-                    <svg className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <p className="text-xs text-[var(--accent)]">
-                      <span className="font-semibold">{t('modals:placeBid.hints.tipLabel')}</span> {t('modals:placeBid.hints.bidAmount')}
-                    </p>
-                  </div>
-                )}
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--text-secondary)]">
@@ -453,7 +439,7 @@ export default function PlaceBidModal({
             </div>
 
             {/* Future Listing Price (collapsible) */}
-            <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+            <div id="tutorial-future-price" className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowFuturePrice(!showFuturePrice)}
@@ -550,16 +536,6 @@ export default function PlaceBidModal({
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
                     {t('modals:placeBid.futurePriceHelp')}
                   </p>
-                  {showBidHints && (
-                    <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]" data-testid="bid-hint-future-price">
-                      <svg className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      <p className="text-xs text-[var(--accent)]">
-                        <span className="font-semibold">{t('modals:placeBid.hints.tipLabel')}</span> {t('modals:placeBid.hints.futurePrice')}
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -605,16 +581,6 @@ export default function PlaceBidModal({
               </p>
             </div>
 
-            {showBidHints && (
-              <div className="mb-3 flex items-start gap-2 px-3 py-2 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]" data-testid="bid-hint-submit">
-                <svg className="w-4 h-4 shrink-0 mt-0.5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-                <p className="text-xs text-[var(--accent)]">
-                  <span className="font-semibold">{t('modals:placeBid.hints.tipLabel')}</span> {t('modals:placeBid.hints.submit')}
-                </p>
-              </div>
-            )}
 
             <div className="flex items-center gap-3">
               <button
@@ -626,6 +592,7 @@ export default function PlaceBidModal({
                 {t('common:actions.cancel')}
               </button>
               <button
+                id="tutorial-submit-bid"
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"

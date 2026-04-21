@@ -379,12 +379,6 @@
     "submit": "Place Bid",
     "submitting": "Placing Bid...",
     "copyErrorLabel": "Copy error to clipboard",
-    "hints": {
-      "tipLabel": "Tip:",
-      "bidAmount": "This is how much ADA you're offering. It gets locked on-chain until the seller accepts or the timelock expires and you cancel.",
-      "futurePrice": "If you win, you can re-list the data. This sets the suggested price for the next buyer.",
-      "submit": "Submitting creates a bid token on-chain. Your ADA is locked in the contract — you can cancel after the timelock period expires."
-    },
     "errors": {
       "bidRequired": "Bid amount is required",
       "bidPositive": "Bid amount must be a positive number",
