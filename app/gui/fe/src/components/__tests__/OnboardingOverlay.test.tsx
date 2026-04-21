@@ -26,8 +26,8 @@ vi.mock('react-router-dom', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockPathname = '/wallet-setup';
-  mockGetOnboardingState.mockReturnValue({ step: 0, completed: false, firstListingCompleted: false, firstBidCompleted: false });
-  mockAdvanceOnboardingStep.mockReturnValue({ step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false });
+  mockGetOnboardingState.mockReturnValue({ step: 0, completed: false, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
+  mockAdvanceOnboardingStep.mockReturnValue({ step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
 });
 
 // ── Tests ───────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ describe('OnboardingOverlay', () => {
   });
 
   it('does not render when completed', () => {
-    mockGetOnboardingState.mockReturnValue({ step: 0, completed: true, firstListingCompleted: false, firstBidCompleted: false });
+    mockGetOnboardingState.mockReturnValue({ step: 0, completed: true, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
     const { container } = render(<OnboardingOverlay />);
     expect(container.innerHTML).toBe('');
   });
@@ -85,7 +85,7 @@ describe('OnboardingOverlay', () => {
   });
 
   it('renders step 2 content on /node-sync route', () => {
-    mockGetOnboardingState.mockReturnValue({ step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false });
+    mockGetOnboardingState.mockReturnValue({ step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
     mockPathname = '/node-sync';
     render(<OnboardingOverlay />);
     expect(screen.getByText('Sync With the Blockchain')).toBeInTheDocument();
@@ -93,9 +93,9 @@ describe('OnboardingOverlay', () => {
   });
 
   it('shows "Done" button on last step', () => {
-    mockGetOnboardingState.mockReturnValue({ step: 3, completed: false, firstListingCompleted: false, firstBidCompleted: false });
+    mockGetOnboardingState.mockReturnValue({ step: 3, completed: false, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
     mockPathname = '/dashboard';
-    mockAdvanceOnboardingStep.mockReturnValue({ step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false });
+    mockAdvanceOnboardingStep.mockReturnValue({ step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false, firstDecryptCompleted: false });
     render(<OnboardingOverlay />);
     expect(screen.getByText('Done')).toBeInTheDocument();
   });
