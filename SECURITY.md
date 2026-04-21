@@ -41,6 +41,6 @@ The following are out of scope:
 
 ## Security Audits
 
-- [Smart Contract Audit](./app/contracts/claude-audit.md)
+- [Smart Contract Audits](./app/contracts/audits/)
 - [SNARK Prover Audit](./app/snark/claude-audit.md)
 - [Technical Report](./documentation/technical_report.pdf)
