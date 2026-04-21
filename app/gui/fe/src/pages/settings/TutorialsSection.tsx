@@ -7,7 +7,7 @@ interface TutorialFlow {
   id: string
   titleKey: string
   descriptionKey: string
-  completedFlag: keyof Pick<ReturnType<typeof getOnboardingState>, 'firstListingCompleted' | 'firstBidCompleted'>
+  completedFlag: keyof Pick<ReturnType<typeof getOnboardingState>, 'firstListingCompleted' | 'firstBidCompleted' | 'firstDecryptCompleted'>
   navigateTo?: { path: string; state?: Record<string, unknown> }
 }
 
@@ -30,7 +30,8 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     id: 'first-decrypt',
     titleKey: 'tutorials.flows.firstDecrypt.title',
     descriptionKey: 'tutorials.flows.firstDecrypt.description',
-    completedFlag: 'firstListingCompleted', // placeholder — not yet tracked
+    completedFlag: 'firstDecryptCompleted',
+    navigateTo: { path: '/dashboard', state: { tab: 'my-purchases' } },
   },
   {
     id: 'first-bid-accepted',

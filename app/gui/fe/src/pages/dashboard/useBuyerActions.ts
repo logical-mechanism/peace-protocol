@@ -7,7 +7,7 @@ import {
 import { encryptionsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
 import { playSound } from '../../services/notificationSound'
-import { markFirstBidCompleted } from '../../services/onboardingStorage'
+import { markFirstBidCompleted, markFirstDecryptCompleted } from '../../services/onboardingStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 
@@ -242,6 +242,8 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         next.delete(result.encryptionToken)
         return next
       })
+      // Mark the first-decrypt tutorial completed on any successful library save.
+      markFirstDecryptCompleted()
       triggerRefresh()
     } else {
       setFailedDecryptTokens((prev) => new Set(prev).add(result.encryptionToken))

@@ -230,7 +230,11 @@
     "noMatchingTitle": "无匹配出价",
     "noMatchingDesc": "尝试调整搜索条件或筛选",
     "noBidsTitle": "未找到出价",
-    "noBidsDesc": "您的出价将显示在此处"
+    "noBidsDesc": "您的出价将显示在此处",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "加载交易历史中…",

@@ -230,7 +230,11 @@
     "noMatchingTitle": "कोई मिलान बोली नहीं",
     "noMatchingDesc": "अपनी खोज या फ़िल्टर समायोजित करें",
     "noBidsTitle": "कोई बोली नहीं मिली",
-    "noBidsDesc": "आपकी बोलियाँ यहाँ दिखाई देंगी"
+    "noBidsDesc": "आपकी बोलियाँ यहाँ दिखाई देंगी",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "लेनदेन इतिहास लोड हो रहा है…",

@@ -48,8 +48,9 @@ import { useTutorial } from '../hooks/useTutorial'
 import TutorialOverlay from '../components/TutorialOverlay'
 import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
 import { BID_TUTORIAL_STEPS } from '../tutorials/bidTutorial'
-import { markFirstListingCompleted, markFirstBidCompleted } from '../services/onboardingStorage'
-import type { EncryptionDisplay } from '../services/api'
+import { DECRYPT_TUTORIAL_STEPS } from '../tutorials/decryptTutorial'
+import { markFirstListingCompleted, markFirstBidCompleted, markFirstDecryptCompleted } from '../services/onboardingStorage'
+import type { EncryptionDisplay, BidDisplay } from '../services/api'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -124,11 +125,13 @@ export default function Dashboard() {
 
   // ── Tutorial hook ─────────────────────────────────────────────────
   const tutorial = useTutorial()
-  // Which tutorial is currently running — disambiguates the auto-open effect
-  // so the listing-tutorial effect doesn't fire during a bid-tutorial run.
-  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | null>(null)
+  // Which tutorial is currently running — disambiguates the auto-open effects
+  // so e.g. the listing-tutorial effect doesn't fire during a bid-tutorial run.
+  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | 'decrypt' | null>(null)
   // Encryption the bid tutorial should target; used by the auto-open effect below.
   const [bidTutorialTarget, setBidTutorialTarget] = useState<{ encryption: EncryptionDisplay; bidCount: number } | null>(null)
+  // Bid the decrypt tutorial should target; used by the orchestration effect below.
+  const [decryptTutorialTarget, setDecryptTutorialTarget] = useState<{ bid: BidDisplay; encryption?: EncryptionDisplay } | null>(null)
 
   const handleStartListingTutorial = useCallback(() => {
     setActiveTutorialKey('listing')
@@ -168,6 +171,31 @@ export default function Dashboard() {
       },
     )
   }, [tutorial, t])
+
+  const handleStartDecryptTutorial = useCallback((bid: BidDisplay, encryption?: EncryptionDisplay) => {
+    setActiveTutorialKey('decrypt')
+    setDecryptTutorialTarget({ bid, encryption })
+    setActiveTab('my-purchases')
+    tutorial.startTutorial(
+      DECRYPT_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => {
+          markFirstDecryptCompleted()
+          setActiveTutorialKey(null)
+          setDecryptTutorialTarget(null)
+        },
+        onSkip: () => {
+          markFirstDecryptCompleted()
+          setActiveTutorialKey(null)
+          setDecryptTutorialTarget(null)
+        },
+      },
+    )
+  }, [tutorial, t, setActiveTab])
 
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
@@ -280,6 +308,42 @@ export default function Dashboard() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, bidTutorialTarget])
+
+  // Decrypt tutorial orchestration — the flow spans MyPurchasesTab, DecryptModal,
+  // Library tab, and LibraryContentModal. Each step advance opens/switches the
+  // relevant surface so the spotlight target is mounted when TutorialOverlay
+  // goes looking for it.
+  useEffect(() => {
+    if (activeTutorialKey !== 'decrypt' || !tutorial.isTutorialActive || !decryptTutorialTarget) return
+    const { bid, encryption } = decryptTutorialTarget
+    switch (tutorial.currentStepIndex) {
+      case 0:
+        // Step 1: highlight the Decrypt button on MyPurchaseBidCard.
+        setActiveTab('my-purchases')
+        break
+      case 1:
+        // Step 2: open DecryptModal so the header id is in the DOM.
+        if (encryption) {
+          buyer.handleDecryptEncryption(encryption)
+        } else {
+          buyer.handleDecrypt(bid)
+        }
+        break
+      case 2:
+        // Step 3: close DecryptModal and switch to the Library tab.
+        buyer.closeDecryptModal()
+        setActiveTab('library')
+        break
+      case 3:
+        // Step 4: highlight the LibraryContentModal action row. The modal is
+        // opened by LibraryTab when the user clicks an item, so the tutorial
+        // relies on the tab being visited; the overlay polls for the target
+        // until the user opens the item.
+        setActiveTab('library')
+        break
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, decryptTutorialTarget])
 
   // Refresh handler for manual data refresh
   const handleRefresh = useCallback(() => {
@@ -894,6 +958,7 @@ export default function Dashboard() {
                 onDecryptEncryption={buyer.handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
                 onLocalRefresh={handleLocalRefresh}
+                onStartDecryptTutorial={handleStartDecryptTutorial}
                 filters={myPurchasesFilters}
                 dispatch={myPurchasesDispatch}
                 failedDecryptTokens={buyer.failedDecryptTokens}

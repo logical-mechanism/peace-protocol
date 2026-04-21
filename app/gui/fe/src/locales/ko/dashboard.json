@@ -230,7 +230,11 @@
     "noMatchingTitle": "일치하는 입찰이 없습니다",
     "noMatchingDesc": "검색어 또는 필터를 조정해 보세요",
     "noBidsTitle": "입찰을 찾을 수 없습니다",
-    "noBidsDesc": "입찰이 여기에 표시됩니다"
+    "noBidsDesc": "입찰이 여기에 표시됩니다",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "트랜잭션 기록을 불러오는 중...",

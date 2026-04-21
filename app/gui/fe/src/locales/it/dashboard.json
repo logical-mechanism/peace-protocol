@@ -230,7 +230,11 @@
     "noMatchingTitle": "Nessuna offerta corrispondente",
     "noMatchingDesc": "Prova a modificare la ricerca o i filtri",
     "noBidsTitle": "Nessuna offerta trovata",
-    "noBidsDesc": "Le tue offerte appariranno qui"
+    "noBidsDesc": "Le tue offerte appariranno qui",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "Caricamento cronologia transazioni…",

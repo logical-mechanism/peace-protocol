@@ -21,6 +21,7 @@ import LayoutPopover from './LayoutPopover';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
+import { getOnboardingState } from '../services/onboardingStorage';
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -30,6 +31,7 @@ interface MyPurchasesTabProps {
   onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
+  onStartDecryptTutorial?: (bid: BidDisplay, encryption?: EncryptionDisplay) => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -44,6 +46,7 @@ function MyPurchasesTab({
   onDecryptEncryption,
   onSwitchTab,
   onLocalRefresh,
+  onStartDecryptTutorial,
   refreshSignal,
   filters,
   dispatch,
@@ -62,6 +65,7 @@ function MyPurchasesTab({
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
+  const [decryptBannerDismissed, setDecryptBannerDismissed] = useState(false);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -195,6 +199,24 @@ function MyPurchasesTab({
     }
     return counts;
   }, [bids, isCompletedAfterBid]);
+
+  // First accepted-but-not-yet-decrypted bid — anchor for the tutorial banner.
+  // Sorted by createdAt ascending so the oldest waiting bid is shown first.
+  const firstDecryptEligibleBid = useMemo<BidDisplay | null>(() => {
+    const ready = bids
+      .filter((b) => b.status === 'accepted' && !isCompletedAfterBid(b))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return ready[0] ?? null;
+  }, [bids, isCompletedAfterBid]);
+
+  // Show banner when onboarding is complete, first-decrypt tutorial hasn't
+  // been marked done, and the buyer has at least one accepted bid waiting.
+  const showDecryptBanner = useMemo(() => {
+    if (decryptBannerDismissed) return false;
+    if (!firstDecryptEligibleBid) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstDecryptCompleted;
+  }, [decryptBannerDismissed, firstDecryptEligibleBid]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -346,6 +368,61 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      {showDecryptBanner && firstDecryptEligibleBid && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('myPurchases.decryptBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('myPurchases.decryptBannerDesc')}</span>
+          </div>
+          {onStartDecryptTutorial && (
+            <button
+              onClick={() => {
+                setDecryptBannerDismissed(true);
+                onStartDecryptTutorial(firstDecryptEligibleBid, encryptionsMap.get(firstDecryptEligibleBid.encryptionToken));
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('myPurchases.decryptBannerStart')}
+            </button>
+          )}
+          <button
+            onClick={() => setDecryptBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('myPurchases.decryptBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Purchased Encryptions Section */}
       {purchasedEncryptions.length > 0 && (
         <div className="mb-8">
