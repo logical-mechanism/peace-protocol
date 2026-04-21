@@ -108,7 +108,7 @@ describe('TutorialsSection', () => {
     fireEvent.click(starts[2]) // first-decrypt Start button
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstDecryptCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
-      state: { tab: 'my-purchases' },
+      state: { tab: 'my-purchases', startTutorial: 'first-decrypt' },
     })
   })
 

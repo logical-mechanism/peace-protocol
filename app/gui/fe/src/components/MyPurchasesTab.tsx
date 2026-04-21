@@ -23,6 +23,12 @@ import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
 import { getOnboardingState } from '../services/onboardingStorage';
 
+export interface DecryptTutorialTarget {
+  bid?: BidDisplay;
+  encryption: EncryptionDisplay;
+  ownerPkh?: string;
+}
+
 interface MyPurchasesTabProps {
   userPkh?: string;
   onCancelBid?: (bid: BidDisplay) => void;
@@ -31,7 +37,13 @@ interface MyPurchasesTabProps {
   onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
-  onStartDecryptTutorial?: (bid: BidDisplay, encryption?: EncryptionDisplay) => void;
+  onStartDecryptTutorial?: (target: DecryptTutorialTarget) => void;
+  /** When true, auto-invoke onStartDecryptTutorial as soon as data loads and a
+   * target exists. Used by Settings "Replay" to re-trigger the flow without the
+   * user having to find the banner. Parent should flip this back to false after
+   * the start fires to avoid re-triggering on refresh. */
+  autoStartDecryptTutorial?: boolean;
+  onAutoStartConsumed?: () => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -47,6 +59,8 @@ function MyPurchasesTab({
   onSwitchTab,
   onLocalRefresh,
   onStartDecryptTutorial,
+  autoStartDecryptTutorial,
+  onAutoStartConsumed,
   refreshSignal,
   filters,
   dispatch,
@@ -200,23 +214,50 @@ function MyPurchasesTab({
     return counts;
   }, [bids, isCompletedAfterBid]);
 
-  // First accepted-but-not-yet-decrypted bid — anchor for the tutorial banner.
-  // Sorted by createdAt ascending so the oldest waiting bid is shown first.
-  const firstDecryptEligibleBid = useMemo<BidDisplay | null>(() => {
-    const ready = bids
+  // Tutorial target. Prefer an accepted-but-not-yet-decrypted bid (the happy
+  // path: spotlight → Decrypt → SNARK → Library). Fall back to the first
+  // already-purchased encryption so users who already decrypted everything
+  // can still replay the tour — re-decrypting an owned encryption exercises
+  // the same DecryptModal path.
+  const decryptTutorialTarget = useMemo<DecryptTutorialTarget | null>(() => {
+    const readyBid = bids
       .filter((b) => b.status === 'accepted' && !isCompletedAfterBid(b))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    return ready[0] ?? null;
-  }, [bids, isCompletedAfterBid]);
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (readyBid) {
+      const enc = encryptionsMap.get(readyBid.encryptionToken);
+      if (enc) return { bid: readyBid, encryption: enc };
+    }
+    const ownedEnc = purchasedEncryptions[0];
+    if (ownedEnc) {
+      return { encryption: ownedEnc, ownerPkh: ownedEnc.resold ? userPkh : undefined };
+    }
+    return null;
+  }, [bids, purchasedEncryptions, encryptionsMap, isCompletedAfterBid, userPkh]);
 
   // Show banner when onboarding is complete, first-decrypt tutorial hasn't
-  // been marked done, and the buyer has at least one accepted bid waiting.
+  // run, and the buyer has at least one decryptable target (accepted bid or
+  // already-purchased encryption).
   const showDecryptBanner = useMemo(() => {
     if (decryptBannerDismissed) return false;
-    if (!firstDecryptEligibleBid) return false;
+    if (!decryptTutorialTarget) return false;
     const state = getOnboardingState();
     return state.completed && !state.firstDecryptCompleted;
-  }, [decryptBannerDismissed, firstDecryptEligibleBid]);
+  }, [decryptBannerDismissed, decryptTutorialTarget]);
+
+  // Auto-start when parent requests (Settings "Replay"). Only fires once per
+  // mount of a requested start so it doesn't re-trigger on every re-render.
+  const autoStartFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoStartDecryptTutorial) {
+      autoStartFiredRef.current = false;
+      return;
+    }
+    if (autoStartFiredRef.current) return;
+    if (!decryptTutorialTarget || !onStartDecryptTutorial) return;
+    autoStartFiredRef.current = true;
+    onStartDecryptTutorial(decryptTutorialTarget);
+    onAutoStartConsumed?.();
+  }, [autoStartDecryptTutorial, decryptTutorialTarget, onStartDecryptTutorial, onAutoStartConsumed]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -368,7 +409,7 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
-      {showDecryptBanner && firstDecryptEligibleBid && (
+      {showDecryptBanner && decryptTutorialTarget && (
         <div
           className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
           style={{
@@ -400,7 +441,7 @@ function MyPurchasesTab({
             <button
               onClick={() => {
                 setDecryptBannerDismissed(true);
-                onStartDecryptTutorial(firstDecryptEligibleBid, encryptionsMap.get(firstDecryptEligibleBid.encryptionToken));
+                onStartDecryptTutorial(decryptTutorialTarget);
               }}
               className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
               style={{

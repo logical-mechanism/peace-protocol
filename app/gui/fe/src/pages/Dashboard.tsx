@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
 import { useModal } from '../contexts/ModalContext'
@@ -50,7 +50,8 @@ import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
 import { BID_TUTORIAL_STEPS } from '../tutorials/bidTutorial'
 import { DECRYPT_TUTORIAL_STEPS } from '../tutorials/decryptTutorial'
 import { markFirstListingCompleted, markFirstBidCompleted, markFirstDecryptCompleted } from '../services/onboardingStorage'
-import type { EncryptionDisplay, BidDisplay } from '../services/api'
+import type { EncryptionDisplay } from '../services/api'
+import type { DecryptTutorialTarget } from '../components/MyPurchasesTab'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
@@ -62,6 +63,7 @@ export default function Dashboard() {
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot, tipHeight, expressReady } = useNode()
   const navigate = useNavigate()
+  const location = useLocation()
   const { hasOpenModal } = useModal()
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
@@ -130,8 +132,12 @@ export default function Dashboard() {
   const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | 'decrypt' | null>(null)
   // Encryption the bid tutorial should target; used by the auto-open effect below.
   const [bidTutorialTarget, setBidTutorialTarget] = useState<{ encryption: EncryptionDisplay; bidCount: number } | null>(null)
-  // Bid the decrypt tutorial should target; used by the orchestration effect below.
-  const [decryptTutorialTarget, setDecryptTutorialTarget] = useState<{ bid: BidDisplay; encryption?: EncryptionDisplay } | null>(null)
+  // Target the decrypt tutorial should drive; used by the orchestration effect below.
+  const [decryptTutorialTarget, setDecryptTutorialTarget] = useState<DecryptTutorialTarget | null>(null)
+  // Auto-start signal sent to MyPurchasesTab — e.g. when the user hits "Replay"
+  // in Settings. MyPurchasesTab picks the first eligible target and calls back
+  // via onStartDecryptTutorial; we then clear this flag.
+  const [autoStartDecryptTutorial, setAutoStartDecryptTutorial] = useState(false)
 
   const handleStartListingTutorial = useCallback(() => {
     setActiveTutorialKey('listing')
@@ -172,9 +178,9 @@ export default function Dashboard() {
     )
   }, [tutorial, t])
 
-  const handleStartDecryptTutorial = useCallback((bid: BidDisplay, encryption?: EncryptionDisplay) => {
+  const handleStartDecryptTutorial = useCallback((target: DecryptTutorialTarget) => {
     setActiveTutorialKey('decrypt')
-    setDecryptTutorialTarget({ bid, encryption })
+    setDecryptTutorialTarget(target)
     setActiveTab('my-purchases')
     tutorial.startTutorial(
       DECRYPT_TUTORIAL_STEPS.map(step => ({
@@ -309,13 +315,29 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, bidTutorialTarget])
 
+  // Settings "Replay" for first-decrypt navigates here with
+  // { startTutorial: 'first-decrypt' }. We can't start the tutorial from
+  // Dashboard directly because MyPurchasesTab owns the list of eligible
+  // targets — instead we flip an autoStart flag that MyPurchasesTab consumes
+  // once data is loaded. We clear the nav state immediately so a later tab
+  // switch or refresh doesn't re-arm the flow.
+  useEffect(() => {
+    const navState = location.state as { startTutorial?: string } | null
+    if (navState?.startTutorial === 'first-decrypt') {
+      setActiveTab('my-purchases')
+      setAutoStartDecryptTutorial(true)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
+
   // Decrypt tutorial orchestration — the flow spans MyPurchasesTab, DecryptModal,
   // Library tab, and LibraryContentModal. Each step advance opens/switches the
   // relevant surface so the spotlight target is mounted when TutorialOverlay
   // goes looking for it.
   useEffect(() => {
     if (activeTutorialKey !== 'decrypt' || !tutorial.isTutorialActive || !decryptTutorialTarget) return
-    const { bid, encryption } = decryptTutorialTarget
+    const { bid, encryption, ownerPkh } = decryptTutorialTarget
     switch (tutorial.currentStepIndex) {
       case 0:
         // Step 1: highlight the Decrypt button on MyPurchaseBidCard.
@@ -323,10 +345,12 @@ export default function Dashboard() {
         break
       case 1:
         // Step 2: open DecryptModal so the header id is in the DOM.
-        if (encryption) {
-          buyer.handleDecryptEncryption(encryption)
-        } else {
+        // Prefer the bid path when available (richer context); fall back to
+        // encryption-only for users who already decrypted everything.
+        if (bid) {
           buyer.handleDecrypt(bid)
+        } else {
+          buyer.handleDecryptEncryption(encryption, ownerPkh)
         }
         break
       case 2:
@@ -959,6 +983,8 @@ export default function Dashboard() {
                 onSwitchTab={setActiveTab}
                 onLocalRefresh={handleLocalRefresh}
                 onStartDecryptTutorial={handleStartDecryptTutorial}
+                autoStartDecryptTutorial={autoStartDecryptTutorial}
+                onAutoStartConsumed={() => setAutoStartDecryptTutorial(false)}
                 filters={myPurchasesFilters}
                 dispatch={myPurchasesDispatch}
                 failedDecryptTokens={buyer.failedDecryptTokens}

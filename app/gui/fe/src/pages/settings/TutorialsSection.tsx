@@ -31,7 +31,7 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     titleKey: 'tutorials.flows.firstDecrypt.title',
     descriptionKey: 'tutorials.flows.firstDecrypt.description',
     completedFlag: 'firstDecryptCompleted',
-    navigateTo: { path: '/dashboard', state: { tab: 'my-purchases' } },
+    navigateTo: { path: '/dashboard', state: { tab: 'my-purchases', startTutorial: 'first-decrypt' } },
   },
   {
     id: 'first-bid-accepted',
