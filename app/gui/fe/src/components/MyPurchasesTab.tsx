@@ -529,6 +529,7 @@ function MyPurchasesTab({
                 )}
 
                 <button
+                  data-tutorial="decrypt-button"
                   onClick={() => onDecryptEncryption?.(enc, enc.resold ? userPkh : undefined)}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >
