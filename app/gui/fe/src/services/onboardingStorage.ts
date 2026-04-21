@@ -11,7 +11,14 @@ export interface OnboardingState {
   firstListingCompleted: boolean
   firstBidCompleted: boolean
   firstDecryptCompleted: boolean
+  firstBidAcceptedCompleted: boolean
 }
+
+export type TutorialFlag =
+  | 'firstListingCompleted'
+  | 'firstBidCompleted'
+  | 'firstDecryptCompleted'
+  | 'firstBidAcceptedCompleted'
 
 const DEFAULT_STATE: OnboardingState = {
   step: 0,
@@ -19,6 +26,7 @@ const DEFAULT_STATE: OnboardingState = {
   firstListingCompleted: false,
   firstBidCompleted: false,
   firstDecryptCompleted: false,
+  firstBidAcceptedCompleted: false,
 }
 
 /** Read onboarding state from localStorage. Returns default state if not found.
@@ -40,6 +48,9 @@ export function getOnboardingState(): OnboardingState {
       : false,
     firstDecryptCompleted: typeof parsed.firstDecryptCompleted === 'boolean'
       ? parsed.firstDecryptCompleted
+      : false,
+    firstBidAcceptedCompleted: typeof parsed.firstBidAcceptedCompleted === 'boolean'
+      ? parsed.firstBidAcceptedCompleted
       : false,
   }
 }
@@ -91,6 +102,13 @@ export function markFirstDecryptCompleted(): void {
   setOnboardingState({ ...current, firstDecryptCompleted: true })
 }
 
+/** Mark the first-bid-accepted (seller) tutorial as completed. */
+export function markFirstBidAcceptedCompleted(): void {
+  const current = getOnboardingState()
+  if (current.firstBidAcceptedCompleted) return
+  setOnboardingState({ ...current, firstBidAcceptedCompleted: true })
+}
+
 /** Re-enable all guided tutorials (clears completion flags). */
 export function resetTutorials(): void {
   const current = getOnboardingState()
@@ -99,11 +117,12 @@ export function resetTutorials(): void {
     firstListingCompleted: false,
     firstBidCompleted: false,
     firstDecryptCompleted: false,
+    firstBidAcceptedCompleted: false,
   })
 }
 
 /** Reset a single tutorial flag by key. */
-export function resetTutorialFlag(flag: 'firstListingCompleted' | 'firstBidCompleted' | 'firstDecryptCompleted'): void {
+export function resetTutorialFlag(flag: TutorialFlag): void {
   const current = getOnboardingState()
   setOnboardingState({ ...current, [flag]: false })
 }
