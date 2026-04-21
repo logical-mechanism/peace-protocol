@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import MySalesTab from '../MySalesTab';
 import { ModalProvider } from '../../contexts/ModalContext';
 import { MY_SALES_INITIAL } from '../../hooks/useTabFilterState';
 import type { EncryptionDisplay, BidDisplay } from '../../services/api';
+import { getOnboardingState, setOnboardingState } from '../../services/onboardingStorage';
 
 // ── Mocks ───────────────────────────────────────────────────────────
 
@@ -97,9 +98,21 @@ function renderTab(overrides: Partial<Parameters<typeof MySalesTab>[0]> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
+
+/** Simulate a user who has finished base onboarding but not the accept-bid tutorial. */
+function primeOnboardingForAcceptBidBanner() {
+  setOnboardingState({
+    step: 3,
+    completed: true,
+    firstListingCompleted: true,
+    firstBidCompleted: true,
+    firstBidAcceptedCompleted: false,
+  });
+}
 
 describe('MySalesTab', () => {
   it('shows empty state when user has no listings', async () => {
@@ -192,6 +205,110 @@ describe('MySalesTab', () => {
     await waitFor(() => {
       const srRegion = document.querySelector('[role="status"][aria-live="polite"]');
       expect(srRegion).toBeInTheDocument();
+    });
+  });
+
+  describe('accept-bid tutorial banner', () => {
+    it('shows the banner when a listing has a pending bid and tour is not complete', async () => {
+      primeOnboardingForAcceptBidBanner();
+      const enc = makeEncryption({ tokenName: 'enc_eligible', description: 'Listing with pending bid' });
+      const bid = makeBid({ encryptionToken: 'enc_eligible', status: 'pending' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+      renderTab({ onStartAcceptBidTutorial: vi.fn() });
+
+      await waitFor(() => {
+        expect(screen.getByText('Ready to accept your first bid?')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Start Tour')).toBeInTheDocument();
+    });
+
+    it('hides the banner when no listing has a pending bid', async () => {
+      primeOnboardingForAcceptBidBanner();
+      const enc = makeEncryption({ tokenName: 'enc_no_bids', description: 'No bids' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+      renderTab({ onStartAcceptBidTutorial: vi.fn() });
+
+      await waitFor(() => {
+        expect(screen.getByText('No bids')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+    });
+
+    it('hides the banner once the tour is completed', async () => {
+      setOnboardingState({
+        step: 3, completed: true,
+        firstListingCompleted: true, firstBidCompleted: true, firstBidAcceptedCompleted: true,
+      });
+      const enc = makeEncryption({ tokenName: 'enc_done', description: 'Tour already done' });
+      const bid = makeBid({ encryptionToken: 'enc_done', status: 'pending' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+      renderTab({ onStartAcceptBidTutorial: vi.fn() });
+
+      await waitFor(() => {
+        expect(screen.getByText('Tour already done')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+    });
+
+    it('fires onStartAcceptBidTutorial with the eligible listing on click', async () => {
+      primeOnboardingForAcceptBidBanner();
+      const enc = makeEncryption({ tokenName: 'enc_eligible_click', description: 'Eligible' });
+      const bid = makeBid({ encryptionToken: 'enc_eligible_click', status: 'pending' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+      const onStart = vi.fn();
+      renderTab({ onStartAcceptBidTutorial: onStart });
+
+      await waitFor(() => {
+        expect(screen.getByText('Start Tour')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Start Tour'));
+      expect(onStart).toHaveBeenCalledTimes(1);
+      expect(onStart.mock.calls[0][0].tokenName).toBe('enc_eligible_click');
+      // Banner disappears after Start Tour click
+      expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+    });
+
+    it('hides on dismiss click without firing the tour callback', async () => {
+      primeOnboardingForAcceptBidBanner();
+      const enc = makeEncryption({ tokenName: 'enc_dismissable', description: 'Dismissable' });
+      const bid = makeBid({ encryptionToken: 'enc_dismissable', status: 'pending' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+      const onStart = vi.fn();
+      renderTab({ onStartAcceptBidTutorial: onStart });
+
+      await waitFor(() => {
+        expect(screen.getByText('Ready to accept your first bid?')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByLabelText('Dismiss accept-bid tutorial banner'));
+      expect(onStart).not.toHaveBeenCalled();
+      expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+      // Flag should remain untouched — dismissing the banner is not "completing" the tour
+      expect(getOnboardingState().firstBidAcceptedCompleted).toBe(false);
+    });
+
+    it('hides the banner when onStartAcceptBidTutorial prop is not provided', async () => {
+      primeOnboardingForAcceptBidBanner();
+      const enc = makeEncryption({ tokenName: 'enc_no_handler', description: 'No handler' });
+      const bid = makeBid({ encryptionToken: 'enc_no_handler', status: 'pending' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+      renderTab(); // no onStartAcceptBidTutorial
+
+      await waitFor(() => {
+        expect(screen.getByText('No handler')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
     });
   });
 });

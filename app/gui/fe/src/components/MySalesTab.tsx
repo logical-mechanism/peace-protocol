@@ -13,6 +13,7 @@ import EmptyState, { PackageIcon } from './EmptyState';
 import { NoSalesIllustration, NoResultsIllustration } from './EmptyStateIllustrations';
 import { listCachedImages, deleteCachedImage, type ImageCacheStatus } from '../services/imageCache';
 import { getNsfwEnabled } from '../services/nsfwStorage';
+import { getOnboardingState } from '../services/onboardingStorage';
 import RefreshIndicator from './RefreshIndicator';
 import AcceptBidQueuePanel from './AcceptBidQueuePanel';
 import type { MySalesFilters, MySalesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
@@ -32,6 +33,7 @@ interface MySalesTabProps {
   onCompleteSale?: (encryption: EncryptionDisplay) => void;
   onCreateListing?: () => void;
   onBidsViewed?: (encryptionTokenName: string) => void;
+  onStartAcceptBidTutorial?: (encryption: EncryptionDisplay) => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MySalesFilters;
@@ -47,6 +49,7 @@ function MySalesTab({
   onCompleteSale,
   onCreateListing,
   onBidsViewed,
+  onStartAcceptBidTutorial,
   onLocalRefresh,
   refreshSignal,
   filters,
@@ -70,6 +73,7 @@ function MySalesTab({
   // Modal state
   const [selectedListing, setSelectedListing] = useState<EncryptionDisplay | null>(null);
   const [bidsModalOpen, setBidsModalOpen] = useState(false);
+  const [acceptBidBannerDismissed, setAcceptBidBannerDismissed] = useState(false);
 
   const hasDataRef = useRef(false);
 
@@ -221,6 +225,23 @@ function MySalesTab({
     return result;
   }, [filtered, sortBy, bidStats.map]);
 
+  // First active listing with at least one pending bid — used by the
+  // accept-bid tutorial banner. Hiding the banner when nothing is bid-worthy
+  // prevents a dead-end tooltip (no Accept button to spotlight).
+  const firstBidEligibleListing = useMemo(() => {
+    return encryptions.find(
+      (e) => e.status === 'active' && (bidStats.map.get(e.tokenName) ?? 0) > 0,
+    );
+  }, [encryptions, bidStats.map]);
+
+  const showAcceptBidBanner = useMemo(() => {
+    if (acceptBidBannerDismissed) return false;
+    if (!firstBidEligibleListing) return false;
+    if (!onStartAcceptBidTutorial) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstBidAcceptedCompleted;
+  }, [acceptBidBannerDismissed, firstBidEligibleListing, onStartAcceptBidTutorial]);
+
   // Load more pagination
   const ITEMS_PER_PAGE = 24;
 
@@ -349,6 +370,63 @@ function MySalesTab({
       <RefreshIndicator visible={isRefreshing} />
       {/* Auto-Accept Queue Panel */}
       <AcceptBidQueuePanel />
+      {/* First-bid-accepted tutorial banner — only when user actually has a pending bid to accept */}
+      {showAcceptBidBanner && firstBidEligibleListing && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('mySales.acceptBidBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('mySales.acceptBidBannerDesc')}</span>
+          </div>
+          <button
+            onClick={() => {
+              setAcceptBidBannerDismissed(true);
+              setSelectedListing(firstBidEligibleListing);
+              setBidsModalOpen(true);
+              onBidsViewed?.(firstBidEligibleListing.tokenName);
+              onStartAcceptBidTutorial?.(firstBidEligibleListing);
+            }}
+            className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--bg-primary)',
+            }}
+          >
+            {t('mySales.acceptBidBannerStart')}
+          </button>
+          <button
+            onClick={() => setAcceptBidBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('mySales.acceptBidBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">

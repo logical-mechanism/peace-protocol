@@ -312,7 +312,6 @@ export default function Dashboard() {
     setRefreshTrigger: setQueueRefresh,
     currentItem: queueCurrentItem,
     completedCount: queueCompletedCount,
-    queue: queueItems,
   } = queueCtx
   useEffect(() => {
     setQueueToast(toast)
@@ -412,19 +411,6 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, decryptTutorialTarget])
 
-  // First-bid-accepted auto-start on queue activity — catches users who click
-  // Accept without seeing Settings. Joins at step 2 (index 1) since the user
-  // has already clicked Accept by the time the queue has work.
-  useEffect(() => {
-    if (activeTutorialKey) return
-    if (getOnboardingState().firstBidAcceptedCompleted) return
-    const hasQueueActivity = queueCurrentItem !== null || queueItems.some(i => i.status === 'queued')
-    if (hasQueueActivity) {
-      setActiveTab('my-sales')
-      handleStartFirstBidAcceptedTutorial({ startStep: 1 })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queueCurrentItem, queueItems])
 
   // Event-driven step advancement: watch queue state transitions and move the
   // tour forward without user Next clicks. Completion (step 4) is detected via
@@ -1031,6 +1017,7 @@ export default function Dashboard() {
                 onCompleteSale={seller.handleCompleteSale}
                 onCreateListing={handleOpenCreateListing}
                 onBidsViewed={effects.bidNotifications.markListingSeen}
+                onStartAcceptBidTutorial={() => handleStartFirstBidAcceptedTutorial({ startStep: 0 })}
                 onLocalRefresh={handleLocalRefresh}
                 filters={mySalesFilters}
                 dispatch={mySalesDispatch}
