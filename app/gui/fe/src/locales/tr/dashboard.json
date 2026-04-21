@@ -230,7 +230,11 @@
     "noMatchingTitle": "Eşleşen teklif yok",
     "noMatchingDesc": "Arama veya filtrelerinizi ayarlamayı deneyin",
     "noBidsTitle": "Teklif bulunamadı",
-    "noBidsDesc": "Teklifleriniz burada görünecektir"
+    "noBidsDesc": "Teklifleriniz burada görünecektir",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "İşlem geçmişi yükleniyor…",

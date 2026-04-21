@@ -79,7 +79,7 @@ cd app/gui/fe && npx vitest run
 - [Veiled Desktop App](./app/gui/README.md) — setup, AppImage usage, CLI options
 - [Technical Report (PDF)](./documentation/technical_report.pdf)
 - [Architecture and Data Model](./documentation/architecture.md)
-- [Smart Contract Audit](./app/contracts/claude-audit.md)
+- [Smart Contract Audits](./app/contracts/audits/)
 - [Groth Optimization History](./app/contracts/groth-optimization.md)
 - [Encrypted Payload CDDL](./app/peace-payload.cddl)
 

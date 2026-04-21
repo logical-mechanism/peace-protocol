@@ -25,6 +25,7 @@ describe('TutorialsSection', () => {
       completed: true,
       firstListingCompleted: false,
       firstBidCompleted: false,
+      firstDecryptCompleted: false,
     })
   })
 
@@ -50,6 +51,7 @@ describe('TutorialsSection', () => {
       completed: true,
       firstListingCompleted: true,
       firstBidCompleted: true,
+      firstDecryptCompleted: true,
     })
     render(<TutorialsSection />)
     const badges = screen.getAllByText('Completed')
@@ -59,7 +61,7 @@ describe('TutorialsSection', () => {
   it('shows Start buttons for incomplete flows with navigation', () => {
     render(<TutorialsSection />)
     const starts = screen.getAllByText('Start')
-    expect(starts.length).toBe(2) // first-listing + first-bid
+    expect(starts.length).toBe(3) // first-listing + first-bid + first-decrypt
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -68,6 +70,7 @@ describe('TutorialsSection', () => {
       completed: true,
       firstListingCompleted: true,
       firstBidCompleted: false,
+      firstDecryptCompleted: false,
     })
     render(<TutorialsSection />)
     expect(screen.getByText('Replay')).toBeInTheDocument()
@@ -96,6 +99,16 @@ describe('TutorialsSection', () => {
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstBidCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'marketplace' },
+    })
+  })
+
+  it('resets only first-decrypt flag and navigates on first-decrypt Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[2]) // first-decrypt Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstDecryptCompleted')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+      state: { tab: 'my-purchases', startTutorial: 'first-decrypt' },
     })
   })
 

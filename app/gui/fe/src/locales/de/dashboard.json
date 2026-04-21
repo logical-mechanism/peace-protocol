@@ -230,7 +230,11 @@
     "noMatchingTitle": "Keine passenden Gebote",
     "noMatchingDesc": "Versuche deine Suche oder Filter anzupassen",
     "noBidsTitle": "Keine Gebote gefunden",
-    "noBidsDesc": "Deine Gebote werden hier angezeigt"
+    "noBidsDesc": "Deine Gebote werden hier angezeigt",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "Transaktionsverlauf wird geladen…",

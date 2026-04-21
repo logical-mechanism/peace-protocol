@@ -566,6 +566,7 @@ export default function DecryptModal({
             // initial focus; Cancel stays visually on the left.
             <div className="flex flex-row-reverse gap-3">
               <button
+                data-tutorial="decrypt-now-button"
                 onClick={handleDecrypt}
                 disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"

@@ -356,6 +356,16 @@
       "step3Desc": "이 입찰에서 낙찰되면 다른 구매자를 위해 데이터를 다시 목록에 올릴 수 있습니다. 이는 다음 목록에 대한 제안 가격을 설정합니다. 건너뛰려면 비워두세요.",
       "step4Title": "입찰 제출",
       "step4Desc": "제출하면 온체인에 입찰 토큰이 생성되고 ADA가 잠깁니다. 판매자가 수락하지 않은 경우 타임록 기간 만료 후 취소할 수 있습니다."
+    },
+    "decrypt": {
+      "step1Title": "Decrypt Your Purchase",
+      "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",
+      "step2Title": "SNARK Verification",
+      "step2Desc": "We compute a zero-knowledge proof locally to prove ownership without exposing your keys. This runs on your machine and can take a moment.",
+      "step3Title": "Saved to Library",
+      "step3Desc": "Once decryption finishes, your content is saved here in the Library tab. Switch over to view, play, or export what you purchased.",
+      "step4Title": "Play, Export, Relist",
+      "step4Desc": "Open any item to play media, preview text/PDFs, save a copy to disk with Save As, or relist it for other buyers."
     }
   },
   "mnemonic": {

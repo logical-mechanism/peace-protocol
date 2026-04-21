@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import MyPurchasesTab from '../MyPurchasesTab';
 import { ModalProvider } from '../../contexts/ModalContext';
@@ -24,6 +24,11 @@ vi.mock('../../services/bidSecretStorage', () => ({
 
 vi.mock('../../services/libraryService', () => ({
   listLibraryItems: vi.fn().mockResolvedValue([]),
+}));
+
+const mockGetOnboardingState = vi.fn();
+vi.mock('../../services/onboardingStorage', () => ({
+  getOnboardingState: (...args: unknown[]) => mockGetOnboardingState(...args),
 }));
 
 import { bidsApi, encryptionsApi } from '../../services/api';
@@ -85,6 +90,15 @@ beforeEach(() => {
   (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  // Default: onboarding done, tutorial not yet shown (banner would appear when
+  // an accepted bid is present).
+  mockGetOnboardingState.mockReturnValue({
+    step: 3,
+    completed: true,
+    firstListingCompleted: true,
+    firstBidCompleted: true,
+    firstDecryptCompleted: false,
+  });
 });
 
 describe('MyPurchasesTab — bid secrets error feedback', () => {
@@ -203,5 +217,175 @@ describe('MyPurchasesTab — bid secrets error feedback', () => {
       // Should show the bids section with at least one bid card
       expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
     });
+  });
+});
+
+describe('MyPurchasesTab — first-decrypt tutorial banner', () => {
+  it('shows the banner when buyer has an accepted bid and tutorial is incomplete', async () => {
+    const encToken = 'enc_banner_show';
+    const enc = makeEncryption({ tokenName: encToken });
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_banner_show', encryptionToken: encToken });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/your first winning bid is ready/i)).toBeInTheDocument();
+    });
+  });
+
+  it('hides the banner when onboarding is not yet completed', async () => {
+    mockGetOnboardingState.mockReturnValue({
+      step: 0,
+      completed: false,
+      firstListingCompleted: false,
+      firstBidCompleted: false,
+      firstDecryptCompleted: false,
+    });
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_banner_pre_onboard' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/your first winning bid is ready/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the banner when the tutorial is already completed', async () => {
+    mockGetOnboardingState.mockReturnValue({
+      step: 3,
+      completed: true,
+      firstListingCompleted: true,
+      firstBidCompleted: true,
+      firstDecryptCompleted: true,
+    });
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_banner_done' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/your first winning bid is ready/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the banner when there are no accepted bids waiting to decrypt', async () => {
+    const bid = makeBid({ status: 'pending', tokenName: 'bid_banner_pending' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/your first winning bid is ready/i)).not.toBeInTheDocument();
+  });
+
+  it('starts the tutorial with the first accepted bid when Start is clicked', async () => {
+    const onStart = vi.fn();
+    const encToken = 'enc_banner_start';
+    const enc = makeEncryption({ tokenName: encToken });
+    const accepted = makeBid({ status: 'accepted', tokenName: 'bid_banner_start', encryptionToken: encToken, createdAt: '2024-06-10T09:00:00Z' });
+    const pending = makeBid({ status: 'pending', tokenName: 'bid_banner_start_pending', encryptionToken: encToken, createdAt: '2024-06-09T09:00:00Z' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([pending, accepted]);
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+    renderTab({ onStartDecryptTutorial: onStart });
+
+    await waitFor(() => {
+      expect(screen.getByText(/your first winning bid is ready/i)).toBeInTheDocument();
+    });
+    const startBtn = screen.getByRole('button', { name: /start tour/i });
+    fireEvent.click(startBtn);
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onStart.mock.calls[0][0].bid?.tokenName).toBe('bid_banner_start');
+    expect(onStart.mock.calls[0][0].encryption.tokenName).toBe(encToken);
+  });
+
+  it('falls back to a purchased encryption when no accepted bid is waiting', async () => {
+    const onStart = vi.fn();
+    const enc = makeEncryption({ tokenName: 'enc_owned', sellerPkh: USER_PKH });
+    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_owned']);
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+    (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { bidTokenName: 'bid1', b: BigInt(42) },
+    ]);
+
+    renderTab({ onStartDecryptTutorial: onStart });
+
+    await waitFor(() => {
+      expect(screen.getByText(/your first winning bid is ready/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /start tour/i }));
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onStart.mock.calls[0][0].bid).toBeUndefined();
+    expect(onStart.mock.calls[0][0].encryption.tokenName).toBe('enc_owned');
+  });
+
+  it('hides the banner when the buyer has no bids and no purchased encryptions', async () => {
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no purchases yet/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/your first winning bid is ready/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the banner after the dismiss button is clicked', async () => {
+    const encToken = 'enc_banner_dismiss';
+    const enc = makeEncryption({ tokenName: encToken });
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_banner_dismiss', encryptionToken: encToken });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/your first winning bid is ready/i)).toBeInTheDocument();
+    });
+    const dismiss = screen.getByRole('button', { name: /dismiss/i });
+    fireEvent.click(dismiss);
+    await waitFor(() => {
+      expect(screen.queryByText(/your first winning bid is ready/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('auto-starts the tutorial when autoStartDecryptTutorial flips true (Settings Replay)', async () => {
+    const onStart = vi.fn();
+    const onConsumed = vi.fn();
+    const encToken = 'enc_auto_start';
+    const enc = makeEncryption({ tokenName: encToken });
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_auto_start', encryptionToken: encToken });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+    renderTab({
+      onStartDecryptTutorial: onStart,
+      autoStartDecryptTutorial: true,
+      onAutoStartConsumed: onConsumed,
+    });
+
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
+    expect(onStart.mock.calls[0][0].bid?.tokenName).toBe('bid_auto_start');
+    expect(onConsumed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not auto-start the tutorial when autoStartDecryptTutorial is false', async () => {
+    const onStart = vi.fn();
+    const bid = makeBid({ status: 'accepted', tokenName: 'bid_no_auto_start' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+    renderTab({ onStartDecryptTutorial: onStart });
+
+    await waitFor(() => {
+      expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
+    });
+    expect(onStart).not.toHaveBeenCalled();
   });
 });

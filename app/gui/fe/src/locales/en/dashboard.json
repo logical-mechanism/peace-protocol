@@ -20,7 +20,7 @@
     "iagonOfflineTitle": "Iagon not connected - click to configure",
     "collateralSet": "Collateral Set",
     "noCollateral": "No Collateral",
-    "noCollateralTitle": "No collateral UTxO found \u2014 click to set up in Settings",
+    "noCollateralTitle": "No collateral UTxO found — click to set up in Settings",
     "createListing": "Create Listing",
     "moreListingOptionsAria": "More listing options",
     "newListing": "New Listing",
@@ -32,7 +32,7 @@
     "settingsAria": "Settings",
     "disconnect": "Disconnect",
     "unfinishedListingTitle": "Unfinished Listing Found",
-    "unfinishedListingBody": "A file listing for \"{{filename}}\" was uploaded but the transaction was not completed. The file is still on Iagon \u2014 you can resume without re-uploading.",
+    "unfinishedListingBody": "A file listing for \"{{filename}}\" was uploaded but the transaction was not completed. The file is still on Iagon — you can resume without re-uploading.",
     "discard": "Discard",
     "resumeListing": "Resume Listing",
     "dismissTitle": "Dismiss",
@@ -230,7 +230,11 @@
     "noMatchingTitle": "No matching bids",
     "noMatchingDesc": "Try adjusting your search or filters",
     "noBidsTitle": "No bids found",
-    "noBidsDesc": "Your bids will appear here"
+    "noBidsDesc": "Your bids will appear here",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "Loading transaction history…",

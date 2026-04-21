@@ -21,6 +21,13 @@ import LayoutPopover from './LayoutPopover';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
+import { getOnboardingState } from '../services/onboardingStorage';
+
+export interface DecryptTutorialTarget {
+  bid?: BidDisplay;
+  encryption: EncryptionDisplay;
+  ownerPkh?: string;
+}
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -30,6 +37,13 @@ interface MyPurchasesTabProps {
   onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
+  onStartDecryptTutorial?: (target: DecryptTutorialTarget) => void;
+  /** When true, auto-invoke onStartDecryptTutorial as soon as data loads and a
+   * target exists. Used by Settings "Replay" to re-trigger the flow without the
+   * user having to find the banner. Parent should flip this back to false after
+   * the start fires to avoid re-triggering on refresh. */
+  autoStartDecryptTutorial?: boolean;
+  onAutoStartConsumed?: () => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -44,6 +58,9 @@ function MyPurchasesTab({
   onDecryptEncryption,
   onSwitchTab,
   onLocalRefresh,
+  onStartDecryptTutorial,
+  autoStartDecryptTutorial,
+  onAutoStartConsumed,
   refreshSignal,
   filters,
   dispatch,
@@ -62,6 +79,7 @@ function MyPurchasesTab({
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
+  const [decryptBannerDismissed, setDecryptBannerDismissed] = useState(false);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -195,6 +213,51 @@ function MyPurchasesTab({
     }
     return counts;
   }, [bids, isCompletedAfterBid]);
+
+  // Tutorial target. Prefer an accepted-but-not-yet-decrypted bid (the happy
+  // path: spotlight → Decrypt → SNARK → Library). Fall back to the first
+  // already-purchased encryption so users who already decrypted everything
+  // can still replay the tour — re-decrypting an owned encryption exercises
+  // the same DecryptModal path.
+  const decryptTutorialTarget = useMemo<DecryptTutorialTarget | null>(() => {
+    const readyBid = bids
+      .filter((b) => b.status === 'accepted' && !isCompletedAfterBid(b))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (readyBid) {
+      const enc = encryptionsMap.get(readyBid.encryptionToken);
+      if (enc) return { bid: readyBid, encryption: enc };
+    }
+    const ownedEnc = purchasedEncryptions[0];
+    if (ownedEnc) {
+      return { encryption: ownedEnc, ownerPkh: ownedEnc.resold ? userPkh : undefined };
+    }
+    return null;
+  }, [bids, purchasedEncryptions, encryptionsMap, isCompletedAfterBid, userPkh]);
+
+  // Show banner when onboarding is complete, first-decrypt tutorial hasn't
+  // run, and the buyer has at least one decryptable target (accepted bid or
+  // already-purchased encryption).
+  const showDecryptBanner = useMemo(() => {
+    if (decryptBannerDismissed) return false;
+    if (!decryptTutorialTarget) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstDecryptCompleted;
+  }, [decryptBannerDismissed, decryptTutorialTarget]);
+
+  // Auto-start when parent requests (Settings "Replay"). Only fires once per
+  // mount of a requested start so it doesn't re-trigger on every re-render.
+  const autoStartFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoStartDecryptTutorial) {
+      autoStartFiredRef.current = false;
+      return;
+    }
+    if (autoStartFiredRef.current) return;
+    if (!decryptTutorialTarget || !onStartDecryptTutorial) return;
+    autoStartFiredRef.current = true;
+    onStartDecryptTutorial(decryptTutorialTarget);
+    onAutoStartConsumed?.();
+  }, [autoStartDecryptTutorial, decryptTutorialTarget, onStartDecryptTutorial, onAutoStartConsumed]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -346,6 +409,61 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      {showDecryptBanner && decryptTutorialTarget && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('myPurchases.decryptBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('myPurchases.decryptBannerDesc')}</span>
+          </div>
+          {onStartDecryptTutorial && (
+            <button
+              onClick={() => {
+                setDecryptBannerDismissed(true);
+                onStartDecryptTutorial(decryptTutorialTarget);
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('myPurchases.decryptBannerStart')}
+            </button>
+          )}
+          <button
+            onClick={() => setDecryptBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('myPurchases.decryptBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Purchased Encryptions Section */}
       {purchasedEncryptions.length > 0 && (
         <div className="mb-8">
@@ -411,6 +529,7 @@ function MyPurchasesTab({
                 )}
 
                 <button
+                  data-tutorial="decrypt-button"
                   onClick={() => onDecryptEncryption?.(enc, enc.resold ? userPkh : undefined)}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >

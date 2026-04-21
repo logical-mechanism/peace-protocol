@@ -356,6 +356,16 @@
       "step3Desc": "Se ganhar esta oferta, pode voltar a listar os dados para outros compradores. Isto define o preço sugerido para essa próxima listagem. Deixe em branco para ignorar.",
       "step4Title": "Submeter a sua oferta",
       "step4Desc": "Submeter cria um token de oferta on-chain e bloqueia os seus ADA. Pode cancelar após o período de bloqueio expirar se o vendedor não tiver aceitado."
+    },
+    "decrypt": {
+      "step1Title": "Decrypt Your Purchase",
+      "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",
+      "step2Title": "SNARK Verification",
+      "step2Desc": "We compute a zero-knowledge proof locally to prove ownership without exposing your keys. This runs on your machine and can take a moment.",
+      "step3Title": "Saved to Library",
+      "step3Desc": "Once decryption finishes, your content is saved here in the Library tab. Switch over to view, play, or export what you purchased.",
+      "step4Title": "Play, Export, Relist",
+      "step4Desc": "Open any item to play media, preview text/PDFs, save a copy to disk with Save As, or relist it for other buyers."
     }
   },
   "mnemonic": {

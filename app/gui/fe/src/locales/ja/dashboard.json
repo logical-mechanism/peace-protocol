@@ -230,7 +230,11 @@
     "noMatchingTitle": "一致する入札がありません",
     "noMatchingDesc": "検索条件やフィルターを調整してください",
     "noBidsTitle": "入札が見つかりません",
-    "noBidsDesc": "入札がここに表示されます"
+    "noBidsDesc": "入札がここに表示されます",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "トランザクション履歴を読み込み中…",

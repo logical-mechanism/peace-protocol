@@ -10,6 +10,7 @@ export interface OnboardingState {
   completed: boolean
   firstListingCompleted: boolean
   firstBidCompleted: boolean
+  firstDecryptCompleted: boolean
 }
 
 const DEFAULT_STATE: OnboardingState = {
@@ -17,6 +18,7 @@ const DEFAULT_STATE: OnboardingState = {
   completed: false,
   firstListingCompleted: false,
   firstBidCompleted: false,
+  firstDecryptCompleted: false,
 }
 
 /** Read onboarding state from localStorage. Returns default state if not found.
@@ -35,6 +37,9 @@ export function getOnboardingState(): OnboardingState {
       : false,
     firstBidCompleted: typeof parsed.firstBidCompleted === 'boolean'
       ? parsed.firstBidCompleted
+      : false,
+    firstDecryptCompleted: typeof parsed.firstDecryptCompleted === 'boolean'
+      ? parsed.firstDecryptCompleted
       : false,
   }
 }
@@ -79,18 +84,26 @@ export function markFirstBidCompleted(): void {
   setOnboardingState({ ...current, firstBidCompleted: true })
 }
 
-/** Re-enable both guided tutorials (clears completion flags). */
+/** Mark the first-decrypt tutorial as completed. */
+export function markFirstDecryptCompleted(): void {
+  const current = getOnboardingState()
+  if (current.firstDecryptCompleted) return
+  setOnboardingState({ ...current, firstDecryptCompleted: true })
+}
+
+/** Re-enable all guided tutorials (clears completion flags). */
 export function resetTutorials(): void {
   const current = getOnboardingState()
   setOnboardingState({
     ...current,
     firstListingCompleted: false,
     firstBidCompleted: false,
+    firstDecryptCompleted: false,
   })
 }
 
 /** Reset a single tutorial flag by key. */
-export function resetTutorialFlag(flag: 'firstListingCompleted' | 'firstBidCompleted'): void {
+export function resetTutorialFlag(flag: 'firstListingCompleted' | 'firstBidCompleted' | 'firstDecryptCompleted'): void {
   const current = getOnboardingState()
   setOnboardingState({ ...current, [flag]: false })
 }

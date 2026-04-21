@@ -230,7 +230,11 @@
     "noMatchingTitle": "Không có đặt giá phù hợp",
     "noMatchingDesc": "Hãy thử điều chỉnh tìm kiếm hoặc bộ lọc",
     "noBidsTitle": "Không tìm thấy đặt giá",
-    "noBidsDesc": "Đặt giá của bạn sẽ xuất hiện tại đây"
+    "noBidsDesc": "Đặt giá của bạn sẽ xuất hiện tại đây",
+    "decryptBannerTitle": "Your first winning bid is ready!",
+    "decryptBannerDesc": "Decrypt your content and we'll walk you through what happens next.",
+    "decryptBannerStart": "Start Tour",
+    "decryptBannerDismiss": "Dismiss"
   },
   "history": {
     "loading": "Đang tải lịch sử giao dịch…",
