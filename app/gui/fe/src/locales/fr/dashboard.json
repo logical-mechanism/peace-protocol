@@ -195,7 +195,11 @@
     "noMatchingTitle": "Aucune annonce correspondante",
     "noMatchingDesc": "Essayez d'ajuster votre recherche ou vos filtres",
     "noListingsTitle": "Aucune annonce trouvée",
-    "noListingsDesc": "Vos annonces apparaîtront ici"
+    "noListingsDesc": "Vos annonces apparaîtront ici",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Chargement de vos achats...",

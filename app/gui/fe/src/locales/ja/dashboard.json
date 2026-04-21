@@ -195,7 +195,11 @@
     "noMatchingTitle": "一致するリスティングがありません",
     "noMatchingDesc": "検索条件やフィルターを調整してください",
     "noListingsTitle": "リスティングが見つかりません",
-    "noListingsDesc": "リスティングがここに表示されます"
+    "noListingsDesc": "リスティングがここに表示されます",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "購入を読み込み中…",

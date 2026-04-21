@@ -195,7 +195,11 @@
     "noMatchingTitle": "Подходящих объявлений не найдено",
     "noMatchingDesc": "Попробуйте изменить параметры поиска или фильтры",
     "noListingsTitle": "Объявления не найдены",
-    "noListingsDesc": "Ваши объявления появятся здесь"
+    "noListingsDesc": "Ваши объявления появятся здесь",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Загрузка ваших покупок…",
