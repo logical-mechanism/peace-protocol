@@ -42,7 +42,7 @@ function AcceptBidQueuePanel() {
         : t('toast.acceptBidQueue.idle')
 
   return (
-    <div className="mb-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden">
+    <div id="tutorial-queue-panel" className="mb-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden">
       {/* Header bar — always visible */}
       <button
         onClick={() => setUserCollapsed(prev => !prev)}
@@ -104,7 +104,7 @@ function AcceptBidQueuePanel() {
           {/* Currently processing */}
           {currentItem && (
             <QueueSection title={t('toast.acceptBidQueue.currentlyProcessing')}>
-              <QueueItemCard item={currentItem} showElapsed />
+              <QueueItemCard item={currentItem} showElapsed anchorId="tutorial-queue-current-item" />
             </QueueSection>
           )}
 
@@ -243,10 +243,13 @@ function QueueItemCard({
   item,
   showElapsed,
   actions,
+  anchorId,
 }: {
   item: QueueItem
   showElapsed?: boolean
   actions?: React.ReactNode
+  /** Optional DOM id for tutorial targeting. */
+  anchorId?: string
 }) {
   const { t } = useTranslation('notifications')
   const label = item.encryption.description
@@ -257,7 +260,7 @@ function QueueItemCard({
   const statusKey = STATUS_KEYS[item.status] || STATUS_KEYS.queued
 
   return (
-    <div className="flex items-center justify-between gap-3 p-2.5 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
+    <div id={anchorId} className="flex items-center justify-between gap-3 p-2.5 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm text-[var(--text-primary)] truncate">{label}</span>
