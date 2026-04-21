@@ -356,6 +356,16 @@
       "step3Desc": "Jika Anda memenangkan tawaran ini, Anda dapat mendaftarkan ulang data untuk pembeli lain. Ini menetapkan harga yang disarankan untuk listing berikutnya. Biarkan kosong untuk melewati.",
       "step4Title": "Kirim Tawaran Anda",
       "step4Desc": "Mengirim membuat token tawaran on-chain dan mengunci ADA Anda. Anda dapat membatalkan setelah periode kunci waktu berakhir jika penjual belum menerima."
+    },
+    "decrypt": {
+      "step1Title": "Decrypt Your Purchase",
+      "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",
+      "step2Title": "SNARK Verification",
+      "step2Desc": "We compute a zero-knowledge proof locally to prove ownership without exposing your keys. This runs on your machine and can take a moment.",
+      "step3Title": "Saved to Library",
+      "step3Desc": "Once decryption finishes, your content is saved here in the Library tab. Switch over to view, play, or export what you purchased.",
+      "step4Title": "Play, Export, Relist",
+      "step4Desc": "Open any item to play media, preview text/PDFs, save a copy to disk with Save As, or relist it for other buyers."
     }
   },
   "mnemonic": {

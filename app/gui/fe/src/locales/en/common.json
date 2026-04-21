@@ -149,7 +149,7 @@
     "enableRepeat": "Enable repeat",
     "disableRepeat": "Disable repeat",
     "playbackSpeed": "Playback speed: {{speed}}x",
-    "speedShortcut": "Speed: {{speed}}x ({{key}}) \u00b7 Right-click for slider",
+    "speedShortcut": "Speed: {{speed}}x ({{key}}) · Right-click for slider",
     "speedTooltip": "Playback speed (right-click for fine control)",
     "fineSpeedControl": "Fine speed control",
     "toggleRemainingTime": "Toggle remaining time",
@@ -167,8 +167,8 @@
     "statusReady": "Ready",
     "hintPlayPause": "Play/Pause",
     "hintFullscreen": "Fullscreen",
-    "hintSeek": "Seek \u00b15s",
-    "hintSeekShift": "Seek \u00b15s / Shift \u00b130s",
+    "hintSeek": "Seek ±5s",
+    "hintSeekShift": "Seek ±5s / Shift ±30s",
     "hintMute": "Mute",
     "hintBackPlayFwd": "Back / Play / Fwd",
     "hintStop": "Stop",
@@ -302,7 +302,7 @@
     "strong": "Strong"
   },
   "select": {
-    "placeholder": "Select\u2026",
+    "placeholder": "Select…",
     "searchPlaceholder": "Search...",
     "noMatches": "No matches"
   },
@@ -356,6 +356,16 @@
       "step3Desc": "If you win this bid, you can re-list the data for other buyers. This sets the suggested price for that next listing. Leave blank to skip.",
       "step4Title": "Submit Your Bid",
       "step4Desc": "Submitting creates a bid token on-chain and locks your ADA. You can cancel after the timelock period expires if the seller hasn't accepted."
+    },
+    "decrypt": {
+      "step1Title": "Decrypt Your Purchase",
+      "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",
+      "step2Title": "SNARK Verification",
+      "step2Desc": "We compute a zero-knowledge proof locally to prove ownership without exposing your keys. This runs on your machine and can take a moment.",
+      "step3Title": "Saved to Library",
+      "step3Desc": "Once decryption finishes, your content is saved here in the Library tab. Switch over to view, play, or export what you purchased.",
+      "step4Title": "Play, Export, Relist",
+      "step4Desc": "Open any item to play media, preview text/PDFs, save a copy to disk with Save As, or relist it for other buyers."
     }
   },
   "mnemonic": {

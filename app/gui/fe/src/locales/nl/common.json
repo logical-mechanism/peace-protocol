@@ -356,6 +356,16 @@
       "step3Desc": "Als u dit bod wint, kunt u de data opnieuw aanbieden voor andere kopers. Dit stelt de voorgestelde prijs in voor die volgende aanbieding. Laat leeg om over te slaan.",
       "step4Title": "Dien uw bod in",
       "step4Desc": "Indienen maakt een bod-token on-chain aan en vergrendelt uw ADA. U kunt annuleren nadat de vergrendelperiode is verlopen als de verkoper niet heeft geaccepteerd."
+    },
+    "decrypt": {
+      "step1Title": "Decrypt Your Purchase",
+      "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",
+      "step2Title": "SNARK Verification",
+      "step2Desc": "We compute a zero-knowledge proof locally to prove ownership without exposing your keys. This runs on your machine and can take a moment.",
+      "step3Title": "Saved to Library",
+      "step3Desc": "Once decryption finishes, your content is saved here in the Library tab. Switch over to view, play, or export what you purchased.",
+      "step4Title": "Play, Export, Relist",
+      "step4Desc": "Open any item to play media, preview text/PDFs, save a copy to disk with Save As, or relist it for other buyers."
     }
   },
   "mnemonic": {
