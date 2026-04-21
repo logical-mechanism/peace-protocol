@@ -391,6 +391,7 @@
       "submitFailed": "Nie udalo sie zlozyc oferty. Sprobuj ponownie."
     },
     "hints": {
+      "tipLabel": "Wskazówka:",
       "bidAmount": "To jest kwota ADA, którą oferujesz. Jest blokowana on-chain, dopóki sprzedawca nie zaakceptuje lub blokada czasowa nie wygaśnie i anulujesz.",
       "futurePrice": "Jeśli wygrasz, możesz ponownie wystawić dane. To ustala sugerowaną cenę dla następnego kupującego.",
       "submit": "Wysłanie tworzy token oferty on-chain. Twoje ADA są zablokowane w kontrakcie — możesz anulować po wygaśnięciu okresu blokady."

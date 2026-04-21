@@ -391,6 +391,7 @@
       "submitFailed": "Bod plaatsen mislukt. Probeer het opnieuw."
     },
     "hints": {
+      "tipLabel": "Tip:",
       "bidAmount": "Dit is het ADA-bedrag dat u biedt. Het wordt on-chain vergrendeld totdat de verkoper accepteert of de vergrendelperiode verloopt en u annuleert.",
       "futurePrice": "Als u wint, kunt u de data opnieuw aanbieden. Dit stelt de voorgestelde prijs in voor de volgende koper.",
       "submit": "Indienen maakt een bod-token on-chain aan. Uw ADA wordt vergrendeld in het contract — u kunt annuleren nadat de vergrendelperiode is verlopen."

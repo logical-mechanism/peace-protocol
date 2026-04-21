@@ -391,6 +391,7 @@
       "submitFailed": "Gebot konnte nicht abgegeben werden. Bitte erneut versuchen."
     },
     "hints": {
+      "tipLabel": "Tipp:",
       "bidAmount": "Dies ist der ADA-Betrag, den Sie anbieten. Er wird on-chain gesperrt, bis der Verkäufer akzeptiert oder die Sperrfrist abläuft und Sie stornieren.",
       "futurePrice": "Wenn Sie gewinnen, können Sie die Daten erneut listen. Dies legt den vorgeschlagenen Preis für den nächsten Käufer fest.",
       "submit": "Das Absenden erstellt ein Gebot-Token on-chain. Ihre ADA werden im Vertrag gesperrt — Sie können nach Ablauf der Sperrfrist stornieren."

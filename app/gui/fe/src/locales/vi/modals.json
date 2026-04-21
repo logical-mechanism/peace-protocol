@@ -391,6 +391,7 @@
       "submitFailed": "Không thể đặt giá. Vui lòng thử lại."
     },
     "hints": {
+      "tipLabel": "Mẹo:",
       "bidAmount": "Đây là số lượng ADA bạn đang đề nghị. Nó được khóa trên chuỗi cho đến khi người bán chấp nhận hoặc thời gian khóa hết hạn và bạn hủy.",
       "futurePrice": "Nếu bạn thắng, bạn có thể đăng lại dữ liệu. Điều này đặt giá đề xuất cho người mua tiếp theo.",
       "submit": "Gửi tạo một token đặt giá trên chuỗi. ADA của bạn bị khóa trong hợp đồng — bạn có thể hủy sau khi thời gian khóa hết hạn."

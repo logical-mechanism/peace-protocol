@@ -391,6 +391,7 @@
       "submitFailed": "Gagal mengajukan tawaran. Silakan coba lagi."
     },
     "hints": {
+      "tipLabel": "Tip:",
       "bidAmount": "Ini adalah jumlah ADA yang Anda tawarkan. Ini dikunci di on-chain sampai penjual menerima atau periode kunci waktu berakhir dan Anda membatalkan.",
       "futurePrice": "Jika Anda menang, Anda dapat mendaftarkan ulang data. Ini menetapkan harga yang disarankan untuk pembeli berikutnya.",
       "submit": "Mengirim membuat token tawaran on-chain. ADA Anda dikunci dalam kontrak — Anda dapat membatalkan setelah periode kunci waktu berakhir."

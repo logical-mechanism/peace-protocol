@@ -391,6 +391,7 @@
       "submitFailed": "Impossibile effettuare l'offerta. Riprova."
     },
     "hints": {
+      "tipLabel": "Suggerimento:",
       "bidAmount": "Questo è l'importo di ADA che offri. Viene bloccato on-chain finché il venditore non accetta o il periodo di blocco scade e annulli.",
       "futurePrice": "Se vinci, puoi rimettere in vendita i dati. Questo imposta il prezzo suggerito per il prossimo acquirente.",
       "submit": "L'invio crea un token di offerta on-chain. I tuoi ADA sono bloccati nel contratto — puoi annullare dopo la scadenza del periodo di blocco."

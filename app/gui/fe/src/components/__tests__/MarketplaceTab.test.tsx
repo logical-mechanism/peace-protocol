@@ -385,8 +385,9 @@ describe('MarketplaceTab', () => {
   });
 
   it('dismisses tutorial banner on X click (session only)', async () => {
+    // firstBidCompleted: true so only the listing banner renders — isolates this test
     (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
-      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: true,
     });
 
     renderTab();
@@ -444,7 +445,7 @@ describe('MarketplaceTab', () => {
     });
   });
 
-  it('does not show bid banner when listing banner is visible', async () => {
+  it('shows both banners when both listing and bid tutorials are incomplete', async () => {
     (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
       step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
     });
@@ -453,7 +454,7 @@ describe('MarketplaceTab', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
-      expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
     });
   });
 });
