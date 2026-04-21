@@ -63,7 +63,9 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
-  const [showBidHints, setShowBidHints] = useState(false);
+  // Re-read on every open so Settings "Reset All" takes effect without remounting.
+  // Not a useState — reads directly from localStorage each render while the modal is open.
+  const showBidHints = isOpen && !getOnboardingState().firstBidCompleted;
   const bidAmountRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
@@ -72,7 +74,6 @@ export default function PlaceBidModal({
       setErrors({});
       setSubmitError(null);
       setRestoredFromDraft(false);
-      setShowBidHints(!getOnboardingState().firstBidCompleted);
 
       // Try to restore from a saved draft for this encryption
       const draft = encryption ? getBidFormDraft(encryption.tokenName) : null;
