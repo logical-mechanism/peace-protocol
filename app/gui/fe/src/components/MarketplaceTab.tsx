@@ -65,15 +65,6 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     return state.completed && !state.firstListingCompleted;
   }, [tutorialBannerDismissed]);
 
-  // Show bid tutorial banner when onboarding is done and first bid hasn't been completed.
-  // Shown independently of the listing banner — both can coexist so users testing the bid
-  // flow don't get blocked by the listing tutorial being incomplete.
-  const showBidBanner = useMemo(() => {
-    if (bidBannerDismissed) return false;
-    const state = getOnboardingState();
-    return state.completed && !state.firstBidCompleted;
-  }, [bidBannerDismissed]);
-
   // Close filters panel on Escape key
   useEffect(() => {
     if (!filtersOpen) return;
@@ -270,6 +261,16 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
       (e) => !isOwnListing(e) && !userBidEncryptionTokens.has(e.tokenName) && e.status === 'active'
     );
   }, [paginatedResults, isOwnListing, userBidEncryptionTokens]);
+
+  // Show bid tutorial banner when onboarding is done, first bid not completed, AND
+  // there is actually a bid-eligible listing on screen. Hiding when the marketplace
+  // has nothing to bid on avoids a dead-end banner ("click Place Bid" with no cards).
+  const showBidBanner = useMemo(() => {
+    if (bidBannerDismissed) return false;
+    if (!firstBidEligible) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstBidCompleted;
+  }, [bidBannerDismissed, firstBidEligible]);
 
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
