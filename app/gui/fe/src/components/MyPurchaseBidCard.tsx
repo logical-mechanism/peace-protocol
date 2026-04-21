@@ -166,6 +166,7 @@ function MyPurchaseBidCard({
             )}
             {isAccepted && (
               <button
+                data-tutorial="decrypt-button"
                 onClick={() => onDecrypt?.(bid)}
                 className={`px-3 py-1.5 text-sm font-medium text-white rounded-[var(--radius-md)] btn-base ${
                   decryptFailed
@@ -348,6 +349,7 @@ function MyPurchaseBidCard({
         )}
         {isAccepted && (
           <button
+            data-tutorial="decrypt-button"
             onClick={() => onDecrypt?.(bid)}
             className={`w-full px-4 py-2.5 text-sm font-medium text-white rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base ${
               decryptFailed

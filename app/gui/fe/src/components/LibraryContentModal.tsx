@@ -594,7 +594,7 @@ export default function LibraryContentModal({
            * initial focus from useFocusTrap) while still appearing on the
            * right visually. */}
           <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
-            <div className="flex flex-row-reverse gap-3">
+            <div data-tutorial="library-content-actions" className="flex flex-row-reverse gap-3">
               <button
                 onClick={onClose}
                 className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
