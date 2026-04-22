@@ -110,6 +110,7 @@ function primeOnboardingForAcceptBidBanner() {
     completed: true,
     firstListingCompleted: true,
     firstBidCompleted: true,
+    firstDecryptCompleted: true,
     firstBidAcceptedCompleted: false,
   });
 }
@@ -241,7 +242,8 @@ describe('MySalesTab', () => {
     it('hides the banner once the tour is completed', async () => {
       setOnboardingState({
         step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true, firstBidAcceptedCompleted: true,
+        firstListingCompleted: true, firstBidCompleted: true,
+        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
       });
       const enc = makeEncryption({ tokenName: 'enc_done', description: 'Tour already done' });
       const bid = makeBid({ encryptionToken: 'enc_done', status: 'pending' });
