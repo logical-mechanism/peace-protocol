@@ -112,6 +112,7 @@ function primeOnboardingForAcceptBidBanner() {
     firstBidCompleted: true,
     firstDecryptCompleted: true,
     firstBidAcceptedCompleted: false,
+    iagonPrimerCompleted: false,
   });
 }
 
@@ -244,6 +245,7 @@ describe('MySalesTab', () => {
         step: 3, completed: true,
         firstListingCompleted: true, firstBidCompleted: true,
         firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: false,
       });
       const enc = makeEncryption({ tokenName: 'enc_done', description: 'Tour already done' });
       const bid = makeBid({ encryptionToken: 'enc_done', status: 'pending' });
