@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import TutorialsSection from '../TutorialsSection'
 
@@ -17,6 +17,12 @@ vi.mock('../../../services/onboardingStorage', () => ({
   resetTutorialFlag: (...args: unknown[]) => mockResetTutorialFlag(...args),
 }))
 
+const mockIsIagonConnected = vi.fn()
+vi.mock('../../../services/iagonAuth', () => ({
+  isIagonConnected: (...args: unknown[]) => mockIsIagonConnected(...args),
+  onIagonAuthFailure: vi.fn().mockReturnValue(() => {}),
+}))
+
 describe('TutorialsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -29,6 +35,7 @@ describe('TutorialsSection', () => {
       firstBidAcceptedCompleted: false,
       iagonPrimerCompleted: false,
     })
+    mockIsIagonConnected.mockResolvedValue(false)
   })
 
   it('renders tutorial flow rows and keyboard shortcuts', () => {
@@ -80,6 +87,43 @@ describe('TutorialsSection', () => {
     })
     render(<TutorialsSection />)
     expect(screen.getByText('Replay')).toBeInTheDocument()
+  })
+
+  it('derives iagon-primer completion from the live connection state', async () => {
+    mockIsIagonConnected.mockResolvedValue(true)
+    mockGetOnboardingState.mockReturnValue({
+      step: 3,
+      completed: true,
+      firstListingCompleted: false,
+      firstBidCompleted: false,
+      firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false, // stored flag says Not started
+    })
+    render(<TutorialsSection />)
+    // Only the iagon-primer row should show Completed despite the stored
+    // flag being false — the live connection wins for this row.
+    await waitFor(() => {
+      expect(screen.getByText('Completed')).toBeInTheDocument()
+    })
+  })
+
+  it('iagon-primer row shows Not started when the key is not connected', async () => {
+    mockIsIagonConnected.mockResolvedValue(false)
+    mockGetOnboardingState.mockReturnValue({
+      step: 3,
+      completed: true,
+      firstListingCompleted: false,
+      firstBidCompleted: false,
+      firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: true, // stored flag says Completed
+    })
+    render(<TutorialsSection />)
+    // Even though the stored flag is true, the live connection check wins.
+    await waitFor(() => {
+      expect(screen.queryByText('Completed')).not.toBeInTheDocument()
+    })
   })
 
   it('does not render Coming soon once every flow has navigation wired up', () => {

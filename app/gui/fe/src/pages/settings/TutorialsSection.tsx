@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { getOnboardingState, resetTutorials, resetTutorialFlag, type TutorialFlag } from '../../services/onboardingStorage'
+import { isIagonConnected, onIagonAuthFailure } from '../../services/iagonAuth'
 
 interface TutorialFlow {
   id: string
@@ -69,6 +70,23 @@ export default function TutorialsSection() {
 
   const [onboardingState, setOnboardingState] = useState(() => getOnboardingState())
   const [allReset, setAllReset] = useState(false)
+  // Iagon primer completion is derived from the live connection state rather
+  // than the stored flag — "setup" is done when the key is actually connected,
+  // and flips back to Not started if the key is removed or expires.
+  const [iagonConnected, setIagonConnected] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    isIagonConnected()
+      .then(v => { if (!cancelled) setIagonConnected(v) })
+      .catch(() => { if (!cancelled) setIagonConnected(false) })
+    const unsubscribe = onIagonAuthFailure(() => {
+      if (!cancelled) setIagonConnected(false)
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [])
 
   const handleResetAll = useCallback(() => {
     resetTutorials()
@@ -86,8 +104,13 @@ export default function TutorialsSection() {
   }, [navigate])
 
   const isFlowCompleted = useCallback((flow: TutorialFlow): boolean => {
+    // The Iagon primer row tracks "is the key currently connected" rather
+    // than the one-shot dismiss flag that gates the CreateListingModal
+    // banner — those are different concerns. If the user disconnects or
+    // the key expires, the row returns to Not started.
+    if (flow.id === 'iagon-primer') return iagonConnected
     return onboardingState[flow.completedFlag]
-  }, [onboardingState])
+  }, [onboardingState, iagonConnected])
 
   return (
     <div className="space-y-6">
