@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { stat } from '@tauri-apps/plugin-fs';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import type { IWallet } from '@meshsdk/core';
 import LoadingSpinner from './LoadingSpinner';
 import ConfirmModal from './ConfirmModal';
+import { useToast } from './Toast';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
@@ -17,6 +19,11 @@ import {
   getListingFormDraft,
   clearListingFormDraft,
 } from '../services/listingFormDraftStorage';
+import {
+  getOnboardingState,
+  markIagonPrimerCompleted,
+} from '../services/onboardingStorage';
+import { connectIagon } from '../services/iagonAuth';
 
 export interface CreateListingFormData {
   category: FileCategory;
@@ -52,6 +59,13 @@ interface CreateListingModalProps {
   prefill?: Partial<CreateListingFormData> | null;
   /** Override modal title (e.g. "Relist from Library"). */
   title?: string;
+  /** MeshWallet instance — required for the in-modal Iagon primer sign-in button. */
+  wallet?: IWallet | null;
+  /** Bech32 wallet address — required for the in-modal Iagon primer sign-in. */
+  address?: string | null;
+  /** Called after the primer successfully authenticates Iagon, so the parent can flip
+   * its cached `isIagonConnected` flag without waiting for the next poll. */
+  onIagonConnected?: () => void;
 }
 
 /** Files above this threshold show an informational upload time warning. */
@@ -108,9 +122,13 @@ export default function CreateListingModal({
   isIagonConnected = false,
   prefill,
   title,
+  wallet,
+  address,
+  onIagonConnected,
 }: CreateListingModalProps) {
   const { t } = useTranslation(['modals', 'common']);
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState<CreateListingFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   // Tracks which fields the user has actually interacted with. Blur-time
@@ -129,6 +147,9 @@ export default function CreateListingModal({
   const [isDirty, setIsDirty] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [primerDismissed, setPrimerDismissed] = useState<boolean>(() => getOnboardingState().iagonPrimerCompleted);
+  const [iagonSigningIn, setIagonSigningIn] = useState(false);
+  const [primerError, setPrimerError] = useState<string | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Refs read by the drag-drop event listener so it can subscribe once per
@@ -164,6 +185,9 @@ export default function CreateListingModal({
       setDraftSaved(false);
       setIsDirty(false);
       setShowCloseConfirm(false);
+      setPrimerDismissed(getOnboardingState().iagonPrimerCompleted);
+      setPrimerError(null);
+      setIagonSigningIn(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -494,6 +518,49 @@ export default function CreateListingModal({
     handleFieldBlur('suggestedPrice');
   };
 
+  // ── Iagon primer (shown inline when user picks a file category without an
+  // API key). Rendered instead of the full Iagon Required overlay; replaces
+  // the "go to Settings" detour with an in-modal CIP-8 sign-in.
+  const showIagonPrimer = isFileMode && !isIagonConnected && !primerDismissed;
+
+  const handlePrimerSignIn = async () => {
+    if (!wallet || !address) {
+      setPrimerError(t('modals:createListing.iagonPrimer.errorPrefix') + t('modals:createListing.errors.unknown'));
+      return;
+    }
+    setIagonSigningIn(true);
+    setPrimerError(null);
+    try {
+      await connectIagon(wallet, address);
+      markIagonPrimerCompleted();
+      setPrimerDismissed(true);
+      onIagonConnected?.();
+      toast.success(
+        t('modals:createListing.iagonPrimer.successToast.title'),
+        t('modals:createListing.iagonPrimer.successToast.body'),
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('modals:createListing.errors.unknown');
+      setPrimerError(t('modals:createListing.iagonPrimer.errorPrefix') + msg);
+    } finally {
+      setIagonSigningIn(false);
+    }
+  };
+
+  const handlePrimerSkip = () => {
+    markIagonPrimerCompleted();
+    setPrimerDismissed(true);
+    toast.warning(
+      t('modals:createListing.iagonPrimer.skipToast.title'),
+      t('modals:createListing.iagonPrimer.skipToast.body'),
+    );
+  };
+
+  const handlePrimerGoToSettings = () => {
+    onClose();
+    navigate('/settings', { state: { section: 'datalayer' } });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -612,6 +679,70 @@ export default function CreateListingModal({
                     className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
                     {t('modals:createListing.startFresh')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Iagon setup primer — one-shot contextual card shown in file mode
+                when no API key is stored and the user hasn't dismissed it yet. */}
+            {showIagonPrimer && (
+              <div
+                data-testid="iagon-primer"
+                className="p-4 bg-[var(--accent-muted)] border border-[var(--accent)]/40 rounded-[var(--radius-md)] space-y-3"
+              >
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                      {t('modals:createListing.iagonPrimer.title')}
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] mb-1.5">
+                      {t('modals:createListing.iagonPrimer.bodyWhat')}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {t('modals:createListing.iagonPrimer.bodyWhy')}
+                    </p>
+                  </div>
+                </div>
+
+                {primerError && (
+                  <p role="alert" className="text-xs text-[var(--error)]">{primerError}</p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrimerSignIn}
+                    disabled={iagonSigningIn || !wallet || !address}
+                    className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] flex items-center gap-2 btn-base btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {iagonSigningIn ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        {t('modals:createListing.iagonPrimer.signingIn')}
+                      </>
+                    ) : (
+                      t('modals:createListing.iagonPrimer.signInButton')
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrimerSkip}
+                    disabled={iagonSigningIn}
+                    className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-tertiary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {t('modals:createListing.iagonPrimer.skipButton')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrimerGoToSettings}
+                    disabled={iagonSigningIn}
+                    className="text-xs text-[var(--accent)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                  >
+                    {t('modals:createListing.iagonPrimer.manualLink')}
                   </button>
                 </div>
               </div>
@@ -813,8 +944,8 @@ export default function CreateListingModal({
               </div>
             )}
 
-            {/* Content Area — File mode (Iagon not connected) */}
-            {isFileMode && !isIagonConnected && (
+            {/* Content Area — File mode (Iagon not connected, primer dismissed) */}
+            {isFileMode && !isIagonConnected && !showIagonPrimer && (
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
                   {t('modals:createListing.uploadFile')}

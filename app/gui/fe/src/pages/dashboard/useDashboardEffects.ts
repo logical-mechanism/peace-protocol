@@ -259,6 +259,7 @@ export function useDashboardEffects({
     acceptedBidCount,
     libraryCount,
     iagonConnected,
+    setIagonConnected,
     recordTransaction,
   }
 }
