@@ -63,6 +63,18 @@ export default function Settings() {
     invoke<string>('get_network').then(setCurrentNetwork).catch(console.error)
   }, [])
 
+  // Sync the active section when another screen navigates to /settings with
+  // `state.section` (e.g. Settings → Tutorials clicking a Replay button while
+  // already on the Settings page). The useState initializer only runs on
+  // mount, so without this the state change wouldn't switch sections.
+  // location.state is an external input (React Router); syncing internal
+  // state from it is the documented use case for useEffect.
+  useEffect(() => {
+    const section = (location.state as { section?: string } | null)?.section
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (section) setActiveSection(section)
+  }, [location.state])
+
   // Ctrl/Cmd+K opens command palette
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -45,7 +45,10 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     titleKey: 'tutorials.flows.iagonPrimer.title',
     descriptionKey: 'tutorials.flows.iagonPrimer.description',
     completedFlag: 'iagonPrimerCompleted',
-    navigateTo: { path: '/dashboard', state: { tab: 'marketplace' } },
+    // The "tutorial" for Iagon is really a pointer to the connection UI.
+    // Jump straight to Settings → Data Layer where the user can connect,
+    // disconnect, verify, or paste a manual key.
+    navigateTo: { path: '/settings', state: { section: 'datalayer' } },
   },
 ]
 

@@ -127,13 +127,13 @@ describe('TutorialsSection', () => {
     })
   })
 
-  it('resets only iagon-primer flag and navigates to marketplace on Start click', () => {
+  it('resets only iagon-primer flag and navigates to Settings → Data Layer on Start click', () => {
     render(<TutorialsSection />)
     const starts = screen.getAllByText('Start')
     fireEvent.click(starts[4]) // iagon-primer Start button
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('iagonPrimerCompleted')
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
-      state: { tab: 'marketplace' },
+    expect(mockNavigate).toHaveBeenCalledWith('/settings', {
+      state: { section: 'datalayer' },
     })
   })
 
