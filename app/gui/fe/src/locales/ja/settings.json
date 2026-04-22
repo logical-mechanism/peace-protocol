@@ -230,6 +230,10 @@
     "disconnectFailed": "切断に失敗しました",
     "verificationFailed": "確認に失敗しました",
     "verifyInvalid": "APIキーが無効になりました。再接続してください。",
+    "verifyNoKey": "保存されたIagon APIキーがありません。ウォレットを接続するか、下にキーを貼り付けてください。",
+    "verifyOkTitle": "Iagon接続OK",
+    "verifyOkBody": "APIキーは有効で、使用できます。",
+    "iagonKeyExpired": "Iagon APIキーは受け付けられなくなりました。ファイルのアップロード・ダウンロードを続けるには再接続してください。",
     "manualKeyInvalid": "APIキーが無効または期限切れです。キーを確認して再試行してください。",
     "manualKeySaveFailed": "APIキーの保存に失敗しました"
   },

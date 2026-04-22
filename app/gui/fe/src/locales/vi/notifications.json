@@ -48,6 +48,8 @@
     "relistFailedBody": "Không tìm thấy tệp nội dung thư viện",
     "bulkDeleteTitle": "Xóa hàng loạt",
     "saveFailedTitle": "Lưu thất bại",
+    "iagonKeyExpiredTitle": "Đăng nhập Iagon đã hết hạn",
+    "iagonKeyExpiredBody": "Khóa API Iagon của bạn không còn được chấp nhận — kết nối lại trong Cài đặt → Lớp Dữ liệu để tiếp tục tải lên và tải xuống tệp.",
     "copyFailedTitle": "Sao chép thất bại",
     "copyAddressFailedBody": "Không thể sao chép địa chỉ vào clipboard.",
     "updateAvailableTitle": "Có cập nhật: v{{version}}",

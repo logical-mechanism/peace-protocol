@@ -230,6 +230,10 @@
     "disconnectFailed": "断开连接失败",
     "verificationFailed": "验证失败",
     "verifyInvalid": "API 密钥已失效。请重新连接。",
+    "verifyNoKey": "未存储 Iagon API 密钥。请连接您的钱包，或在下方粘贴密钥。",
+    "verifyOkTitle": "Iagon 连接正常",
+    "verifyOkBody": "您的 API 密钥有效，可以使用。",
+    "iagonKeyExpired": "您的 Iagon API 密钥不再被接受。重新连接以继续上传或下载文件。",
     "manualKeyInvalid": "API 密钥无效或已过期。请检查密钥后重试。",
     "manualKeySaveFailed": "保存 API 密钥失败"
   },

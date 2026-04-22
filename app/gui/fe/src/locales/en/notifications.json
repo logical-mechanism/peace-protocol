@@ -48,6 +48,8 @@
     "relistFailedBody": "Could not find library content file",
     "bulkDeleteTitle": "Bulk Delete",
     "saveFailedTitle": "Save failed",
+    "iagonKeyExpiredTitle": "Iagon sign-in expired",
+    "iagonKeyExpiredBody": "Your Iagon API key is no longer accepted — reconnect in Settings → Data Layer to resume file uploads and downloads.",
     "copyFailedTitle": "Copy failed",
     "copyAddressFailedBody": "Could not copy address to clipboard.",
     "updateAvailableTitle": "Update available: v{{version}}",

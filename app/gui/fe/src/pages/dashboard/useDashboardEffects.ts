@@ -6,7 +6,7 @@ import { sendDesktopNotification } from '../../services/desktopNotifications'
 import { cleanupStaleSecrets } from '../../services/secretCleanup'
 import { encryptionsApi, bidsApi } from '../../services/api'
 import { listLibraryItems } from '../../services/libraryService'
-import { isIagonConnected, connectIagon } from '../../services/iagonAuth'
+import { hasValidApiKey, connectIagon, onIagonAuthFailure } from '../../services/iagonAuth'
 import { getTransactions, addTransaction } from '../../services/transactionHistory'
 import { getPersistedFilters, persistFilters } from '../../services/filterStorage'
 import type { TransactionRecord } from '../../services/transactionHistory'
@@ -173,13 +173,16 @@ export function useDashboardEffects({
     return () => clearTimeout(persistTimeoutRef.current)
   }, [userPkh, marketplaceFilters])
 
-  // Check Iagon connection status; silently auto-connect if not yet connected
+  // Check Iagon connection status; silently auto-connect if not yet connected.
+  // Uses `hasValidApiKey()` so an expired-but-stored key is cleaned up and the
+  // indicator flips to offline — a bare file-existence check (isIagonConnected)
+  // would leave the UI showing "ready" until the next upload failed.
   useEffect(() => {
     let cancelled = false
-    isIagonConnected()
-      .then(connected => {
+    hasValidApiKey()
+      .then(valid => {
         if (cancelled) return
-        if (connected) {
+        if (valid) {
           setIagonConnected(true)
         } else if (wallet && address) {
           // Silently attempt CIP-8 auth — succeeds if wallet has an Iagon account
@@ -193,6 +196,31 @@ export function useDashboardEffects({
       .catch(() => { if (!cancelled) setIagonConnected(false) })
     return () => { cancelled = true }
   }, [wallet, address])
+
+  // Any API call that rejects with AUTH_FAILED fires the auth-failure event.
+  // Flip the indicator to offline immediately and warn the user so they know
+  // why uploads/downloads stop working. Ref lets the closure use the latest
+  // toast/t functions without subscribing on every render.
+  const authFailureNotifiedRef = useRef(false)
+  useEffect(() => {
+    const unsubscribe = onIagonAuthFailure(() => {
+      setIagonConnected(false)
+      if (authFailureNotifiedRef.current) return
+      authFailureNotifiedRef.current = true
+      toast.warning(
+        t('toast.iagonKeyExpiredTitle'),
+        t('toast.iagonKeyExpiredBody'),
+        0,
+      )
+      // Reset the de-dupe guard after a minute so a repeat disconnect later
+      // in the session (e.g. user reconnects and the new key also expires)
+      // will surface.
+      setTimeout(() => {
+        authFailureNotifiedRef.current = false
+      }, 60_000)
+    })
+    return unsubscribe
+  }, [toast, t])
 
   // Fetch user stats (waits for Express backend to be ready)
   useEffect(() => {

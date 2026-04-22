@@ -7,6 +7,11 @@ import {
   disconnectIagon,
   connectIagon,
   getValidApiKey,
+  hasValidApiKey,
+  parseIagonError,
+  isIagonAuthError,
+  onIagonAuthFailure,
+  handleIagonError,
 } from '../iagonAuth';
 
 // ── Mocks ───────────────────────────────────────────────────────────
@@ -238,6 +243,146 @@ describe('iagonAuth', () => {
       await expect(
         connectIagon(mockWallet as never, 'addr_test1abc123'),
       ).rejects.toThrow('wallet locked');
+    });
+  });
+
+  // ── Structured error helpers ─────────────────────────────────────
+
+  describe('parseIagonError', () => {
+    it('returns structured info for a JSON-shaped Error message', () => {
+      const err = new Error('{"code":"AUTH_FAILED","message":"expired"}');
+      expect(parseIagonError(err)).toEqual({ code: 'AUTH_FAILED', message: 'expired' });
+    });
+
+    it('returns structured info for a raw JSON string', () => {
+      expect(parseIagonError('{"code":"NOT_FOUND","message":"missing"}')).toEqual({
+        code: 'NOT_FOUND',
+        message: 'missing',
+      });
+    });
+
+    it('returns null for non-JSON error messages', () => {
+      expect(parseIagonError(new Error('plain text boom'))).toBeNull();
+    });
+
+    it('returns null for JSON missing required fields', () => {
+      expect(parseIagonError(new Error('{"code":"X"}'))).toBeNull();
+      expect(parseIagonError(new Error('{"message":"m"}'))).toBeNull();
+    });
+
+    it('returns null for non-Error, non-string values', () => {
+      expect(parseIagonError(42)).toBeNull();
+      expect(parseIagonError(null)).toBeNull();
+      expect(parseIagonError(undefined)).toBeNull();
+    });
+  });
+
+  describe('isIagonAuthError', () => {
+    it('is true for AUTH_FAILED payloads', () => {
+      expect(isIagonAuthError(new Error('{"code":"AUTH_FAILED","message":"e"}'))).toBe(true);
+    });
+
+    it('is false for other structured codes', () => {
+      expect(isIagonAuthError(new Error('{"code":"SERVER_ERROR","message":"b"}'))).toBe(false);
+    });
+
+    it('is false for unstructured errors', () => {
+      expect(isIagonAuthError(new Error('plain boom'))).toBe(false);
+    });
+  });
+
+  describe('handleIagonError / onIagonAuthFailure', () => {
+    it('returns false and does nothing for non-auth errors', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      const handled = await handleIagonError(new Error('plain boom'));
+      expect(handled).toBe(false);
+      expect(listener).not.toHaveBeenCalled();
+      unsub();
+    });
+
+    it('removes the stored key and notifies listeners for AUTH_FAILED', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      mockInvoke.mockResolvedValueOnce(undefined); // remove_iagon_api_key
+
+      const handled = await handleIagonError(
+        new Error('{"code":"AUTH_FAILED","message":"expired"}'),
+      );
+
+      expect(handled).toBe(true);
+      expect(mockInvoke).toHaveBeenCalledWith('remove_iagon_api_key');
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsub();
+    });
+
+    it('still notifies listeners even if disconnect throws', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      mockInvoke.mockRejectedValueOnce(new Error('fs denied'));
+
+      await handleIagonError(new Error('{"code":"AUTH_FAILED","message":"x"}'));
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsub();
+    });
+
+    it('unsubscribe stops future notifications', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      unsub();
+      mockInvoke.mockResolvedValueOnce(undefined);
+      await handleIagonError(new Error('{"code":"AUTH_FAILED","message":"x"}'));
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('a listener that throws does not block others', async () => {
+      const bad = vi.fn(() => { throw new Error('listener boom'); });
+      const good = vi.fn();
+      const unsub1 = onIagonAuthFailure(bad);
+      const unsub2 = onIagonAuthFailure(good);
+      mockInvoke.mockResolvedValueOnce(undefined);
+      await handleIagonError(new Error('{"code":"AUTH_FAILED","message":"x"}'));
+      expect(bad).toHaveBeenCalled();
+      expect(good).toHaveBeenCalled();
+      unsub1();
+      unsub2();
+    });
+  });
+
+  describe('hasValidApiKey', () => {
+    it('returns false when no key is stored', async () => {
+      mockInvoke.mockResolvedValueOnce(null); // get_iagon_api_key
+      await expect(hasValidApiKey()).resolves.toBe(false);
+      expect(mockVerifyApiKey).not.toHaveBeenCalled();
+    });
+
+    it('returns true when the stored key verifies', async () => {
+      mockInvoke.mockResolvedValueOnce('abc123'); // get_iagon_api_key
+      mockVerifyApiKey.mockResolvedValueOnce(true);
+      await expect(hasValidApiKey()).resolves.toBe(true);
+    });
+
+    it('returns false AND removes the key when verification fails', async () => {
+      mockInvoke.mockResolvedValueOnce('stale-key'); // get_iagon_api_key
+      mockVerifyApiKey.mockResolvedValueOnce(false);
+      mockInvoke.mockResolvedValueOnce(undefined); // remove_iagon_api_key
+      await expect(hasValidApiKey()).resolves.toBe(false);
+      expect(mockInvoke).toHaveBeenCalledWith('remove_iagon_api_key');
+    });
+  });
+
+  describe('getValidApiKey auth-failure event', () => {
+    it('fires onIagonAuthFailure listeners when the stored key is rejected', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      mockInvoke.mockResolvedValueOnce('stale-key'); // get_iagon_api_key
+      mockVerifyApiKey.mockResolvedValueOnce(false);
+      mockInvoke.mockResolvedValueOnce(undefined); // remove_iagon_api_key
+
+      await expect(getValidApiKey()).resolves.toBeNull();
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsub();
     });
   });
 });

@@ -48,6 +48,8 @@
     "relistFailedBody": "ライブラリのコンテンツファイルが見つかりませんでした",
     "bulkDeleteTitle": "一括削除",
     "saveFailedTitle": "保存に失敗しました",
+    "iagonKeyExpiredTitle": "Iagonサインインが期限切れ",
+    "iagonKeyExpiredBody": "Iagon APIキーは受け付けられなくなりました。設定 → データレイヤーで再接続して、アップロードとダウンロードを再開してください。",
     "copyFailedTitle": "コピーに失敗しました",
     "copyAddressFailedBody": "アドレスをクリップボードにコピーできませんでした。",
     "updateAvailableTitle": "アップデート利用可能: v{{version}}",

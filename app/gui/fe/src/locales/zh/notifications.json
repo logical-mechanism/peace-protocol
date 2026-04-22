@@ -48,6 +48,8 @@
     "relistFailedBody": "找不到资料库内容文件",
     "bulkDeleteTitle": "批量删除",
     "saveFailedTitle": "保存失败",
+    "iagonKeyExpiredTitle": "Iagon 登录已过期",
+    "iagonKeyExpiredBody": "您的 Iagon API 密钥不再被接受 — 请在设置 → 数据层中重新连接以恢复文件上传和下载。",
     "copyFailedTitle": "复制失败",
     "copyAddressFailedBody": "无法将地址复制到剪贴板。",
     "updateAvailableTitle": "有可用更新：v{{version}}",

@@ -48,6 +48,8 @@
     "relistFailedBody": "Não foi possível encontrar o arquivo de conteúdo da biblioteca",
     "bulkDeleteTitle": "Exclusão em Massa",
     "saveFailedTitle": "Falha ao salvar",
+    "iagonKeyExpiredTitle": "Login do Iagon expirado",
+    "iagonKeyExpiredBody": "Sua chave API do Iagon não é mais aceita — reconecte-se em Configurações → Camada de Dados para retomar envios e downloads.",
     "copyFailedTitle": "Falha ao copiar",
     "copyAddressFailedBody": "Não foi possível copiar o endereço para a área de transferência.",
     "updateAvailableTitle": "Atualização disponível: v{{version}}",

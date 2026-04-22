@@ -115,7 +115,9 @@ vi.mock('../../services/secretCleanup', () => ({
 }));
 vi.mock('../../services/iagonAuth', () => ({
   isIagonConnected: vi.fn().mockResolvedValue(false),
+  hasValidApiKey: vi.fn().mockResolvedValue(false),
   connectIagon: vi.fn().mockResolvedValue(undefined),
+  onIagonAuthFailure: vi.fn().mockReturnValue(() => {}),
 }));
 vi.mock('../../services/transactionBuilder', () => ({
   createListing: vi.fn(),

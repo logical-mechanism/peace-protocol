@@ -48,6 +48,8 @@
     "relistFailedBody": "Kon bibliotheekbestand niet vinden",
     "bulkDeleteTitle": "Bulkverwijdering",
     "saveFailedTitle": "Opslaan mislukt",
+    "iagonKeyExpiredTitle": "Iagon-login verlopen",
+    "iagonKeyExpiredBody": "Je Iagon API-sleutel wordt niet meer geaccepteerd — verbind opnieuw via Instellingen → Datalaag om uploads en downloads te hervatten.",
     "copyFailedTitle": "Kopiëren mislukt",
     "copyAddressFailedBody": "Kon adres niet naar het klembord kopiëren.",
     "updateAvailableTitle": "Update beschikbaar: v{{version}}",

@@ -48,6 +48,8 @@
     "relistFailedBody": "Tidak dapat menemukan berkas konten perpustakaan",
     "bulkDeleteTitle": "Hapus Massal",
     "saveFailedTitle": "Gagal menyimpan",
+    "iagonKeyExpiredTitle": "Masuk Iagon kedaluwarsa",
+    "iagonKeyExpiredBody": "Kunci API Iagon Anda tidak lagi diterima — hubungkan ulang di Pengaturan → Lapisan Data untuk melanjutkan unggah dan unduh berkas.",
     "copyFailedTitle": "Gagal menyalin",
     "copyAddressFailedBody": "Tidak dapat menyalin alamat ke papan klip.",
     "updateAvailableTitle": "Pembaruan tersedia: v{{version}}",

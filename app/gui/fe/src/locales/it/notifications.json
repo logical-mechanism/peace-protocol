@@ -48,6 +48,8 @@
     "relistFailedBody": "Impossibile trovare il file di contenuto della libreria",
     "bulkDeleteTitle": "Eliminazione multipla",
     "saveFailedTitle": "Salvataggio non riuscito",
+    "iagonKeyExpiredTitle": "Accesso Iagon scaduto",
+    "iagonKeyExpiredBody": "La tua chiave API Iagon non è più accettata — ricollegati in Impostazioni → Livello Dati per riprendere caricamenti e download.",
     "copyFailedTitle": "Copia non riuscita",
     "copyAddressFailedBody": "Impossibile copiare l'indirizzo negli appunti.",
     "updateAvailableTitle": "Aggiornamento disponibile: v{{version}}",

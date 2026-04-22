@@ -48,6 +48,8 @@
     "relistFailedBody": "라이브러리 콘텐츠 파일을 찾을 수 없습니다",
     "bulkDeleteTitle": "일괄 삭제",
     "saveFailedTitle": "저장 실패",
+    "iagonKeyExpiredTitle": "Iagon 로그인 만료",
+    "iagonKeyExpiredBody": "Iagon API 키가 더 이상 수락되지 않습니다 — 설정 → 데이터 레이어에서 다시 연결하여 업로드와 다운로드를 재개하세요.",
     "copyFailedTitle": "복사 실패",
     "copyAddressFailedBody": "주소를 클립보드에 복사할 수 없습니다.",
     "updateAvailableTitle": "업데이트 사용 가능: v{{version}}",

@@ -48,6 +48,8 @@
     "relistFailedBody": "No se pudo encontrar el archivo de contenido de la biblioteca",
     "bulkDeleteTitle": "Eliminación masiva",
     "saveFailedTitle": "Error al guardar",
+    "iagonKeyExpiredTitle": "Inicio de sesión de Iagon caducado",
+    "iagonKeyExpiredBody": "Tu clave API de Iagon ya no es aceptada — vuelve a conectarte en Ajustes → Capa de datos para reanudar subidas y descargas.",
     "copyFailedTitle": "Error al copiar",
     "copyAddressFailedBody": "No se pudo copiar la dirección al portapapeles.",
     "updateAvailableTitle": "Actualización disponible: v{{version}}",

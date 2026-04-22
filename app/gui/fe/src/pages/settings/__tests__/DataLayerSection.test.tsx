@@ -9,6 +9,9 @@ vi.mock('../../../services/iagonAuth', () => ({
   isIagonConnected: vi.fn().mockResolvedValue(true),
   getValidApiKey: vi.fn().mockResolvedValue('api-key'),
   getStoredApiKey: vi.fn().mockResolvedValue('api-key'),
+  handleIagonError: vi.fn().mockResolvedValue(false),
+  isIagonAuthError: vi.fn().mockReturnValue(false),
+  onIagonAuthFailure: vi.fn().mockReturnValue(() => {}),
 }))
 
 vi.mock('../../../services/iagonApi', () => ({
@@ -101,5 +104,30 @@ describe('DataLayerSection — Storage Usage card', () => {
       expect(toastError).toHaveBeenCalledWith('Storage Usage', 'network down')
     })
     expect(screen.getByText('Storage Usage')).toBeInTheDocument()
+  })
+
+  it('flips to disconnected and shows the expiry notice on AUTH_FAILED', async () => {
+    const { handleIagonError } = await import('../../../services/iagonAuth')
+    const handleIagonErrorMock = handleIagonError as ReturnType<typeof vi.fn>
+    handleIagonErrorMock.mockResolvedValueOnce(true)
+    mockGetStorageUsage.mockRejectedValueOnce(
+      new Error('{"code":"AUTH_FAILED","message":"expired"}'),
+    )
+
+    renderSection()
+
+    await waitFor(() => {
+      // The section falls back to the "not connected" state when the key
+      // gets rejected, so the manual-key input reappears.
+      expect(screen.getByText('Not Connected')).toBeInTheDocument()
+    })
+    // And the inline expiry notice is rendered somewhere in the section.
+    await waitFor(() => {
+      expect(
+        screen.getByText(/API key is no longer accepted/i),
+      ).toBeInTheDocument()
+    })
+    // Should NOT double-toast — Dashboard's listener handles that.
+    expect(toastError).not.toHaveBeenCalled()
   })
 })
