@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon erforderlich",
     "iagonRequiredBody": "Verbinde dein Iagon-Konto, um Dateien hochzuladen.",
     "goToSettings": "Zu den Einstellungen",
+    "iagonPrimer": {
+      "title": "Dezentralen Iagon-Speicher einrichten",
+      "bodyWhat": "Iagon speichert verschlüsselte Dateien off-chain. Text-Listings liegen on-chain; alles andere (Dokumente, Audio, Bilder, Video) wird auf deinem Gerät verschlüsselt und zu Iagon hochgeladen.",
+      "bodyWhy": "Ein einmaliger Wallet-Login erzeugt einen API-Schlüssel, damit diese App deine Dateien hoch- und herunterladen kann. Nichts verlässt dein Gerät unverschlüsselt.",
+      "signInButton": "Mit Wallet anmelden",
+      "signingIn": "Anmelden ...",
+      "skipButton": "Vorerst überspringen",
+      "manualLink": "Manuell in den Einstellungen verwalten",
+      "skipToast": {
+        "title": "Iagon-Anmeldung übersprungen",
+        "body": "Datei-Listings sind erst möglich, wenn du dich unter Einstellungen → Datenschicht verbindest."
+      },
+      "successToast": {
+        "title": "Mit Iagon verbunden",
+        "body": "Du kannst jetzt Dateien für deine Listings hochladen."
+      },
+      "errorPrefix": "Anmeldung fehlgeschlagen: "
+    },
     "description": "Beschreibung",
     "descriptionPlaceholder": "Kurze Beschreibung, was du verkaufst (für Käufer sichtbar)",
     "descriptionCharsCount": "{{current}}/{{max}} Zeichen (gespeichert in CIP-20-Metadaten)",

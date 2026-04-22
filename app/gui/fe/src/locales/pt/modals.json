@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon Necessário",
     "iagonRequiredBody": "Conecte sua conta Iagon para enviar arquivos.",
     "goToSettings": "Ir para Configurações",
+    "iagonPrimer": {
+      "title": "Configurar o armazenamento descentralizado Iagon",
+      "bodyWhat": "O Iagon armazena arquivos criptografados fora da cadeia. Listagens de texto ficam on-chain; todo o resto (documentos, áudio, imagens, vídeo) é criptografado no seu dispositivo e enviado ao Iagon.",
+      "bodyWhy": "Um login único com a carteira emite uma chave API para que este app possa enviar e recuperar seus arquivos. Nada sai do seu dispositivo sem criptografia.",
+      "signInButton": "Entrar com a carteira",
+      "signingIn": "Entrando...",
+      "skipButton": "Pular por agora",
+      "manualLink": "Gerenciar manualmente em Configurações",
+      "skipToast": {
+        "title": "Login do Iagon ignorado",
+        "body": "Você não pode criar listagens de arquivo até conectar em Configurações → Camada de Dados."
+      },
+      "successToast": {
+        "title": "Conectado ao Iagon",
+        "body": "Agora você pode enviar arquivos para suas listagens."
+      },
+      "errorPrefix": "Falha no login: "
+    },
     "description": "Descrição",
     "descriptionPlaceholder": "Breve descrição do que você está vendendo (visível para compradores)",
     "descriptionCharsCount": "{{current}}/{{max}} caracteres (armazenado em metadados CIP-20)",

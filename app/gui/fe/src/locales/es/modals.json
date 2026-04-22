@@ -197,6 +197,24 @@
     "iagonRequired": "Se requiere Iagon",
     "iagonRequiredBody": "Conecta tu cuenta de Iagon para subir archivos.",
     "goToSettings": "Ir a Ajustes",
+    "iagonPrimer": {
+      "title": "Configurar el almacenamiento descentralizado Iagon",
+      "bodyWhat": "Iagon almacena archivos cifrados fuera de la cadena. Los listados de texto viven on-chain; todo lo demás (documentos, audio, imágenes, vídeo) se cifra en tu dispositivo y se sube a Iagon.",
+      "bodyWhy": "Un inicio de sesión único con la wallet genera una clave API para que esta app pueda subir y recuperar tus archivos. Nada sale de tu dispositivo sin cifrar.",
+      "signInButton": "Iniciar sesión con la wallet",
+      "signingIn": "Iniciando sesión...",
+      "skipButton": "Omitir por ahora",
+      "manualLink": "Gestionar manualmente en Ajustes",
+      "skipToast": {
+        "title": "Inicio de sesión de Iagon omitido",
+        "body": "No puedes crear listados de archivos hasta que te conectes en Ajustes → Capa de datos."
+      },
+      "successToast": {
+        "title": "Conectado a Iagon",
+        "body": "Ahora puedes subir archivos para tus listados."
+      },
+      "errorPrefix": "Inicio de sesión fallido: "
+    },
     "description": "Descripción",
     "descriptionPlaceholder": "Breve descripción de lo que vendes (visible para compradores)",
     "descriptionCharsCount": "{{current}}/{{max}} caracteres (almacenado en metadatos CIP-20)",

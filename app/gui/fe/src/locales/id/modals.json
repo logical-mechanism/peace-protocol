@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon Diperlukan",
     "iagonRequiredBody": "Hubungkan akun Iagon Anda untuk mengunggah berkas.",
     "goToSettings": "Buka Pengaturan",
+    "iagonPrimer": {
+      "title": "Siapkan penyimpanan terdesentralisasi Iagon",
+      "bodyWhat": "Iagon menyimpan berkas terenkripsi di luar rantai. Daftar teks berada di rantai; selebihnya (dokumen, audio, gambar, video) dienkripsi di perangkat Anda dan diunggah ke Iagon.",
+      "bodyWhy": "Satu kali masuk dengan wallet menerbitkan kunci API agar aplikasi ini dapat mengunggah dan mengambil berkas Anda. Tidak ada yang keluar dari perangkat Anda tanpa enkripsi.",
+      "signInButton": "Masuk dengan wallet",
+      "signingIn": "Sedang masuk...",
+      "skipButton": "Lewati untuk sekarang",
+      "manualLink": "Kelola manual di Pengaturan",
+      "skipToast": {
+        "title": "Masuk Iagon dilewati",
+        "body": "Anda tidak dapat membuat daftar berkas sampai terhubung di Pengaturan → Lapisan Data."
+      },
+      "successToast": {
+        "title": "Terhubung ke Iagon",
+        "body": "Sekarang Anda dapat mengunggah berkas untuk daftar Anda."
+      },
+      "errorPrefix": "Gagal masuk: "
+    },
     "description": "Deskripsi",
     "descriptionPlaceholder": "Deskripsi singkat tentang apa yang Anda jual (terlihat oleh pembeli)",
     "descriptionCharsCount": "{{current}}/{{max}} karakter (disimpan dalam metadata CIP-20)",

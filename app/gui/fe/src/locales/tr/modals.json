@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon Gerekli",
     "iagonRequiredBody": "Dosya yüklemek için Iagon hesabınızı bağlayın.",
     "goToSettings": "Ayarlara Git",
+    "iagonPrimer": {
+      "title": "Iagon merkeziyetsiz depolamayı kur",
+      "bodyWhat": "Iagon şifrelenmiş dosyaları zincir dışında saklar. Metin ilanları zincirde kalır; diğer her şey (belgeler, ses, görseller, video) cihazınızda şifrelenir ve Iagon'a yüklenir.",
+      "bodyWhy": "Tek seferlik cüzdan girişi, bu uygulamanın dosyalarınızı yükleyip indirebilmesi için bir API anahtarı verir. Hiçbir şey cihazınızdan şifrelenmemiş olarak ayrılmaz.",
+      "signInButton": "Cüzdanla giriş yap",
+      "signingIn": "Giriş yapılıyor...",
+      "skipButton": "Şimdilik atla",
+      "manualLink": "Ayarlar'da manuel yönet",
+      "skipToast": {
+        "title": "Iagon girişi atlandı",
+        "body": "Ayarlar → Veri Katmanı'nda bağlanana kadar dosya ilanı oluşturamazsınız."
+      },
+      "successToast": {
+        "title": "Iagon'a bağlanıldı",
+        "body": "Artık ilanlarınız için dosya yükleyebilirsiniz."
+      },
+      "errorPrefix": "Giriş başarısız: "
+    },
     "description": "Açıklama",
     "descriptionPlaceholder": "Sattığınız şeyin kısa açıklaması (alıcılara görünür)",
     "descriptionCharsCount": "{{current}}/{{max}} karakter (CIP-20 meta verisinde saklanır)",

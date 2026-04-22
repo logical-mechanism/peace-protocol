@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon requis",
     "iagonRequiredBody": "Connectez votre compte Iagon pour téléverser des fichiers.",
     "goToSettings": "Aller aux paramètres",
+    "iagonPrimer": {
+      "title": "Configurer le stockage décentralisé Iagon",
+      "bodyWhat": "Iagon stocke les fichiers chiffrés hors-chaîne. Les annonces texte restent on-chain ; tout le reste (documents, audio, images, vidéos) est chiffré sur votre appareil puis téléversé sur Iagon.",
+      "bodyWhy": "Une connexion wallet unique génère une clé API pour que cette application puisse téléverser et récupérer vos fichiers. Rien ne quitte votre appareil non chiffré.",
+      "signInButton": "Se connecter avec le wallet",
+      "signingIn": "Connexion...",
+      "skipButton": "Passer pour l'instant",
+      "manualLink": "Gérer manuellement dans les Paramètres",
+      "skipToast": {
+        "title": "Connexion à Iagon ignorée",
+        "body": "Vous ne pouvez pas créer d'annonces fichier tant que vous n'êtes pas connecté dans Paramètres → Couche de données."
+      },
+      "successToast": {
+        "title": "Connecté à Iagon",
+        "body": "Vous pouvez maintenant téléverser des fichiers pour vos annonces."
+      },
+      "errorPrefix": "Échec de la connexion : "
+    },
     "description": "Description",
     "descriptionPlaceholder": "Brève description de ce que vous vendez (visible par les acheteurs)",
     "descriptionCharsCount": "{{current}}/{{max}} caractères (stockés dans les métadonnées CIP-20)",

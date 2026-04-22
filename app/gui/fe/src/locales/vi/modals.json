@@ -197,6 +197,24 @@
     "iagonRequired": "Yêu cầu Iagon",
     "iagonRequiredBody": "Kết nối tài khoản Iagon để tải lên tệp.",
     "goToSettings": "Đi đến Cài đặt",
+    "iagonPrimer": {
+      "title": "Thiết lập lưu trữ phi tập trung Iagon",
+      "bodyWhat": "Iagon lưu trữ các tệp đã mã hóa ngoài chuỗi. Danh sách văn bản nằm trên chuỗi; mọi thứ khác (tài liệu, âm thanh, hình ảnh, video) được mã hóa trên thiết bị của bạn và tải lên Iagon.",
+      "bodyWhy": "Một lần đăng nhập ví sẽ cấp khóa API để ứng dụng này có thể tải lên và truy xuất tệp của bạn. Không có gì rời thiết bị mà không được mã hóa.",
+      "signInButton": "Đăng nhập bằng ví",
+      "signingIn": "Đang đăng nhập...",
+      "skipButton": "Bỏ qua bây giờ",
+      "manualLink": "Quản lý thủ công trong Cài đặt",
+      "skipToast": {
+        "title": "Đã bỏ qua đăng nhập Iagon",
+        "body": "Bạn không thể tạo danh sách tệp cho đến khi kết nối trong Cài đặt → Lớp Dữ liệu."
+      },
+      "successToast": {
+        "title": "Đã kết nối với Iagon",
+        "body": "Bây giờ bạn có thể tải lên tệp cho danh sách của mình."
+      },
+      "errorPrefix": "Đăng nhập không thành công: "
+    },
     "description": "Mô tả",
     "descriptionPlaceholder": "Mô tả ngắn gọn về nội dung bạn đang bán (hiển thị cho người mua)",
     "descriptionCharsCount": "{{current}}/{{max}} ký tự (lưu trong siêu dữ liệu CIP-20)",
