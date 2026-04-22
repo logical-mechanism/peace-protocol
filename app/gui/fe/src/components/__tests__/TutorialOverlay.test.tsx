@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import TutorialOverlay from '../TutorialOverlay'
 import type { TutorialStep } from '../../hooks/useTutorial'
@@ -118,5 +118,59 @@ describe('TutorialOverlay', () => {
     )
     // Still renders the dialog content
     expect(screen.getByText('Try this')).toBeInTheDocument()
+  })
+
+  it('hides the tooltip during the step-change grace window if the next anchor is missing', async () => {
+    vi.useFakeTimers()
+    try {
+      const target = mountTarget()
+      const { rerender } = render(
+        <TutorialOverlay step={STEP} stepIndex={0} totalSteps={3} onNext={vi.fn()} onSkip={vi.fn()} />,
+      )
+      expect(screen.getByText('Try this')).toBeInTheDocument()
+      // Simulate advancing to a step whose anchor isn't mounted yet (e.g. a
+      // modal is opening). The overlay should suppress the centered tooltip
+      // during the grace window rather than flashing it before the anchor
+      // appears.
+      target.remove()
+      const NEXT_STEP: TutorialStep = {
+        targetSelector: '#not-mounted-yet',
+        title: 'Next step',
+        description: 'Body',
+        placement: 'bottom',
+      }
+      rerender(
+        <TutorialOverlay step={NEXT_STEP} stepIndex={1} totalSteps={3} onNext={vi.fn()} onSkip={vi.fn()} />,
+      )
+      expect(screen.queryByText('Next step')).not.toBeInTheDocument()
+      // After the grace window elapses, the centered fallback tooltip
+      // appears for the still-missing target.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      expect(screen.getByText('Next step')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not re-fire scrollIntoView when the target stays in place', async () => {
+    vi.useFakeTimers()
+    try {
+      const target = mountTarget()
+      render(
+        <TutorialOverlay step={STEP} stepIndex={0} totalSteps={3} onNext={vi.fn()} onSkip={vi.fn()} />,
+      )
+      // Let the synchronous initial measurement fire scrollIntoView once.
+      expect(target.scrollIntoView).toHaveBeenCalledTimes(1)
+      // Ride through several polling ticks — rect hasn't changed, so the
+      // smooth scroll must not keep re-triggering itself.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1200)
+      })
+      expect(target.scrollIntoView).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

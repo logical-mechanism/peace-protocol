@@ -5,6 +5,14 @@ import type { TutorialStep } from '../hooks/useTutorial'
 const PADDING = 8
 const TOOLTIP_WIDTH = 320
 const TOOLTIP_GAP = 12
+// Keep the screen dimmed but hide the tooltip for this long after a step
+// change. Most targets mount within this window (tab switches, modal open
+// animations), so suppressing the centered fallback here prevents a visible
+// snap from screen-center to the newly-resolved spotlight.
+const STEP_TRANSITION_GRACE_MS = 400
+// Smoothly animate the spotlight and tooltip between anchors instead of
+// teleporting when the step changes and both targets are already mounted.
+const SPOTLIGHT_TRANSITION_MS = 200
 
 interface TutorialOverlayProps {
   step: TutorialStep | null
@@ -24,6 +32,12 @@ interface Rect {
 interface TooltipPos {
   top: number
   left: number
+}
+
+function rectsEqual(a: Rect | null, b: Rect | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
 }
 
 function getTargetRect(selector: string): Rect | null {
@@ -79,49 +93,79 @@ export default function TutorialOverlay({
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
   const tooltipRef = useRef<HTMLDivElement | null>(null)
   const [tooltipPos, setTooltipPos] = useState<TooltipPos>({ top: 0, left: 0 })
+  const [inTransition, setInTransition] = useState(false)
+  const prevStepRef = useRef<TutorialStep | null>(null)
+  const scrolledForStepRef = useRef<TutorialStep | null>(null)
 
   const updatePosition = useCallback(() => {
     if (!step) {
-      setTargetRect(null)
+      setTargetRect((prev) => (prev === null ? prev : null))
       return
     }
     const rect = getTargetRect(step.targetSelector)
-    setTargetRect(rect)
+    // Dedupe via rectsEqual — getBoundingClientRect returns a fresh object
+    // every tick, so without this the 200ms polling loop would re-render the
+    // overlay ~5x/sec even when nothing moved.
+    setTargetRect((prev) => (rectsEqual(prev, rect) ? prev : rect))
   }, [step])
 
-  // Recalculate target rect with a short polling interval (the target may mount
-  // after this overlay — e.g. a modal opening in step 2). Polling stops once the
-  // element is found and re-triggers on window resize/scroll.
+  // Activate a brief transition window on step change. During this window we
+  // keep the screen dimmed but hide the tooltip so the overlay doesn't flash
+  // from centered-fallback back to the next spotlight as the new anchor
+  // mounts (e.g. a modal opening between steps).
+  useEffect(() => {
+    if (!step) {
+      prevStepRef.current = null
+      return
+    }
+    scrolledForStepRef.current = null
+    const isStepChange = prevStepRef.current !== null && prevStepRef.current !== step
+    prevStepRef.current = step
+    if (!isStepChange) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- transition window must arm as soon as the step prop changes
+    setInTransition(true)
+    const timer = window.setTimeout(() => setInTransition(false), STEP_TRANSITION_GRACE_MS)
+    return () => window.clearTimeout(timer)
+  }, [step])
+
+  // Poll for the target (may mount after this overlay — e.g. a modal opening
+  // on step 2). Polling stops visibly once the element is found and re-runs
+  // on window resize/scroll; the updatePosition short-circuit keeps a stable
+  // target from causing idle re-renders.
   useEffect(() => {
     if (!step) return
-    // Kick off the first measurement on the next tick so it runs outside the
-    // effect body (subscribing to external DOM state, not cascading render).
-    const initial = window.setTimeout(updatePosition, 0)
+    // Measure synchronously so an already-mounted anchor spotlights on the
+    // first render instead of waiting a tick. This is a DOM-sync setState
+    // (reading getBoundingClientRect), not a cascading-render pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM measurement, not derived state
+    updatePosition()
     const interval = window.setInterval(updatePosition, 200)
     const handleResize = () => updatePosition()
     window.addEventListener('resize', handleResize)
     window.addEventListener('scroll', handleResize, true)
     return () => {
-      window.clearTimeout(initial)
       window.clearInterval(interval)
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('scroll', handleResize, true)
     }
   }, [step, updatePosition])
 
-  // Scroll target into view once resolved
-  const targetTop = targetRect?.top
-  const targetLeft = targetRect?.left
+  // Scroll each step's target into view exactly once when it first resolves.
+  // Re-firing smooth scrolls on every rect update interrupts in-flight scrolls
+  // and looks choppy, especially when a modal shifts layout under the anchor.
   useEffect(() => {
-    if (!step || targetTop === undefined || targetLeft === undefined) return
+    if (!step || !targetRect) return
+    if (scrolledForStepRef.current === step) return
     const el = document.querySelector(step.targetSelector) as HTMLElement | null
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [step, targetTop, targetLeft])
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      scrolledForStepRef.current = step
+    }
+  }, [step, targetRect])
 
   // Compute tooltip position after render so we know its actual height.
-  // Reading tooltip height from the DOM and writing the computed position is
-  // exactly what layout effects are for; the setState is synchronous with
-  // layout and happens before paint.
+  // Dedupe via primitive compare so identical positions don't feed back into
+  // re-renders.
   useLayoutEffect(() => {
     if (!step || !targetRect || !tooltipRef.current) return
     const tooltipHeight = tooltipRef.current.offsetHeight || 160
@@ -133,7 +177,7 @@ export default function TutorialOverlay({
       tooltipHeight,
     )
     // eslint-disable-next-line react-hooks/set-state-in-effect -- layout effect syncing DOM-measured position
-    setTooltipPos(pos)
+    setTooltipPos((prev) => (prev.top === pos.top && prev.left === pos.left ? prev : pos))
   }, [step, targetRect])
 
   // Keyboard: Escape skips, Enter advances
@@ -156,8 +200,22 @@ export default function TutorialOverlay({
 
   const isLast = stepIndex === totalSteps - 1
 
-  // Spotlight: a positioned box at the target with a huge outer shadow that dims everything else.
-  // When the target isn't found yet, render a fullscreen dim with a centered tooltip instead.
+  // Mid-transition with no target yet: hold the dim screen but hide the
+  // tooltip so the next anchor can mount before anything renders on top.
+  if (inTransition && !targetRect) {
+    return (
+      <div
+        aria-hidden
+        className="fixed inset-0 pointer-events-none"
+        style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 90 }}
+      />
+    )
+  }
+
+  // Spotlight: a positioned box at the target with a huge outer shadow that
+  // dims everything else. CSS transitions smooth the move to the next anchor
+  // when both targets are already mounted. When the target isn't found,
+  // render a fullscreen dim with a centered tooltip instead.
   const spotlight = targetRect && (
     <div
       aria-hidden
@@ -169,6 +227,7 @@ export default function TutorialOverlay({
         height: targetRect.height + PADDING * 2,
         boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)',
         animation: 'tutorial-spotlight 1.6s ease-in-out infinite',
+        transition: `top ${SPOTLIGHT_TRANSITION_MS}ms ease, left ${SPOTLIGHT_TRANSITION_MS}ms ease, width ${SPOTLIGHT_TRANSITION_MS}ms ease, height ${SPOTLIGHT_TRANSITION_MS}ms ease`,
         zIndex: 90,
       }}
     />
@@ -183,7 +242,13 @@ export default function TutorialOverlay({
   )
 
   const tooltipStyle: React.CSSProperties = targetRect
-    ? { top: tooltipPos.top, left: tooltipPos.left, width: TOOLTIP_WIDTH, zIndex: 91 }
+    ? {
+        top: tooltipPos.top,
+        left: tooltipPos.left,
+        width: TOOLTIP_WIDTH,
+        zIndex: 91,
+        transition: `top ${SPOTLIGHT_TRANSITION_MS}ms ease, left ${SPOTLIGHT_TRANSITION_MS}ms ease`,
+      }
     : {
         top: '50%',
         left: '50%',
