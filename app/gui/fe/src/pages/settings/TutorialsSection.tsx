@@ -44,7 +44,8 @@ const TUTORIAL_FLOWS: TutorialFlow[] = [
     id: 'iagon-primer',
     titleKey: 'tutorials.flows.iagonPrimer.title',
     descriptionKey: 'tutorials.flows.iagonPrimer.description',
-    completedFlag: 'firstListingCompleted', // placeholder — not yet tracked
+    completedFlag: 'iagonPrimerCompleted',
+    navigateTo: { path: '/dashboard', state: { tab: 'marketplace' } },
   },
 ]
 

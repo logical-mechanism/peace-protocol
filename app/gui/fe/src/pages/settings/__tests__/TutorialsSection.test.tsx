@@ -27,6 +27,7 @@ describe('TutorialsSection', () => {
       firstBidCompleted: false,
       firstDecryptCompleted: false,
       firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false,
     })
   })
 
@@ -54,16 +55,17 @@ describe('TutorialsSection', () => {
       firstBidCompleted: true,
       firstDecryptCompleted: true,
       firstBidAcceptedCompleted: true,
+      iagonPrimerCompleted: true,
     })
     render(<TutorialsSection />)
     const badges = screen.getAllByText('Completed')
     expect(badges.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows Start buttons for incomplete flows with navigation', () => {
+  it('shows Start buttons for every tutorial flow', () => {
     render(<TutorialsSection />)
     const starts = screen.getAllByText('Start')
-    expect(starts.length).toBe(4) // first-listing + first-bid + first-decrypt + first-bid-accepted
+    expect(starts.length).toBe(5) // first-listing + first-bid + first-decrypt + first-bid-accepted + iagon-primer
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -74,15 +76,15 @@ describe('TutorialsSection', () => {
       firstBidCompleted: false,
       firstDecryptCompleted: false,
       firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false,
     })
     render(<TutorialsSection />)
     expect(screen.getByText('Replay')).toBeInTheDocument()
   })
 
-  it('shows Coming soon for flows without navigation', () => {
+  it('does not render Coming soon once every flow has navigation wired up', () => {
     render(<TutorialsSection />)
-    const comingSoon = screen.getAllByText('Coming soon')
-    expect(comingSoon.length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
   })
 
   it('resets only first-listing flag and navigates on first-listing Start click', () => {
@@ -122,6 +124,16 @@ describe('TutorialsSection', () => {
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstBidAcceptedCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'my-sales', startTutorial: 'first-bid-accepted' },
+    })
+  })
+
+  it('resets only iagon-primer flag and navigates to marketplace on Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[4]) // iagon-primer Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('iagonPrimerCompleted')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
+      state: { tab: 'marketplace' },
     })
   })
 
