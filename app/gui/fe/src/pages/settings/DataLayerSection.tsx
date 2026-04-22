@@ -352,12 +352,24 @@ export default function DataLayerSection({
               </button>
             ) : (
               <>
+                {/* min-w keeps the button at "Verify Connection" width even
+                    while the label is the shorter "Checking..."; otherwise
+                    the `transition: all` on .btn-base animates the width
+                    change and the Disconnect button slides left and right,
+                    which reads as flashing / ghosted buttons. */}
                 <button
                   onClick={handleVerifyIagon}
                   disabled={iagonLoading}
-                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-tertiary min-w-[160px]"
                 >
-                  {iagonLoading ? t('dataLayer.verifyChecking') : t('dataLayer.verifyButton')}
+                  {iagonLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      {t('dataLayer.verifyChecking')}
+                    </>
+                  ) : (
+                    t('dataLayer.verifyButton')
+                  )}
                 </button>
                 <button
                   onClick={() => setIagonDisconnectConfirm(true)}
