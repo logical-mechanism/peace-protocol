@@ -230,6 +230,10 @@
     "disconnectFailed": "Bağlantı kesme başarısız",
     "verificationFailed": "Doğrulama başarısız",
     "verifyInvalid": "API anahtarı artık geçerli değil. Lütfen yeniden bağlanın.",
+    "verifyNoKey": "Saklanmış Iagon API anahtarı yok. Cüzdanınızı bağlayın veya aşağıya bir anahtar yapıştırın.",
+    "verifyOkTitle": "Iagon bağlantısı tamam",
+    "verifyOkBody": "API anahtarınız geçerli ve kullanıma hazır.",
+    "iagonKeyExpired": "Iagon API anahtarınız artık kabul edilmiyor. Dosya yüklemeye veya indirmeye devam etmek için yeniden bağlanın.",
     "manualKeyInvalid": "API anahtarı geçersiz veya süresi dolmuş. Anahtarınızı kontrol edip tekrar deneyin.",
     "manualKeySaveFailed": "API anahtarı kaydedilemedi"
   },

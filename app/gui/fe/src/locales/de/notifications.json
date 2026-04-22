@@ -48,6 +48,8 @@
     "relistFailedBody": "Bibliotheks-Inhaltsdatei konnte nicht gefunden werden",
     "bulkDeleteTitle": "Massenlöschung",
     "saveFailedTitle": "Speichern fehlgeschlagen",
+    "iagonKeyExpiredTitle": "Iagon-Anmeldung abgelaufen",
+    "iagonKeyExpiredBody": "Dein Iagon-API-Schlüssel wird nicht mehr akzeptiert — verbinde dich unter Einstellungen → Datenschicht erneut, um Uploads und Downloads fortzusetzen.",
     "copyFailedTitle": "Kopieren fehlgeschlagen",
     "copyAddressFailedBody": "Adresse konnte nicht in die Zwischenablage kopiert werden.",
     "updateAvailableTitle": "Update verfügbar: v{{version}}",

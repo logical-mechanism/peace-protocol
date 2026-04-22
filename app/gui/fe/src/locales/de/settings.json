@@ -230,6 +230,10 @@
     "disconnectFailed": "Trennung fehlgeschlagen",
     "verificationFailed": "Überprüfung fehlgeschlagen",
     "verifyInvalid": "API-Schlüssel ist nicht mehr gültig. Bitte erneut verbinden.",
+    "verifyNoKey": "Kein Iagon-API-Schlüssel hinterlegt. Verbinde deine Wallet oder füge unten einen Schlüssel ein.",
+    "verifyOkTitle": "Iagon-Verbindung OK",
+    "verifyOkBody": "Dein API-Schlüssel ist gültig und einsatzbereit.",
+    "iagonKeyExpired": "Dein Iagon-API-Schlüssel wird nicht mehr akzeptiert. Verbinde erneut, um Dateien hoch- oder herunterzuladen.",
     "manualKeyInvalid": "API-Schlüssel ist ungültig oder abgelaufen. Überprüfe deinen Schlüssel und versuche es erneut.",
     "manualKeySaveFailed": "API-Schlüssel konnte nicht gespeichert werden"
   },

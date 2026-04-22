@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon necessario",
     "iagonRequiredBody": "Collega il tuo account Iagon per caricare file.",
     "goToSettings": "Vai alle impostazioni",
+    "iagonPrimer": {
+      "title": "Configura lo storage decentralizzato Iagon",
+      "bodyWhat": "Iagon archivia file cifrati off-chain. Gli annunci di testo rimangono on-chain; tutto il resto (documenti, audio, immagini, video) viene cifrato sul tuo dispositivo e caricato su Iagon.",
+      "bodyWhy": "Un accesso wallet una tantum emette una chiave API in modo che questa app possa caricare e recuperare i tuoi file. Nulla lascia il tuo dispositivo non cifrato.",
+      "signInButton": "Accedi con il wallet",
+      "signingIn": "Accesso in corso...",
+      "skipButton": "Salta per ora",
+      "manualLink": "Gestisci manualmente nelle Impostazioni",
+      "skipToast": {
+        "title": "Accesso Iagon saltato",
+        "body": "Non puoi creare annunci file finché non ti colleghi in Impostazioni → Livello Dati."
+      },
+      "successToast": {
+        "title": "Connesso a Iagon",
+        "body": "Ora puoi caricare file per i tuoi annunci."
+      },
+      "errorPrefix": "Accesso non riuscito: "
+    },
     "description": "Descrizione",
     "descriptionPlaceholder": "Breve descrizione di cio che stai vendendo (visibile agli acquirenti)",
     "descriptionCharsCount": "{{current}}/{{max}} caratteri (archiviati nei metadati CIP-20)",

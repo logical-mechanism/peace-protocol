@@ -48,6 +48,8 @@
     "relistFailedBody": "Не удалось найти файл контента из библиотеки",
     "bulkDeleteTitle": "Массовое удаление",
     "saveFailedTitle": "Ошибка сохранения",
+    "iagonKeyExpiredTitle": "Срок действия входа Iagon истёк",
+    "iagonKeyExpiredBody": "Ваш API-ключ Iagon больше не принимается — подключитесь заново в Настройки → Слой данных, чтобы возобновить загрузку и скачивание файлов.",
     "copyFailedTitle": "Ошибка копирования",
     "copyAddressFailedBody": "Не удалось скопировать адрес в буфер обмена.",
     "updateAvailableTitle": "Доступно обновление: v{{version}}",

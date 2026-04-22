@@ -48,6 +48,8 @@
     "relistFailedBody": "Nie mozna znalezc pliku tresci w bibliotece",
     "bulkDeleteTitle": "Usuwanie zbiorcze",
     "saveFailedTitle": "Zapisywanie nie powiodlo sie",
+    "iagonKeyExpiredTitle": "Logowanie Iagon wygasło",
+    "iagonKeyExpiredBody": "Twój klucz API Iagon nie jest już akceptowany — połącz ponownie w Ustawienia → Warstwa danych, aby wznowić przesyłanie i pobieranie.",
     "copyFailedTitle": "Kopiowanie nie powiodlo sie",
     "copyAddressFailedBody": "Nie udalo sie skopiowac adresu do schowka.",
     "updateAvailableTitle": "Dostepna aktualizacja: v{{version}}",

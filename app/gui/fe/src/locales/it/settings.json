@@ -230,6 +230,10 @@
     "disconnectFailed": "Impossibile disconnettersi",
     "verificationFailed": "Verifica non riuscita",
     "verifyInvalid": "La chiave API non e piu valida. Riconnettiti.",
+    "verifyNoKey": "Nessuna chiave API Iagon memorizzata. Collega il tuo wallet o incolla una chiave qui sotto.",
+    "verifyOkTitle": "Connessione Iagon OK",
+    "verifyOkBody": "La tua chiave API è valida e pronta all'uso.",
+    "iagonKeyExpired": "La tua chiave API Iagon non è più accettata. Ricollegati per continuare a caricare o scaricare file.",
     "manualKeyInvalid": "La chiave API non e valida o e scaduta. Controlla la chiave e riprova.",
     "manualKeySaveFailed": "Impossibile salvare la chiave API"
   },

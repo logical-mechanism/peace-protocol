@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon Required",
     "iagonRequiredBody": "Connect your Iagon account to upload files.",
     "goToSettings": "Go to Settings",
+    "iagonPrimer": {
+      "title": "Set up Iagon decentralized storage",
+      "bodyWhat": "Iagon stores encrypted files off-chain. Text listings live on-chain; everything else (documents, audio, images, video) is encrypted on your device and uploaded to Iagon.",
+      "bodyWhy": "A one-time wallet sign-in issues an API key so this app can upload and retrieve your files. Nothing leaves your device unencrypted.",
+      "signInButton": "Sign in with wallet",
+      "signingIn": "Signing in...",
+      "skipButton": "Skip for now",
+      "manualLink": "Manage manually in Settings",
+      "skipToast": {
+        "title": "Iagon sign-in skipped",
+        "body": "You can't create file listings until you connect in Settings → Data Layer."
+      },
+      "successToast": {
+        "title": "Connected to Iagon",
+        "body": "You can now upload files for your listings."
+      },
+      "errorPrefix": "Sign-in failed: "
+    },
     "description": "Description",
     "descriptionPlaceholder": "Brief description of what you're selling (visible to buyers)",
     "descriptionCharsCount": "{{current}}/{{max}} characters (stored in CIP-20 metadata)",

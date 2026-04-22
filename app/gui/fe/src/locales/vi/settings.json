@@ -230,6 +230,10 @@
     "disconnectFailed": "Ngắt kết nối thất bại",
     "verificationFailed": "Xác minh thất bại",
     "verifyInvalid": "Khóa API không còn hợp lệ. Vui lòng kết nối lại.",
+    "verifyNoKey": "Không có khóa API Iagon được lưu. Kết nối ví của bạn hoặc dán khóa vào bên dưới.",
+    "verifyOkTitle": "Kết nối Iagon OK",
+    "verifyOkBody": "Khóa API của bạn hợp lệ và sẵn sàng sử dụng.",
+    "iagonKeyExpired": "Khóa API Iagon của bạn không còn được chấp nhận. Kết nối lại để tiếp tục tải lên hoặc tải xuống tệp.",
     "manualKeyInvalid": "Khóa API không hợp lệ hoặc đã hết hạn. Kiểm tra khóa và thử lại.",
     "manualKeySaveFailed": "Không thể lưu khóa API"
   },

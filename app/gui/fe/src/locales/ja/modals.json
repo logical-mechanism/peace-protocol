@@ -197,6 +197,24 @@
     "iagonRequired": "Iagonが必要です",
     "iagonRequiredBody": "ファイルをアップロードするにはIagonアカウントに接続してください。",
     "goToSettings": "設定に移動",
+    "iagonPrimer": {
+      "title": "Iagonの分散ストレージをセットアップ",
+      "bodyWhat": "Iagonは暗号化されたファイルをオフチェーンで保存します。テキストの出品はオンチェーンに残り、それ以外（ドキュメント、音声、画像、動画）はお使いのデバイス上で暗号化されてIagonにアップロードされます。",
+      "bodyWhy": "一度だけウォレットでサインインすることでAPIキーが発行され、このアプリがファイルをアップロード・取得できるようになります。暗号化されないままデバイスから出ることはありません。",
+      "signInButton": "ウォレットでサインイン",
+      "signingIn": "サインイン中...",
+      "skipButton": "今はスキップ",
+      "manualLink": "設定で手動管理",
+      "skipToast": {
+        "title": "Iagonサインインをスキップしました",
+        "body": "設定 → データレイヤーで接続するまで、ファイル出品は作成できません。"
+      },
+      "successToast": {
+        "title": "Iagonに接続しました",
+        "body": "出品用にファイルをアップロードできるようになりました。"
+      },
+      "errorPrefix": "サインインに失敗しました: "
+    },
     "description": "説明",
     "descriptionPlaceholder": "販売するものの簡単な説明（購入者に表示されます）",
     "descriptionCharsCount": "{{current}}/{{max}}文字（CIP-20メタデータに保存）",

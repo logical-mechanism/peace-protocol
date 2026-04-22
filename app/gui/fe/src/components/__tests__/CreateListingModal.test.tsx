@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest';
 import CreateListingModal from '../CreateListingModal';
 import { ModalProvider } from '../../contexts/ModalContext';
+import {
+  markIagonPrimerCompleted,
+  resetTutorialFlag,
+  resetOnboarding,
+} from '../../services/onboardingStorage';
 
 // --- Mocks ---
 
@@ -45,6 +50,11 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   stat: (...args: unknown[]) => mockStat(...args),
 }));
 
+const mockConnectIagon = vi.fn();
+vi.mock('../../services/iagonAuth', () => ({
+  connectIagon: (...args: unknown[]) => mockConnectIagon(...args),
+}));
+
 // --- Tauri drag-drop event mock ---
 type DragDropPayload =
   | { type: 'enter'; paths?: string[] }
@@ -80,7 +90,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockOnSubmit.mockResolvedValue(undefined);
   mockGetDraft.mockReturnValue(null);
+  mockConnectIagon.mockResolvedValue(undefined);
   dragDropCallback = null;
+  // Pre-mark the Iagon primer as completed so existing tests don't have to
+  // contend with the primer card when rendering in file mode without an
+  // Iagon connection. Individual primer tests reset the flag themselves.
+  resetOnboarding();
+  markIagonPrimerCompleted();
 });
 
 function renderModal(overrides: Partial<Parameters<typeof CreateListingModal>[0]> = {}) {
@@ -368,6 +384,97 @@ describe('CreateListingModal', () => {
     fireEvent.click(screen.getByText('Go to Settings'));
     expect(mockOnClose).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith('/settings', { state: { section: 'datalayer' } });
+  });
+
+  // --- Iagon primer ---
+
+  describe('Iagon setup primer', () => {
+    // The beforeEach at the top pre-marks the primer as completed so earlier
+    // tests see the legacy "Iagon Required" overlay. For primer tests, reset
+    // just that flag so the primer renders.
+    beforeEach(() => {
+      resetTutorialFlag('iagonPrimerCompleted');
+    });
+
+    it('does not show primer in text mode', () => {
+      renderModal({ isIagonConnected: false });
+      expect(screen.queryByTestId('iagon-primer')).not.toBeInTheDocument();
+    });
+
+    it('does not show primer when Iagon is already connected', () => {
+      renderModal({ isIagonConnected: true });
+      fireEvent.click(screen.getByText('File'));
+      expect(screen.queryByTestId('iagon-primer')).not.toBeInTheDocument();
+    });
+
+    it('shows primer in file mode when Iagon is not connected', () => {
+      renderModal({ isIagonConnected: false });
+      fireEvent.click(screen.getByText('File'));
+      expect(screen.getByTestId('iagon-primer')).toBeInTheDocument();
+      // Legacy overlay is suppressed while primer is active
+      expect(screen.queryByText('Iagon Required')).not.toBeInTheDocument();
+    });
+
+    it('hides primer and falls back to Iagon Required overlay after Skip', () => {
+      renderModal({ isIagonConnected: false });
+      fireEvent.click(screen.getByText('File'));
+      fireEvent.click(screen.getByText('Skip for now'));
+      expect(screen.queryByTestId('iagon-primer')).not.toBeInTheDocument();
+      expect(screen.getByText('Iagon Required')).toBeInTheDocument();
+    });
+
+    it('calls connectIagon and onIagonConnected on successful sign-in', async () => {
+      const fakeWallet = { signData: vi.fn() } as unknown as Parameters<typeof CreateListingModal>[0]['wallet'];
+      const onIagonConnected = vi.fn();
+      mockConnectIagon.mockResolvedValue('api-key-abc');
+
+      renderModal({
+        isIagonConnected: false,
+        wallet: fakeWallet,
+        address: 'addr_test1...',
+        onIagonConnected,
+      });
+      fireEvent.click(screen.getByText('File'));
+      fireEvent.click(screen.getByRole('button', { name: /Sign in with wallet/ }));
+
+      await waitFor(() => {
+        expect(mockConnectIagon).toHaveBeenCalledWith(fakeWallet, 'addr_test1...');
+        expect(onIagonConnected).toHaveBeenCalled();
+      });
+      // Primer should disappear once completed
+      expect(screen.queryByTestId('iagon-primer')).not.toBeInTheDocument();
+    });
+
+    it('shows error message when connectIagon rejects', async () => {
+      const fakeWallet = { signData: vi.fn() } as unknown as Parameters<typeof CreateListingModal>[0]['wallet'];
+      mockConnectIagon.mockRejectedValue(new Error('nonce rejected'));
+
+      renderModal({
+        isIagonConnected: false,
+        wallet: fakeWallet,
+        address: 'addr_test1...',
+      });
+      fireEvent.click(screen.getByText('File'));
+      fireEvent.click(screen.getByRole('button', { name: /Sign in with wallet/ }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/nonce rejected/);
+      // Primer still visible so user can retry or skip
+      expect(screen.getByTestId('iagon-primer')).toBeInTheDocument();
+    });
+
+    it('disables Sign in button when no wallet is provided', () => {
+      renderModal({ isIagonConnected: false });
+      fireEvent.click(screen.getByText('File'));
+      expect(screen.getByRole('button', { name: /Sign in with wallet/ })).toBeDisabled();
+    });
+
+    it('Manage manually link closes modal and navigates to Settings', () => {
+      renderModal({ isIagonConnected: false });
+      fireEvent.click(screen.getByText('File'));
+      fireEvent.click(screen.getByText('Manage manually in Settings'));
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('/settings', { state: { section: 'datalayer' } });
+    });
   });
 
   // --- Draft prompt ---

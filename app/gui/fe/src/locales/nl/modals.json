@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon vereist",
     "iagonRequiredBody": "Verbind je Iagon-account om bestanden te uploaden.",
     "goToSettings": "Naar instellingen",
+    "iagonPrimer": {
+      "title": "Gedecentraliseerde Iagon-opslag instellen",
+      "bodyWhat": "Iagon slaat versleutelde bestanden off-chain op. Tekstadvertenties staan on-chain; al het andere (documenten, audio, afbeeldingen, video) wordt op je apparaat versleuteld en naar Iagon geüpload.",
+      "bodyWhy": "Een eenmalige wallet-login levert een API-sleutel op zodat deze app je bestanden kan uploaden en ophalen. Niets verlaat je apparaat onversleuteld.",
+      "signInButton": "Inloggen met wallet",
+      "signingIn": "Inloggen...",
+      "skipButton": "Nu overslaan",
+      "manualLink": "Handmatig beheren in Instellingen",
+      "skipToast": {
+        "title": "Iagon-login overgeslagen",
+        "body": "Je kunt pas bestandsadvertenties maken als je verbindt via Instellingen → Datalaag."
+      },
+      "successToast": {
+        "title": "Verbonden met Iagon",
+        "body": "Je kunt nu bestanden uploaden voor je advertenties."
+      },
+      "errorPrefix": "Inloggen mislukt: "
+    },
     "description": "Beschrijving",
     "descriptionPlaceholder": "Korte beschrijving van wat je verkoopt (zichtbaar voor kopers)",
     "descriptionCharsCount": "{{current}}/{{max}} tekens (opgeslagen in CIP-20 metadata)",

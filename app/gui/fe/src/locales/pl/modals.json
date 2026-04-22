@@ -197,6 +197,24 @@
     "iagonRequired": "Wymagany Iagon",
     "iagonRequiredBody": "Polacz swoje konto Iagon, aby przesylac pliki.",
     "goToSettings": "Przejdz do Ustawien",
+    "iagonPrimer": {
+      "title": "Skonfiguruj zdecentralizowane przechowywanie Iagon",
+      "bodyWhat": "Iagon przechowuje zaszyfrowane pliki poza łańcuchem. Oferty tekstowe pozostają on-chain; wszystko inne (dokumenty, audio, obrazy, wideo) jest szyfrowane na Twoim urządzeniu i przesyłane do Iagon.",
+      "bodyWhy": "Jednorazowe logowanie portfelem wydaje klucz API, dzięki któremu ta aplikacja może przesyłać i pobierać Twoje pliki. Nic nie opuszcza urządzenia bez szyfrowania.",
+      "signInButton": "Zaloguj portfelem",
+      "signingIn": "Logowanie...",
+      "skipButton": "Pomiń na razie",
+      "manualLink": "Zarządzaj ręcznie w Ustawieniach",
+      "skipToast": {
+        "title": "Pominięto logowanie Iagon",
+        "body": "Nie możesz tworzyć ofert plikowych, dopóki nie połączysz się w Ustawieniach → Warstwa danych."
+      },
+      "successToast": {
+        "title": "Połączono z Iagon",
+        "body": "Możesz teraz przesyłać pliki do swoich ofert."
+      },
+      "errorPrefix": "Logowanie nie powiodło się: "
+    },
     "description": "Opis",
     "descriptionPlaceholder": "Krotki opis tego, co sprzedajesz (widoczny dla kupujacych)",
     "descriptionCharsCount": "{{current}}/{{max}} znakow (przechowywane w metadanych CIP-20)",

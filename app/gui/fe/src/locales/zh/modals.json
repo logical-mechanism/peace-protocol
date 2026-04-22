@@ -197,6 +197,24 @@
     "iagonRequired": "需要 Iagon",
     "iagonRequiredBody": "连接您的 Iagon 账户以上传文件。",
     "goToSettings": "前往设置",
+    "iagonPrimer": {
+      "title": "设置 Iagon 去中心化存储",
+      "bodyWhat": "Iagon 将加密文件存储在链下。文本列表保存在链上；其他（文档、音频、图像、视频）在您的设备上加密后上传到 Iagon。",
+      "bodyWhy": "一次性钱包登录会生成一个 API 密钥，以便此应用能够上传和获取您的文件。任何未加密的内容都不会离开您的设备。",
+      "signInButton": "使用钱包登录",
+      "signingIn": "正在登录...",
+      "skipButton": "暂时跳过",
+      "manualLink": "在设置中手动管理",
+      "skipToast": {
+        "title": "已跳过 Iagon 登录",
+        "body": "在设置 → 数据层连接之前，您无法创建文件列表。"
+      },
+      "successToast": {
+        "title": "已连接到 Iagon",
+        "body": "您现在可以为列表上传文件了。"
+      },
+      "errorPrefix": "登录失败: "
+    },
     "description": "描述",
     "descriptionPlaceholder": "简要描述您出售的内容（对买家可见）",
     "descriptionCharsCount": "{{current}}/{{max}} 个字符（存储在 CIP-20 元数据中）",

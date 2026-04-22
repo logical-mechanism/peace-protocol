@@ -230,6 +230,10 @@
     "disconnectFailed": "Falha ao desconectar",
     "verificationFailed": "Falha na verificação",
     "verifyInvalid": "A chave de API não é mais válida. Por favor, reconecte.",
+    "verifyNoKey": "Nenhuma chave API do Iagon armazenada. Conecte sua carteira ou cole uma chave abaixo.",
+    "verifyOkTitle": "Conexão Iagon OK",
+    "verifyOkBody": "Sua chave API é válida e está pronta para uso.",
+    "iagonKeyExpired": "Sua chave API do Iagon não é mais aceita. Reconecte-se para continuar enviando ou baixando arquivos.",
     "manualKeyInvalid": "A chave de API é inválida ou expirou. Verifique sua chave e tente novamente.",
     "manualKeySaveFailed": "Falha ao salvar chave de API"
   },

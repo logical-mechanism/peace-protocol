@@ -197,6 +197,24 @@
     "iagonRequired": "Iagon 필요",
     "iagonRequiredBody": "파일을 업로드하려면 Iagon 계정을 연결하세요.",
     "goToSettings": "설정으로 이동",
+    "iagonPrimer": {
+      "title": "Iagon 탈중앙 스토리지 설정",
+      "bodyWhat": "Iagon은 암호화된 파일을 오프체인에 저장합니다. 텍스트 목록은 온체인에 있으며, 그 외(문서, 오디오, 이미지, 비디오)는 기기에서 암호화되어 Iagon에 업로드됩니다.",
+      "bodyWhy": "일회성 지갑 로그인으로 API 키가 발급되어 이 앱이 파일을 업로드하고 가져올 수 있습니다. 암호화되지 않은 상태로 기기를 떠나는 것은 없습니다.",
+      "signInButton": "지갑으로 로그인",
+      "signingIn": "로그인 중...",
+      "skipButton": "나중에",
+      "manualLink": "설정에서 수동 관리",
+      "skipToast": {
+        "title": "Iagon 로그인 건너뜀",
+        "body": "설정 → 데이터 레이어에서 연결할 때까지 파일 목록을 만들 수 없습니다."
+      },
+      "successToast": {
+        "title": "Iagon에 연결됨",
+        "body": "이제 목록에 파일을 업로드할 수 있습니다."
+      },
+      "errorPrefix": "로그인 실패: "
+    },
     "description": "설명",
     "descriptionPlaceholder": "판매하려는 항목에 대한 간단한 설명 (구매자에게 표시됨)",
     "descriptionCharsCount": "{{current}}/{{max}}자 (CIP-20 메타데이터에 저장)",

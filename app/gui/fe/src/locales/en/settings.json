@@ -230,6 +230,10 @@
     "disconnectFailed": "Failed to disconnect",
     "verificationFailed": "Verification failed",
     "verifyInvalid": "API key is no longer valid. Please reconnect.",
+    "verifyNoKey": "No Iagon API key is stored. Connect your wallet or paste a key below.",
+    "verifyOkTitle": "Iagon connection OK",
+    "verifyOkBody": "Your API key is valid and ready to use.",
+    "iagonKeyExpired": "Your Iagon API key is no longer accepted. Reconnect to continue uploading or downloading files.",
     "manualKeyInvalid": "API key is invalid or expired. Check your key and try again.",
     "manualKeySaveFailed": "Failed to save API key"
   },

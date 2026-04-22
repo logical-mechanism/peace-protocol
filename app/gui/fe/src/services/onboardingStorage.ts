@@ -12,6 +12,7 @@ export interface OnboardingState {
   firstBidCompleted: boolean
   firstDecryptCompleted: boolean
   firstBidAcceptedCompleted: boolean
+  iagonPrimerCompleted: boolean
 }
 
 export type TutorialFlag =
@@ -19,6 +20,7 @@ export type TutorialFlag =
   | 'firstBidCompleted'
   | 'firstDecryptCompleted'
   | 'firstBidAcceptedCompleted'
+  | 'iagonPrimerCompleted'
 
 const DEFAULT_STATE: OnboardingState = {
   step: 0,
@@ -27,6 +29,7 @@ const DEFAULT_STATE: OnboardingState = {
   firstBidCompleted: false,
   firstDecryptCompleted: false,
   firstBidAcceptedCompleted: false,
+  iagonPrimerCompleted: false,
 }
 
 /** Read onboarding state from localStorage. Returns default state if not found.
@@ -51,6 +54,9 @@ export function getOnboardingState(): OnboardingState {
       : false,
     firstBidAcceptedCompleted: typeof parsed.firstBidAcceptedCompleted === 'boolean'
       ? parsed.firstBidAcceptedCompleted
+      : false,
+    iagonPrimerCompleted: typeof parsed.iagonPrimerCompleted === 'boolean'
+      ? parsed.iagonPrimerCompleted
       : false,
   }
 }
@@ -109,6 +115,13 @@ export function markFirstBidAcceptedCompleted(): void {
   setOnboardingState({ ...current, firstBidAcceptedCompleted: true })
 }
 
+/** Mark the Iagon setup primer as completed (shown once, dismissed or auth'd). */
+export function markIagonPrimerCompleted(): void {
+  const current = getOnboardingState()
+  if (current.iagonPrimerCompleted) return
+  setOnboardingState({ ...current, iagonPrimerCompleted: true })
+}
+
 /** Re-enable all guided tutorials (clears completion flags). */
 export function resetTutorials(): void {
   const current = getOnboardingState()
@@ -118,6 +131,7 @@ export function resetTutorials(): void {
     firstBidCompleted: false,
     firstDecryptCompleted: false,
     firstBidAcceptedCompleted: false,
+    iagonPrimerCompleted: false,
   })
 }
 

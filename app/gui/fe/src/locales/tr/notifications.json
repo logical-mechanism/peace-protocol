@@ -48,6 +48,8 @@
     "relistFailedBody": "Kütüphane içerik dosyası bulunamadı",
     "bulkDeleteTitle": "Toplu Silme",
     "saveFailedTitle": "Kaydetme başarısız",
+    "iagonKeyExpiredTitle": "Iagon girişinin süresi doldu",
+    "iagonKeyExpiredBody": "Iagon API anahtarınız artık kabul edilmiyor — dosya yükleme ve indirmeye devam etmek için Ayarlar → Veri Katmanı'nda yeniden bağlanın.",
     "copyFailedTitle": "Kopyalama başarısız",
     "copyAddressFailedBody": "Adres panoya kopyalanamadı.",
     "updateAvailableTitle": "Güncelleme mevcut: v{{version}}",

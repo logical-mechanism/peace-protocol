@@ -9,17 +9,24 @@ import {
   markFirstBidCompleted,
   markFirstDecryptCompleted,
   markFirstBidAcceptedCompleted,
+  markIagonPrimerCompleted,
   resetTutorials,
   resetTutorialFlag,
+  type OnboardingState,
 } from '../onboardingStorage'
 
-const DEFAULT = {
+const DEFAULT: OnboardingState = {
   step: 0,
   completed: false,
   firstListingCompleted: false,
   firstBidCompleted: false,
   firstDecryptCompleted: false,
   firstBidAcceptedCompleted: false,
+  iagonPrimerCompleted: false,
+}
+
+function makeState(overrides: Partial<OnboardingState> = {}): OnboardingState {
+  return { ...DEFAULT, ...overrides }
 }
 
 describe('onboardingStorage', () => {
@@ -33,22 +40,14 @@ describe('onboardingStorage', () => {
     })
 
     it('returns stored state', () => {
-      localStorage.setItem('veiled_onboarding', JSON.stringify({
+      localStorage.setItem('veiled_onboarding', JSON.stringify(makeState({
         step: 2,
-        completed: false,
         firstListingCompleted: true,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
+      })))
+      expect(getOnboardingState()).toEqual(makeState({
+        step: 2,
+        firstListingCompleted: true,
       }))
-      expect(getOnboardingState()).toEqual({
-        step: 2,
-        completed: false,
-        firstListingCompleted: true,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
     })
 
     it('returns default for malformed JSON', () => {
@@ -63,14 +62,10 @@ describe('onboardingStorage', () => {
 
     it('migrates legacy entries by adding tutorial flags as false', () => {
       localStorage.setItem('veiled_onboarding', JSON.stringify({ step: 3, completed: true }))
-      expect(getOnboardingState()).toEqual({
+      expect(getOnboardingState()).toEqual(makeState({
         step: 3,
         completed: true,
-        firstListingCompleted: false,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
+      }))
     })
 
     it('migrates entries that have only firstListing/firstBid flags', () => {
@@ -80,14 +75,12 @@ describe('onboardingStorage', () => {
         firstListingCompleted: true,
         firstBidCompleted: true,
       }))
-      expect(getOnboardingState()).toEqual({
+      expect(getOnboardingState()).toEqual(makeState({
         step: 3,
         completed: true,
         firstListingCompleted: true,
         firstBidCompleted: true,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
+      }))
     })
 
     it('migrates entries missing only firstBidAcceptedCompleted', () => {
@@ -100,27 +93,25 @@ describe('onboardingStorage', () => {
       }))
       expect(getOnboardingState().firstBidAcceptedCompleted).toBe(false)
     })
+
+    it('migrates entries missing iagonPrimerCompleted', () => {
+      localStorage.setItem('veiled_onboarding', JSON.stringify({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+      }))
+      expect(getOnboardingState().iagonPrimerCompleted).toBe(false)
+    })
   })
 
   describe('setOnboardingState', () => {
     it('persists state to localStorage', () => {
-      setOnboardingState({
-        step: 1,
-        completed: false,
-        firstListingCompleted: false,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
+      setOnboardingState(makeState({ step: 1 }))
       const raw = localStorage.getItem('veiled_onboarding')
-      expect(JSON.parse(raw!)).toEqual({
-        step: 1,
-        completed: false,
-        firstListingCompleted: false,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
+      expect(JSON.parse(raw!)).toEqual(makeState({ step: 1 }))
     })
   })
 
@@ -130,53 +121,51 @@ describe('onboardingStorage', () => {
     })
 
     it('advances from 2 to 3 and marks completed', () => {
-      setOnboardingState({
-        step: 2, completed: false,
-        firstListingCompleted: false, firstBidCompleted: false,
-        firstDecryptCompleted: false, firstBidAcceptedCompleted: false,
-      })
+      setOnboardingState(makeState({ step: 2 }))
       expect(advanceOnboardingStep()).toMatchObject({ step: 3, completed: true })
     })
 
     it('does not advance beyond 3', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: false, firstBidCompleted: false,
-        firstDecryptCompleted: false, firstBidAcceptedCompleted: false,
-      })
+      setOnboardingState(makeState({ step: 3, completed: true }))
       expect(advanceOnboardingStep()).toMatchObject({ step: 3, completed: true })
     })
 
     it('preserves tutorial flags when advancing', () => {
-      setOnboardingState({
-        step: 1, completed: false,
-        firstListingCompleted: true, firstBidCompleted: false,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(makeState({
+        step: 1,
+        firstListingCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
       expect(advanceOnboardingStep()).toMatchObject({
         firstListingCompleted: true,
         firstDecryptCompleted: true,
         firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
       })
     })
   })
 
   describe('completeOnboarding', () => {
     it('marks onboarding as completed at step 3, preserving tutorial flags', () => {
-      setOnboardingState({
-        step: 0, completed: false,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(makeState({
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
       completeOnboarding()
-      expect(getOnboardingState()).toEqual({
+      expect(getOnboardingState()).toEqual(makeState({
         step: 3,
         completed: true,
         firstListingCompleted: true,
         firstBidCompleted: true,
         firstDecryptCompleted: true,
         firstBidAcceptedCompleted: true,
-      })
+        iagonPrimerCompleted: true,
+      }))
     })
   })
 
@@ -213,20 +202,24 @@ describe('onboardingStorage', () => {
     })
 
     it('does not affect other tutorial flags', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: false, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(makeState({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
       markFirstDecryptCompleted()
-      expect(getOnboardingState()).toEqual({
+      expect(getOnboardingState()).toEqual(makeState({
         step: 3,
         completed: true,
         firstListingCompleted: true,
         firstBidCompleted: true,
         firstDecryptCompleted: true,
         firstBidAcceptedCompleted: true,
-      })
+        iagonPrimerCompleted: true,
+      }))
     })
   })
 
@@ -243,116 +236,125 @@ describe('onboardingStorage', () => {
     })
 
     it('does not affect other tutorial flags', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: false,
-      })
+      setOnboardingState(makeState({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
       markFirstBidAcceptedCompleted()
-      expect(getOnboardingState()).toEqual({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      expect(getOnboardingState()).toEqual(makeState({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
+    })
+  })
+
+  describe('markIagonPrimerCompleted', () => {
+    it('sets iagonPrimerCompleted to true', () => {
+      markIagonPrimerCompleted()
+      expect(getOnboardingState().iagonPrimerCompleted).toBe(true)
+    })
+
+    it('is idempotent', () => {
+      markIagonPrimerCompleted()
+      markIagonPrimerCompleted()
+      expect(getOnboardingState().iagonPrimerCompleted).toBe(true)
+    })
+
+    it('does not affect other tutorial flags', () => {
+      setOnboardingState(makeState({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+      }))
+      markIagonPrimerCompleted()
+      expect(getOnboardingState()).toEqual(makeState({
+        step: 3,
+        completed: true,
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
     })
   })
 
   describe('resetTutorials', () => {
     it('clears all tutorial flags without touching onboarding state', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
-      resetTutorials()
-      expect(getOnboardingState()).toEqual({
+      setOnboardingState(makeState({
         step: 3,
         completed: true,
-        firstListingCompleted: false,
-        firstBidCompleted: false,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: false,
-      })
+        firstListingCompleted: true,
+        firstBidCompleted: true,
+        firstDecryptCompleted: true,
+        firstBidAcceptedCompleted: true,
+        iagonPrimerCompleted: true,
+      }))
+      resetTutorials()
+      expect(getOnboardingState()).toEqual(makeState({
+        step: 3,
+        completed: true,
+      }))
     })
   })
 
   describe('resetTutorialFlag', () => {
+    const ALL_ON = makeState({
+      step: 3,
+      completed: true,
+      firstListingCompleted: true,
+      firstBidCompleted: true,
+      firstDecryptCompleted: true,
+      firstBidAcceptedCompleted: true,
+      iagonPrimerCompleted: true,
+    })
+
     it('resets only firstBidCompleted without touching others', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(ALL_ON)
       resetTutorialFlag('firstBidCompleted')
-      expect(getOnboardingState()).toEqual({
-        step: 3,
-        completed: true,
-        firstListingCompleted: true,
-        firstBidCompleted: false,
-        firstDecryptCompleted: true,
-        firstBidAcceptedCompleted: true,
-      })
+      expect(getOnboardingState()).toEqual({ ...ALL_ON, firstBidCompleted: false })
     })
 
     it('resets only firstListingCompleted without touching others', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(ALL_ON)
       resetTutorialFlag('firstListingCompleted')
-      expect(getOnboardingState()).toEqual({
-        step: 3,
-        completed: true,
-        firstListingCompleted: false,
-        firstBidCompleted: true,
-        firstDecryptCompleted: true,
-        firstBidAcceptedCompleted: true,
-      })
+      expect(getOnboardingState()).toEqual({ ...ALL_ON, firstListingCompleted: false })
     })
 
     it('resets only firstDecryptCompleted without touching others', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(ALL_ON)
       resetTutorialFlag('firstDecryptCompleted')
-      expect(getOnboardingState()).toEqual({
-        step: 3,
-        completed: true,
-        firstListingCompleted: true,
-        firstBidCompleted: true,
-        firstDecryptCompleted: false,
-        firstBidAcceptedCompleted: true,
-      })
+      expect(getOnboardingState()).toEqual({ ...ALL_ON, firstDecryptCompleted: false })
     })
 
     it('resets only firstBidAcceptedCompleted without touching others', () => {
-      setOnboardingState({
-        step: 3, completed: true,
-        firstListingCompleted: true, firstBidCompleted: true,
-        firstDecryptCompleted: true, firstBidAcceptedCompleted: true,
-      })
+      setOnboardingState(ALL_ON)
       resetTutorialFlag('firstBidAcceptedCompleted')
-      expect(getOnboardingState()).toEqual({
-        step: 3,
-        completed: true,
-        firstListingCompleted: true,
-        firstBidCompleted: true,
-        firstDecryptCompleted: true,
-        firstBidAcceptedCompleted: false,
-      })
+      expect(getOnboardingState()).toEqual({ ...ALL_ON, firstBidAcceptedCompleted: false })
+    })
+
+    it('resets only iagonPrimerCompleted without touching others', () => {
+      setOnboardingState(ALL_ON)
+      resetTutorialFlag('iagonPrimerCompleted')
+      expect(getOnboardingState()).toEqual({ ...ALL_ON, iagonPrimerCompleted: false })
     })
   })
 
   describe('resetOnboarding', () => {
     it('removes state from localStorage', () => {
-      setOnboardingState({
-        step: 2, completed: false,
-        firstListingCompleted: false, firstBidCompleted: false,
-        firstDecryptCompleted: false, firstBidAcceptedCompleted: false,
-      })
+      setOnboardingState(makeState({ step: 2 }))
       resetOnboarding()
       expect(getOnboardingState()).toEqual(DEFAULT)
     })
@@ -374,11 +376,7 @@ describe('onboardingStorage', () => {
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
         throw new DOMException('QuotaExceededError')
       })
-      expect(() => setOnboardingState({
-        step: 1, completed: false,
-        firstListingCompleted: false, firstBidCompleted: false,
-        firstDecryptCompleted: false, firstBidAcceptedCompleted: false,
-      })).not.toThrow()
+      expect(() => setOnboardingState(makeState({ step: 1 }))).not.toThrow()
     })
 
     it('resetOnboarding silently swallows errors', () => {

@@ -230,6 +230,10 @@
     "disconnectFailed": "Gagal memutuskan",
     "verificationFailed": "Verifikasi gagal",
     "verifyInvalid": "Kunci API tidak lagi valid. Silakan hubungkan kembali.",
+    "verifyNoKey": "Tidak ada kunci API Iagon tersimpan. Hubungkan wallet Anda atau tempel kunci di bawah.",
+    "verifyOkTitle": "Koneksi Iagon OK",
+    "verifyOkBody": "Kunci API Anda valid dan siap digunakan.",
+    "iagonKeyExpired": "Kunci API Iagon Anda tidak lagi diterima. Hubungkan ulang untuk melanjutkan unggah atau unduh berkas.",
     "manualKeyInvalid": "Kunci API tidak valid atau kedaluwarsa. Periksa kunci Anda dan coba lagi.",
     "manualKeySaveFailed": "Gagal menyimpan kunci API"
   },

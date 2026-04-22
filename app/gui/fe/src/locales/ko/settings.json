@@ -230,6 +230,10 @@
     "disconnectFailed": "연결 해제에 실패했습니다",
     "verificationFailed": "확인에 실패했습니다",
     "verifyInvalid": "API 키가 더 이상 유효하지 않습니다. 다시 연결하세요.",
+    "verifyNoKey": "저장된 Iagon API 키가 없습니다. 지갑을 연결하거나 아래에 키를 붙여넣으세요.",
+    "verifyOkTitle": "Iagon 연결 확인",
+    "verifyOkBody": "API 키가 유효하며 사용할 준비가 되었습니다.",
+    "iagonKeyExpired": "Iagon API 키가 더 이상 수락되지 않습니다. 파일 업로드 또는 다운로드를 계속하려면 다시 연결하세요.",
     "manualKeyInvalid": "API 키가 유효하지 않거나 만료되었습니다. 키를 확인하고 다시 시도하세요.",
     "manualKeySaveFailed": "API 키 저장에 실패했습니다"
   },

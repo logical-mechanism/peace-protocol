@@ -1121,6 +1121,9 @@ export default function Dashboard() {
         isIagonConnected={effects.iagonConnected}
         prefill={seller.relistPrefill}
         title={seller.relistPrefill ? t('dashboard:shell.relistFromLibraryTitle') : undefined}
+        wallet={wallet}
+        address={address}
+        onIagonConnected={() => effects.setIagonConnected(true)}
       />
 
       {/* Import Listing Modal */}

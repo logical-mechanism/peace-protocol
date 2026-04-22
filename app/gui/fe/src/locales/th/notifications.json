@@ -48,6 +48,8 @@
     "relistFailedBody": "ไม่พบไฟล์เนื้อหาในคลัง",
     "bulkDeleteTitle": "ลบจำนวนมาก",
     "saveFailedTitle": "การบันทึกล้มเหลว",
+    "iagonKeyExpiredTitle": "การลงชื่อเข้าใช้ Iagon หมดอายุ",
+    "iagonKeyExpiredBody": "คีย์ API Iagon ของคุณไม่ได้รับการยอมรับอีกต่อไป — เชื่อมต่อใหม่ในการตั้งค่า → ชั้นข้อมูล เพื่อกลับมาอัปโหลดและดาวน์โหลดไฟล์",
     "copyFailedTitle": "การคัดลอกล้มเหลว",
     "copyAddressFailedBody": "ไม่สามารถคัดลอกที่อยู่ไปยังคลิปบอร์ดได้",
     "updateAvailableTitle": "มีการอัปเดต: v{{version}}",

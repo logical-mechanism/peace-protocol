@@ -230,6 +230,10 @@
     "disconnectFailed": "Nie udalo sie rozlaczyc",
     "verificationFailed": "Weryfikacja nie powiodla sie",
     "verifyInvalid": "Klucz API nie jest juz prawidlowy. Polacz ponownie.",
+    "verifyNoKey": "Brak zapisanego klucza API Iagon. Połącz portfel lub wklej klucz poniżej.",
+    "verifyOkTitle": "Połączenie Iagon OK",
+    "verifyOkBody": "Twój klucz API jest ważny i gotowy do użycia.",
+    "iagonKeyExpired": "Twój klucz API Iagon nie jest już akceptowany. Połącz ponownie, aby kontynuować przesyłanie lub pobieranie plików.",
     "manualKeyInvalid": "Klucz API jest nieprawidlowy lub wygasl. Sprawdz klucz i sprobuj ponownie.",
     "manualKeySaveFailed": "Nie udalo sie zapisac klucza API"
   },

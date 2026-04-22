@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import TutorialsSection from '../TutorialsSection'
 
@@ -17,6 +17,12 @@ vi.mock('../../../services/onboardingStorage', () => ({
   resetTutorialFlag: (...args: unknown[]) => mockResetTutorialFlag(...args),
 }))
 
+const mockIsIagonConnected = vi.fn()
+vi.mock('../../../services/iagonAuth', () => ({
+  isIagonConnected: (...args: unknown[]) => mockIsIagonConnected(...args),
+  onIagonAuthFailure: vi.fn().mockReturnValue(() => {}),
+}))
+
 describe('TutorialsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -27,7 +33,9 @@ describe('TutorialsSection', () => {
       firstBidCompleted: false,
       firstDecryptCompleted: false,
       firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false,
     })
+    mockIsIagonConnected.mockResolvedValue(false)
   })
 
   it('renders tutorial flow rows and keyboard shortcuts', () => {
@@ -54,16 +62,17 @@ describe('TutorialsSection', () => {
       firstBidCompleted: true,
       firstDecryptCompleted: true,
       firstBidAcceptedCompleted: true,
+      iagonPrimerCompleted: true,
     })
     render(<TutorialsSection />)
     const badges = screen.getAllByText('Completed')
     expect(badges.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows Start buttons for incomplete flows with navigation', () => {
+  it('shows Start buttons for every tutorial flow', () => {
     render(<TutorialsSection />)
     const starts = screen.getAllByText('Start')
-    expect(starts.length).toBe(4) // first-listing + first-bid + first-decrypt + first-bid-accepted
+    expect(starts.length).toBe(5) // first-listing + first-bid + first-decrypt + first-bid-accepted + iagon-primer
   })
 
   it('shows Replay button for completed flow with navigation', () => {
@@ -74,15 +83,52 @@ describe('TutorialsSection', () => {
       firstBidCompleted: false,
       firstDecryptCompleted: false,
       firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false,
     })
     render(<TutorialsSection />)
     expect(screen.getByText('Replay')).toBeInTheDocument()
   })
 
-  it('shows Coming soon for flows without navigation', () => {
+  it('derives iagon-primer completion from the live connection state', async () => {
+    mockIsIagonConnected.mockResolvedValue(true)
+    mockGetOnboardingState.mockReturnValue({
+      step: 3,
+      completed: true,
+      firstListingCompleted: false,
+      firstBidCompleted: false,
+      firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: false, // stored flag says Not started
+    })
     render(<TutorialsSection />)
-    const comingSoon = screen.getAllByText('Coming soon')
-    expect(comingSoon.length).toBeGreaterThanOrEqual(1)
+    // Only the iagon-primer row should show Completed despite the stored
+    // flag being false — the live connection wins for this row.
+    await waitFor(() => {
+      expect(screen.getByText('Completed')).toBeInTheDocument()
+    })
+  })
+
+  it('iagon-primer row shows Not started when the key is not connected', async () => {
+    mockIsIagonConnected.mockResolvedValue(false)
+    mockGetOnboardingState.mockReturnValue({
+      step: 3,
+      completed: true,
+      firstListingCompleted: false,
+      firstBidCompleted: false,
+      firstDecryptCompleted: false,
+      firstBidAcceptedCompleted: false,
+      iagonPrimerCompleted: true, // stored flag says Completed
+    })
+    render(<TutorialsSection />)
+    // Even though the stored flag is true, the live connection check wins.
+    await waitFor(() => {
+      expect(screen.queryByText('Completed')).not.toBeInTheDocument()
+    })
+  })
+
+  it('does not render Coming soon once every flow has navigation wired up', () => {
+    render(<TutorialsSection />)
+    expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
   })
 
   it('resets only first-listing flag and navigates on first-listing Start click', () => {
@@ -122,6 +168,16 @@ describe('TutorialsSection', () => {
     expect(mockResetTutorialFlag).toHaveBeenCalledWith('firstBidAcceptedCompleted')
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard', {
       state: { tab: 'my-sales', startTutorial: 'first-bid-accepted' },
+    })
+  })
+
+  it('resets only iagon-primer flag and navigates to Settings → Data Layer on Start click', () => {
+    render(<TutorialsSection />)
+    const starts = screen.getAllByText('Start')
+    fireEvent.click(starts[4]) // iagon-primer Start button
+    expect(mockResetTutorialFlag).toHaveBeenCalledWith('iagonPrimerCompleted')
+    expect(mockNavigate).toHaveBeenCalledWith('/settings', {
+      state: { section: 'datalayer' },
     })
   })
 

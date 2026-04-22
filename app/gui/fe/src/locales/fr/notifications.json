@@ -48,6 +48,8 @@
     "relistFailedBody": "Impossible de trouver le fichier du contenu de la bibliothèque",
     "bulkDeleteTitle": "Suppression en masse",
     "saveFailedTitle": "Échec de l'enregistrement",
+    "iagonKeyExpiredTitle": "Connexion Iagon expirée",
+    "iagonKeyExpiredBody": "Votre clé API Iagon n'est plus acceptée — reconnectez-vous dans Paramètres → Couche de données pour reprendre les téléversements et téléchargements.",
     "copyFailedTitle": "Échec de la copie",
     "copyAddressFailedBody": "Impossible de copier l'adresse dans le presse-papiers.",
     "updateAvailableTitle": "Mise à jour disponible : v{{version}}",

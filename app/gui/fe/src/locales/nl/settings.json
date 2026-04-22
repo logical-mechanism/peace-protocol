@@ -230,6 +230,10 @@
     "disconnectFailed": "Verbinding verbreken mislukt",
     "verificationFailed": "Verificatie mislukt",
     "verifyInvalid": "API-sleutel is niet meer geldig. Verbind opnieuw.",
+    "verifyNoKey": "Geen Iagon API-sleutel opgeslagen. Verbind je wallet of plak hieronder een sleutel.",
+    "verifyOkTitle": "Iagon-verbinding OK",
+    "verifyOkBody": "Je API-sleutel is geldig en klaar voor gebruik.",
+    "iagonKeyExpired": "Je Iagon API-sleutel wordt niet meer geaccepteerd. Verbind opnieuw om bestanden te blijven uploaden of downloaden.",
     "manualKeyInvalid": "API-sleutel is ongeldig of verlopen. Controleer je sleutel en probeer opnieuw.",
     "manualKeySaveFailed": "API-sleutel opslaan mislukt"
   },
