@@ -385,4 +385,29 @@ describe('iagonAuth', () => {
       unsub();
     });
   });
+
+  describe('hasValidApiKey auth-failure event', () => {
+    it('fires onIagonAuthFailure listeners when the stored key is rejected', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      mockInvoke.mockResolvedValueOnce('stale-key'); // get_iagon_api_key
+      mockVerifyApiKey.mockResolvedValueOnce(false);
+      mockInvoke.mockResolvedValueOnce(undefined); // remove_iagon_api_key
+
+      await expect(hasValidApiKey()).resolves.toBe(false);
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsub();
+    });
+
+    it('does NOT fire listeners when the stored key is still valid', async () => {
+      const listener = vi.fn();
+      const unsub = onIagonAuthFailure(listener);
+      mockInvoke.mockResolvedValueOnce('good-key'); // get_iagon_api_key
+      mockVerifyApiKey.mockResolvedValueOnce(true);
+
+      await expect(hasValidApiKey()).resolves.toBe(true);
+      expect(listener).not.toHaveBeenCalled();
+      unsub();
+    });
+  });
 });

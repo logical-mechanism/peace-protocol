@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
-import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey, handleIagonError, isIagonAuthError, onIagonAuthFailure } from '../../services/iagonAuth'
+import { connectIagon, disconnectIagon, isIagonConnected, hasValidApiKey, getStoredApiKey, handleIagonError, isIagonAuthError, onIagonAuthFailure } from '../../services/iagonAuth'
 import { verifyApiKey, deleteFile as iagonDeleteFile, getStorageUsage } from '../../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -49,7 +49,14 @@ export default function DataLayerSection({
   const tRef = useRef(t)
   tRef.current = t
 
+  // Flag set while Verify / Refresh / orphan-delete etc. are in-flight. The
+  // global auth-failure listener checks this so that when the handler itself
+  // is going to update state in its `finally`, the listener doesn't
+  // double-set mid-await and produce an intermediate "connecting..." render.
+  const iagonOperationInFlightRef = useRef(false)
+
   const refreshStorageUsage = useCallback(async () => {
+    iagonOperationInFlightRef.current = true
     setStorageUsageLoading(true)
     try {
       const apiKey = await getStoredApiKey()
@@ -62,9 +69,9 @@ export default function DataLayerSection({
     } catch (err) {
       console.error('Failed to fetch Iagon storage usage:', err)
       // AUTH_FAILED: disconnect, emit event, and surface the expiry message
-      // inline. handleIagonError returns true when it matched — so we skip the
-      // generic toast to avoid double-notifying (the Dashboard listener also
-      // pops a sticky warning).
+      // inline. handleIagonError returns true when it matched — the Dashboard
+      // listener still fires the sticky warning toast, so no local toast is
+      // needed here.
       const authError = await handleIagonError(err)
       if (authError) {
         setIagonConnected(false)
@@ -78,6 +85,7 @@ export default function DataLayerSection({
       toastRef.current.error(tRef.current('dataLayer.storageUsageToastTitle'), msg)
     } finally {
       setStorageUsageLoading(false)
+      iagonOperationInFlightRef.current = false
     }
   }, [])
 
@@ -95,10 +103,15 @@ export default function DataLayerSection({
   }, [])
 
   // Keep the local "connected" indicator in sync when anything in the app
-  // detects AUTH_FAILED. This is what flips the green dot to grey without the
-  // user having to click Verify themselves.
+  // detects AUTH_FAILED. This is what flips the green dot to grey without
+  // the user having to click Verify themselves. If a local handler (Verify,
+  // Refresh, orphan delete) is already running, it will update state in its
+  // `finally` — skipping here avoids the intermediate render where iagon
+  // flips to disconnected while iagonLoading is still true, which is what
+  // produced the flashing buttons.
   useEffect(() => {
     const unsubscribe = onIagonAuthFailure(() => {
+      if (iagonOperationInFlightRef.current) return
       setIagonConnected(false)
       setStorageUsage(null)
       setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
@@ -142,31 +155,44 @@ export default function DataLayerSection({
   }, [t])
 
   const handleVerifyIagon = useCallback(async () => {
+    // Read `t` / `toast` from refs so this callback stays referentially
+    // stable across renders (toast is a fresh object every render, which
+    // otherwise rebuilds the button's onClick handler).
+    iagonOperationInFlightRef.current = true
     setIagonLoading(true)
-    setIagonError('')
     try {
       const stored = await getStoredApiKey()
       if (!stored) {
         setIagonConnected(false)
-        setIagonError(t('dataLayer.verifyNoKey'))
+        setIagonError(tRef.current('dataLayer.verifyNoKey'))
+        setStorageUsage(null)
         return
       }
-      const valid = await getValidApiKey()
+      // hasValidApiKey cleans up the stored key and fires the auth-failure
+      // event on rejection. The listener checks `iagonOperationInFlightRef`
+      // and no-ops so that THIS handler owns every state update — batching
+      // them into a single post-await render avoids the brief flicker where
+      // iagonConnected flips before iagonLoading does.
+      const valid = await hasValidApiKey()
       if (valid) {
+        setIagonError('')
         setIagonConnected(true)
-        toast.success(t('dataLayer.verifyOkTitle'), t('dataLayer.verifyOkBody'))
+        toastRef.current.success(
+          tRef.current('dataLayer.verifyOkTitle'),
+          tRef.current('dataLayer.verifyOkBody'),
+        )
       } else {
-        // getValidApiKey has already cleaned up and fired the auth-failure
-        // event; reflect the disconnect here and explain *why*.
         setIagonConnected(false)
-        setIagonError(t('dataLayer.iagonKeyExpired'))
+        setStorageUsage(null)
+        setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
       }
     } catch (err) {
-      setIagonError(err instanceof Error ? err.message : t('dataLayer.verificationFailed'))
+      setIagonError(err instanceof Error ? err.message : tRef.current('dataLayer.verificationFailed'))
     } finally {
       setIagonLoading(false)
+      iagonOperationInFlightRef.current = false
     }
-  }, [t, toast])
+  }, [])
 
   const handleSaveManualKey = useCallback(async () => {
     if (!manualApiKey.trim()) return
@@ -190,6 +216,7 @@ export default function DataLayerSection({
 
   const handleDeleteOrphan = useCallback(async (draft: ListingDraft) => {
     if (!draft.iagonFileId) return
+    iagonOperationInFlightRef.current = true
     setOrphanCleanupLoading(draft.id)
     try {
       const apiKey = await getStoredApiKey()
@@ -202,14 +229,17 @@ export default function DataLayerSection({
       console.error('Failed to delete orphaned file:', err)
       const authError = await handleIagonError(err)
       if (authError) {
-        setIagonError(t('dataLayer.iagonKeyExpired'))
+        setIagonConnected(false)
+        setStorageUsage(null)
+        setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
         return
       }
-      setIagonError(err instanceof Error ? err.message : t('dataLayer.orphanedDeleteFailed'))
+      setIagonError(err instanceof Error ? err.message : tRef.current('dataLayer.orphanedDeleteFailed'))
     } finally {
       setOrphanCleanupLoading(null)
+      iagonOperationInFlightRef.current = false
     }
-  }, [t])
+  }, [])
 
   const handleDeleteAllOrphans = useCallback(async () => {
     const apiKey = await getStoredApiKey()

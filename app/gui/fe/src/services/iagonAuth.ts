@@ -182,6 +182,24 @@ export async function connectIagon(
   return apiKey;
 }
 
+/** Remove the stored key and broadcast the auth-failure event to subscribers.
+ *  Used by every code path that observes a rejected/expired key so connection
+ *  indicators update from a single source of truth. */
+async function invalidateStoredKey(): Promise<void> {
+  try {
+    await disconnectIagon();
+  } catch {
+    // Ignore cleanup errors
+  }
+  for (const fn of authFailureListeners) {
+    try {
+      fn();
+    } catch {
+      // listeners must not break auth
+    }
+  }
+}
+
 /**
  * Get a valid Iagon API key, verifying it still works.
  * Returns null if no key is stored or the key has expired/been revoked.
@@ -194,18 +212,7 @@ export async function getValidApiKey(): Promise<string | null> {
 
   const valid = await verifyApiKey(apiKey);
   if (!valid) {
-    try {
-      await disconnectIagon();
-    } catch {
-      // Ignore cleanup errors
-    }
-    for (const fn of authFailureListeners) {
-      try {
-        fn();
-      } catch {
-        // listeners must not break auth
-      }
-    }
+    await invalidateStoredKey();
     return null;
   }
 
@@ -215,20 +222,17 @@ export async function getValidApiKey(): Promise<string | null> {
 /**
  * Check whether the stored API key (if any) still authenticates against Iagon.
  * `isIagonConnected()` only reports whether a key is on disk — this function
- * additionally verifies the key is accepted, and removes it if it isn't. Use
- * this at app start / dashboard mount instead of `isIagonConnected()` when you
- * care whether uploads and downloads will actually work.
+ * additionally verifies the key is accepted, removes it if it isn't, AND
+ * fires the auth-failure event so any subscribed indicators flip to offline.
+ * Use this at app start / dashboard mount instead of `isIagonConnected()`
+ * when you care whether uploads and downloads will actually work.
  */
 export async function hasValidApiKey(): Promise<boolean> {
   const apiKey = await getStoredApiKey();
   if (!apiKey) return false;
   const valid = await verifyApiKey(apiKey);
   if (!valid) {
-    try {
-      await disconnectIagon();
-    } catch {
-      // Ignore cleanup errors
-    }
+    await invalidateStoredKey();
   }
   return valid;
 }
