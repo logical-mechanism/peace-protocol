@@ -195,7 +195,11 @@
     "noMatchingTitle": "Không có danh mục phù hợp",
     "noMatchingDesc": "Hãy thử điều chỉnh tìm kiếm hoặc bộ lọc",
     "noListingsTitle": "Không tìm thấy danh mục",
-    "noListingsDesc": "Danh mục của bạn sẽ xuất hiện tại đây"
+    "noListingsDesc": "Danh mục của bạn sẽ xuất hiện tại đây",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Đang tải mua hàng của bạn…",

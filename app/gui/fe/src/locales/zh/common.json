@@ -357,6 +357,16 @@
       "step4Title": "提交您的出价",
       "step4Desc": "提交将在链上创建一个出价代币并锁定您的 ADA。如果卖家未接受，您可以在时间锁期限到期后取消。"
     },
+    "firstBidAccepted": {
+      "step1Title": "Accept This Bid",
+      "step1Desc": "Clicking Accept starts a multi-stage process: your device proves ownership via a zero-knowledge proof (~3 minutes), then two chained transactions rekey the data to the buyer and release their ADA to you.",
+      "step2Title": "Generating the SNARK Proof",
+      "step2Desc": "Your CPU is computing a zero-knowledge proof that you own the encryption secret. This takes roughly 3 minutes and cannot be safely interrupted — feel free to leave the app open in the background.",
+      "step3Title": "Submitting the Chained Re-encryption",
+      "step3Desc": "The proof is now on-chain. A second transaction is chaining off the first, rekeying the encryption to the buyer so they alone can decrypt it. This step is much quicker than proving.",
+      "step4Title": "Sale Complete",
+      "step4Desc": "The buyer's ADA has arrived in your wallet, and the encryption is now locked to their key. Check the History tab for the transaction hashes; this listing will disappear from My Sales once confirmations settle."
+    },
     "decrypt": {
       "step1Title": "Decrypt Your Purchase",
       "step1Desc": "Click Decrypt to retrieve and unlock your content. Your wallet signature plus a local SNARK proof verify you're the rightful buyer before the data is revealed.",

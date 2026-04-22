@@ -48,6 +48,9 @@ export default function BidsModal({
 
   const pendingBids = sortedBids.filter((b) => b.status === 'pending');
   const otherBids = sortedBids.filter((b) => b.status !== 'pending');
+  // First pending bid's Accept button gets the tutorial anchor id so the
+  // first-bid-accepted tour can spotlight it.
+  const firstPendingBidToken = pendingBids[0]?.tokenName;
 
   const canAcceptBids = encryption.status === 'active';
 
@@ -140,6 +143,7 @@ export default function BidsModal({
                         canAccept={canAcceptBids}
                         onAccept={onAcceptBid}
                         formatLovelace={formatLovelace}
+                        isFirstPending={bid.tokenName === firstPendingBidToken}
                       />
                     ))}
                   </div>
@@ -198,6 +202,9 @@ interface BidCardProps {
   canAccept: boolean;
   onAccept?: (bid: BidDisplay) => void;
   formatLovelace: (amount: number) => string;
+  /** When true, the Accept button gets the `#tutorial-bid-accept-button` id
+   * so the first-bid-accepted tour can spotlight it. */
+  isFirstPending?: boolean;
 }
 
 function BidCard({
@@ -205,6 +212,7 @@ function BidCard({
   canAccept,
   onAccept,
   formatLovelace,
+  isFirstPending,
 }: BidCardProps) {
   const { t } = useTranslation('modals');
   const [now] = useState(Date.now);
@@ -234,6 +242,7 @@ function BidCard({
         {/* Accept Button */}
         {canAccept && bid.status === 'pending' && onAccept && (
           <button
+            id={isFirstPending ? 'tutorial-bid-accept-button' : undefined}
             onClick={() => onAccept(bid)}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex-shrink-0 btn-base btn-success"
           >

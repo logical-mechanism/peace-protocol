@@ -195,7 +195,11 @@
     "noMatchingTitle": "Eşleşen ilan yok",
     "noMatchingDesc": "Arama veya filtrelerinizi ayarlamayı deneyin",
     "noListingsTitle": "İlan bulunamadı",
-    "noListingsDesc": "İlanlarınız burada görünecektir"
+    "noListingsDesc": "İlanlarınız burada görünecektir",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Satın alımlarınız yükleniyor…",

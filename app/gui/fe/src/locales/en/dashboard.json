@@ -195,7 +195,11 @@
     "noMatchingTitle": "No matching listings",
     "noMatchingDesc": "Try adjusting your search or filters",
     "noListingsTitle": "No listings found",
-    "noListingsDesc": "Your listings will appear here"
+    "noListingsDesc": "Your listings will appear here",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Loading your purchases…",

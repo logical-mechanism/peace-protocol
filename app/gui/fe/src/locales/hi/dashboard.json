@@ -195,7 +195,11 @@
     "noMatchingTitle": "कोई मिलान लिस्टिंग नहीं",
     "noMatchingDesc": "अपनी खोज या फ़िल्टर समायोजित करें",
     "noListingsTitle": "कोई लिस्टिंग नहीं मिली",
-    "noListingsDesc": "आपकी लिस्टिंग यहाँ दिखाई देंगी"
+    "noListingsDesc": "आपकी लिस्टिंग यहाँ दिखाई देंगी",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "आपकी खरीदारी लोड हो रही है…",

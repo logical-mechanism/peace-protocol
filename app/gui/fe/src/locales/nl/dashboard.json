@@ -195,7 +195,11 @@
     "noMatchingTitle": "Geen overeenkomende vermeldingen",
     "noMatchingDesc": "Pas je zoekopdracht of filters aan",
     "noListingsTitle": "Geen vermeldingen gevonden",
-    "noListingsDesc": "Je vermeldingen verschijnen hier"
+    "noListingsDesc": "Je vermeldingen verschijnen hier",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Je aankopen laden…",

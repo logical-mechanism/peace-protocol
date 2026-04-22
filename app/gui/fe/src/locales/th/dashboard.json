@@ -195,7 +195,11 @@
     "noMatchingTitle": "ไม่พบรายการที่ตรงกัน",
     "noMatchingDesc": "ลองปรับการค้นหาหรือตัวกรอง",
     "noListingsTitle": "ไม่พบรายการ",
-    "noListingsDesc": "รายการของคุณจะแสดงที่นี่"
+    "noListingsDesc": "รายการของคุณจะแสดงที่นี่",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "กำลังโหลดการซื้อของคุณ…",

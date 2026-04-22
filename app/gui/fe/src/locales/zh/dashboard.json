@@ -195,7 +195,11 @@
     "noMatchingTitle": "无匹配商品",
     "noMatchingDesc": "尝试调整搜索条件或筛选",
     "noListingsTitle": "未找到商品",
-    "noListingsDesc": "您的商品将显示在此处"
+    "noListingsDesc": "您的商品将显示在此处",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "加载您的购买记录中…",

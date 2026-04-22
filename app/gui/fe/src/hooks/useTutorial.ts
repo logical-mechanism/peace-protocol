@@ -20,6 +20,10 @@ interface StartOptions {
   onComplete?: () => void
   /** Called when the user skips. */
   onSkip?: () => void
+  /** Zero-based index to start at. Defaults to 0.
+   * Useful for event-driven tours that join mid-flow (e.g. first-bid-accepted
+   * auto-starting at step 2 after the user has already clicked Accept). */
+  startStep?: number
 }
 
 export interface UseTutorialResult {
@@ -30,6 +34,10 @@ export interface UseTutorialResult {
   totalSteps: number
   startTutorial: (steps: TutorialStep[], options?: StartOptions) => void
   nextStep: () => void
+  /** Jump to a specific step (clamped to the valid range). No-op when inactive.
+   * Intended for event-driven tours that advance in response to external state
+   * transitions rather than user Next clicks. */
+  goToStep: (index: number) => void
   skipTutorial: () => void
 }
 
@@ -46,8 +54,10 @@ export function useTutorial(): UseTutorialResult {
 
   const startTutorial = useCallback((nextSteps: TutorialStep[], options?: StartOptions) => {
     if (nextSteps.length === 0) return
+    const rawStart = options?.startStep ?? 0
+    const clampedStart = Math.max(0, Math.min(rawStart, nextSteps.length - 1))
     setSteps(nextSteps)
-    setCurrentStepIndex(0)
+    setCurrentStepIndex(clampedStart)
     setCallbacks(options ?? {})
     setStatus('active')
   }, [])
@@ -64,6 +74,12 @@ export function useTutorial(): UseTutorialResult {
     })
   }, [steps.length, callbacks])
 
+  const goToStep = useCallback((index: number) => {
+    if (steps.length === 0) return
+    const clamped = Math.max(0, Math.min(index, steps.length - 1))
+    setCurrentStepIndex((prev) => (prev === clamped ? prev : clamped))
+  }, [steps.length])
+
   const skipTutorial = useCallback(() => {
     setStatus('completed')
     callbacks.onSkip?.()
@@ -77,6 +93,7 @@ export function useTutorial(): UseTutorialResult {
     totalSteps: steps.length,
     startTutorial,
     nextStep,
+    goToStep,
     skipTutorial,
-  }), [status, currentStepIndex, steps, startTutorial, nextStep, skipTutorial])
+  }), [status, currentStepIndex, steps, startTutorial, nextStep, goToStep, skipTutorial])
 }

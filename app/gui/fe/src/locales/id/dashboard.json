@@ -195,7 +195,11 @@
     "noMatchingTitle": "Tidak ada daftar yang cocok",
     "noMatchingDesc": "Coba sesuaikan pencarian atau filter Anda",
     "noListingsTitle": "Tidak ada daftar ditemukan",
-    "noListingsDesc": "Daftar Anda akan muncul di sini"
+    "noListingsDesc": "Daftar Anda akan muncul di sini",
+    "acceptBidBannerTitle": "Ready to accept your first bid?",
+    "acceptBidBannerDesc": "Walk through what happens when you hit Accept — SNARK proving, re-encryption, and payout.",
+    "acceptBidBannerStart": "Start Tour",
+    "acceptBidBannerDismiss": "Dismiss accept-bid tutorial banner"
   },
   "myPurchases": {
     "loading": "Memuat pembelian Anda…",
