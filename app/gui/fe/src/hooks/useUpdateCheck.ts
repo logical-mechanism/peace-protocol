@@ -16,6 +16,7 @@ export interface DownloadProgress {
   downloaded_bytes: number
   total_bytes: number
   percent: number
+  bytes_per_sec: number
 }
 
 export type UpdateState =
@@ -73,20 +74,26 @@ export function useUpdateCheck(autoCheck = false) {
     }
   }, [])
 
-  const downloadUpdate = useCallback(async (downloadUrl: string) => {
-    setState({
-      status: 'downloading',
-      progress: { downloaded_bytes: 0, total_bytes: 0, percent: 0 },
-    })
-    try {
-      const filePath = await invoke<string>('download_update', { downloadUrl })
-      setState({ status: 'downloaded', filePath })
-      return filePath
-    } catch (err) {
-      setState({ status: 'error', message: `${err}` })
-      return null
-    }
-  }, [])
+  const downloadUpdate = useCallback(
+    async (downloadUrl: string, expectedSize?: number | null) => {
+      setState({
+        status: 'downloading',
+        progress: { downloaded_bytes: 0, total_bytes: expectedSize ?? 0, percent: 0, bytes_per_sec: 0 },
+      })
+      try {
+        const filePath = await invoke<string>('download_update', {
+          downloadUrl,
+          expectedSize: expectedSize ?? null,
+        })
+        setState({ status: 'downloaded', filePath })
+        return filePath
+      } catch (err) {
+        setState({ status: 'error', message: `${err}` })
+        return null
+      }
+    },
+    [],
+  )
 
   const dismiss = useCallback(() => {
     dismissedRef.current = true

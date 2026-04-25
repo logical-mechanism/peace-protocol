@@ -386,7 +386,8 @@
     "restartHint": "Close and reopen the app to use the new version.",
     "downloadSuccessTitle": "Update downloaded",
     "downloadSuccessBody": "Saved to: {{path}}. Close and reopen the app to use the new version.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "eta": "ETA {{time}}"
   },
   "tutorials": {
     "title": "Tutorials & Help",

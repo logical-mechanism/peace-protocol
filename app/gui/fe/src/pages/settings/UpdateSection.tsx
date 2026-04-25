@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
-import { useUpdateCheck, type UpdateInfo } from '../../hooks/useUpdateCheck'
+import { useUpdate } from '../../contexts/UpdateContext'
+import type { UpdateInfo } from '../../hooks/useUpdateCheck'
 import { useToast } from '../../components/Toast'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -12,10 +13,18 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function formatEta(seconds: number): string {
+  if (!isFinite(seconds) || seconds <= 0) return '--:--'
+  const total = Math.round(seconds)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
+
 export default function UpdateSection() {
   const { t } = useTranslation('settings')
   const [currentVersion, setCurrentVersion] = useState<string>('')
-  const { state, checkForUpdate, downloadUpdate, reset } = useUpdateCheck()
+  const { state, checkForUpdate, downloadUpdate, reset } = useUpdate()
   const toast = useToast()
 
   useEffect(() => {
@@ -23,7 +32,7 @@ export default function UpdateSection() {
   }, [])
 
   const handleDownload = async (info: UpdateInfo) => {
-    const path = await downloadUpdate(info.download_url)
+    const path = await downloadUpdate(info.download_url, info.download_size)
     if (path) {
       toast.success(
         t('update.downloadSuccessTitle'),
@@ -138,6 +147,21 @@ export default function UpdateSection() {
                 <span>{formatBytes(state.progress.total_bytes)}</span>
               )}
             </div>
+            {state.progress.bytes_per_sec > 0 && (
+              <div className="flex justify-between text-xs text-[var(--text-muted)] font-mono">
+                <span>{`${formatBytes(state.progress.bytes_per_sec)}/s`}</span>
+                {state.progress.total_bytes > 0 && (
+                  <span>
+                    {t('update.eta', {
+                      time: formatEta(
+                        (state.progress.total_bytes - state.progress.downloaded_bytes) /
+                          state.progress.bytes_per_sec,
+                      ),
+                    })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 

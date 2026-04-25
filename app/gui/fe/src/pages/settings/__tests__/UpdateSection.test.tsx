@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import UpdateSection from '../UpdateSection'
+import { UpdateProvider } from '../../../contexts/UpdateContext'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { Mock } from 'vitest'
@@ -20,9 +21,23 @@ vi.mock('../../../components/Toast', () => ({
   }),
 }))
 
+let progressHandler: ((event: { payload: { downloaded_bytes: number; total_bytes: number; percent: number; bytes_per_sec: number } }) => void) | undefined
+
+function renderUpdateSection() {
+  return render(
+    <UpdateProvider>
+      <UpdateSection />
+    </UpdateProvider>,
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
-  ;(listen as Mock).mockResolvedValue(vi.fn())
+  progressHandler = undefined
+  ;(listen as Mock).mockImplementation((_event, handler) => {
+    progressHandler = handler
+    return Promise.resolve(vi.fn())
+  })
   ;(invoke as Mock).mockImplementation((cmd: string) => {
     if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
     return Promise.reject(new Error(`unmocked command: ${cmd}`))
@@ -31,7 +46,7 @@ beforeEach(() => {
 
 describe('UpdateSection', () => {
   it('displays current version', async () => {
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     await waitFor(() => {
       expect(screen.getByText('v0.4.2')).toBeInTheDocument()
@@ -40,8 +55,110 @@ describe('UpdateSection', () => {
   })
 
   it('renders the Check for Updates button', () => {
-    render(<UpdateSection />)
+    renderUpdateSection()
     expect(screen.getByText('Check for Updates')).toBeInTheDocument()
+  })
+
+  it('passes download_size as expectedSize when downloading', async () => {
+    ;(invoke as Mock).mockImplementation((cmd: string) => {
+      if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
+      if (cmd === 'check_for_update') return Promise.resolve({
+        current_version: '0.4.2',
+        latest_version: '0.4.3',
+        update_available: true,
+        download_url: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        release_notes: '',
+        published_at: '',
+        download_size: 600_000_000,
+      })
+      if (cmd === 'download_update') return new Promise(() => {})
+      return Promise.reject(new Error(`unmocked: ${cmd}`))
+    })
+
+    renderUpdateSection()
+
+    fireEvent.click(screen.getByText('Check for Updates'))
+    await waitFor(() => {
+      expect(screen.getByText('Download Update')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Download Update'))
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('download_update', {
+        downloadUrl: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        expectedSize: 600_000_000,
+      })
+    })
+  })
+
+  it('renders speed and ETA when bytes_per_sec is positive', async () => {
+    ;(invoke as Mock).mockImplementation((cmd: string) => {
+      if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
+      if (cmd === 'check_for_update') return Promise.resolve({
+        current_version: '0.4.2',
+        latest_version: '0.4.3',
+        update_available: true,
+        download_url: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        release_notes: '',
+        published_at: '',
+        download_size: 600_000_000,
+      })
+      if (cmd === 'download_update') return new Promise(() => {})
+      return Promise.reject(new Error(`unmocked: ${cmd}`))
+    })
+
+    renderUpdateSection()
+
+    fireEvent.click(screen.getByText('Check for Updates'))
+    await waitFor(() => expect(screen.getByText('Download Update')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Download Update'))
+
+    await waitFor(() => expect(screen.getByText('Downloading update...')).toBeInTheDocument())
+    expect(progressHandler).toBeDefined()
+
+    act(() => {
+      progressHandler?.({
+        payload: {
+          downloaded_bytes: 60_000_000,
+          total_bytes: 600_000_000,
+          percent: 10,
+          // 10 MiB/s → ETA for remaining 540 MB ≈ 51s → "00:51"
+          bytes_per_sec: 10 * 1024 * 1024,
+        },
+      })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('10.0 MB/s')).toBeInTheDocument()
+    })
+    expect(screen.getByText('ETA 00:51')).toBeInTheDocument()
+  })
+
+  it('hides speed and ETA when bytes_per_sec is zero', async () => {
+    ;(invoke as Mock).mockImplementation((cmd: string) => {
+      if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
+      if (cmd === 'check_for_update') return Promise.resolve({
+        current_version: '0.4.2',
+        latest_version: '0.4.3',
+        update_available: true,
+        download_url: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        release_notes: '',
+        published_at: '',
+        download_size: 600_000_000,
+      })
+      if (cmd === 'download_update') return new Promise(() => {})
+      return Promise.reject(new Error(`unmocked: ${cmd}`))
+    })
+
+    renderUpdateSection()
+
+    fireEvent.click(screen.getByText('Check for Updates'))
+    await waitFor(() => expect(screen.getByText('Download Update')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Download Update'))
+    await waitFor(() => expect(screen.getByText('Downloading update...')).toBeInTheDocument())
+
+    expect(screen.queryByText(/MB\/s/)).toBeNull()
+    expect(screen.queryByText(/ETA /)).toBeNull()
   })
 
   it('shows up-to-date message when no update available', async () => {
@@ -59,7 +176,7 @@ describe('UpdateSection', () => {
       return Promise.reject(new Error(`unmocked: ${cmd}`))
     })
 
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     fireEvent.click(screen.getByText('Check for Updates'))
 
@@ -83,7 +200,7 @@ describe('UpdateSection', () => {
       return Promise.reject(new Error(`unmocked: ${cmd}`))
     })
 
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     fireEvent.click(screen.getByText('Check for Updates'))
 
@@ -102,7 +219,7 @@ describe('UpdateSection', () => {
       return Promise.reject(new Error(`unmocked: ${cmd}`))
     })
 
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     fireEvent.click(screen.getByText('Check for Updates'))
 
@@ -128,7 +245,7 @@ describe('UpdateSection', () => {
       return Promise.reject(new Error(`unmocked: ${cmd}`))
     })
 
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     fireEvent.click(screen.getByText('Check for Updates'))
 
@@ -160,7 +277,7 @@ describe('UpdateSection', () => {
       return Promise.reject(new Error(`unmocked: ${cmd}`))
     })
 
-    render(<UpdateSection />)
+    renderUpdateSection()
 
     fireEvent.click(screen.getByText('Check for Updates'))
 

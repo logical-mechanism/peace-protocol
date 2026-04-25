@@ -102,6 +102,49 @@ describe('useUpdateCheck', () => {
     }
     expect(invoke).toHaveBeenCalledWith('download_update', {
       downloadUrl: MOCK_UPDATE_INFO.download_url,
+      expectedSize: null,
+    })
+  })
+
+  it('downloadUpdate passes expectedSize through to invoke', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce('/home/user/Veiled_0.4.3_amd64.AppImage')
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url, 600_000_000)
+    })
+
+    expect(invoke).toHaveBeenCalledWith('download_update', {
+      downloadUrl: MOCK_UPDATE_INFO.download_url,
+      expectedSize: 600_000_000,
+    })
+  })
+
+  it('downloadUpdate seeds total_bytes from expectedSize before first progress event', async () => {
+    let resolveDownload!: (value: string) => void
+    ;(invoke as Mock).mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveDownload = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    act(() => {
+      void result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url, 600_000_000)
+    })
+
+    // Pre-event state: percent=0, but total_bytes already reflects expected size
+    // so the UI doesn't render "0 / 0 B" until the first event arrives.
+    expect(result.current.state.status).toBe('downloading')
+    if (result.current.state.status === 'downloading') {
+      expect(result.current.state.progress.total_bytes).toBe(600_000_000)
+      expect(result.current.state.progress.bytes_per_sec).toBe(0)
+    }
+
+    await act(async () => {
+      resolveDownload('/path')
     })
   })
 
@@ -118,6 +161,54 @@ describe('useUpdateCheck', () => {
     if (result.current.state.status === 'error') {
       expect(result.current.state.message).toBe('Disk full')
     }
+  })
+
+  it('progress event payload populates bytes_per_sec', async () => {
+    let progressHandler: ((event: { payload: { downloaded_bytes: number; total_bytes: number; percent: number; bytes_per_sec: number } }) => void) | undefined
+    ;(listen as Mock).mockImplementationOnce((_event, handler) => {
+      progressHandler = handler
+      return Promise.resolve(vi.fn())
+    })
+    let resolveDownload!: (value: string) => void
+    ;(invoke as Mock).mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveDownload = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    act(() => {
+      void result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    // Wait a tick for the listen() promise to resolve and register the handler.
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(progressHandler).toBeDefined()
+    act(() => {
+      progressHandler?.({
+        payload: {
+          downloaded_bytes: 50_000_000,
+          total_bytes: 600_000_000,
+          percent: 8.33,
+          bytes_per_sec: 5_000_000,
+        },
+      })
+    })
+
+    if (result.current.state.status === 'downloading') {
+      expect(result.current.state.progress.bytes_per_sec).toBe(5_000_000)
+      expect(result.current.state.progress.percent).toBeCloseTo(8.33)
+    } else {
+      throw new Error(`expected downloading state, got ${result.current.state.status}`)
+    }
+
+    await act(async () => {
+      resolveDownload('/path')
+    })
   })
 
   it('dismiss sets state to dismissed', async () => {
