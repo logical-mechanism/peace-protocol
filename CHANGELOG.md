@@ -4,6 +4,33 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] - 2026-04-21
+
+### Added
+- i18n: extracted strings from core pages (WalletSetup, WalletUnlock, NodeSync) (#109)
+- i18n: extracted Settings section strings (#110)
+- i18n: extracted Dashboard tab strings (#111)
+- i18n: extracted Dashboard modal strings (#113)
+- i18n: extracted card, overlay, banner, and toast strings (#114)
+- i18n: replaced ad-hoc pluralization with i18next count interpolation (#115)
+- i18n: extracted Settings and Dashboard page shell strings (#116)
+- i18n: extracted remaining component string leftovers (#117)
+- 16 new locales: Spanish, French, German, Chinese, Japanese, Korean, Dutch, Russian, Indonesian, Vietnamese, Turkish, Portuguese, Italian, Polish, Hindi, Thai (#118)
+- Tutorial: first-listing guided walkthrough with Restart Tutorials button in Settings (#119)
+- Settings: Tutorials & Help hub with per-flow replay (#120)
+- Tutorial: first-bid inline hints + spotlight overlay for PlaceBidModal (#121)
+- Tutorial: first-decrypt walkthrough for buyers, with banner + Settings replay (#122)
+- Tutorial: first-bid-accepted walkthrough for sellers, gated on a real pending bid (#123)
+- Tutorial: Iagon setup primer for first file listing, synced to live connection status (#124)
+- Iagon: detect expired API keys and flip connection indicator to disconnected
+- Contracts: `audits/` folder with 2026-04-20 claude-opus-4-7 audit
+
+### Fixed
+- Data Layer: Verify button no longer flashes briefly on auth-failure race
+- Data Layer: Verify button width no longer animates on click
+- Tutorials: Iagon primer Start button now opens Settings → Data Layer directly
+- Tutorials: eliminate choppy transitions when the spotlight moves between anchors — dedupe polling renders, scroll once per step, grace window across modal/tab handoffs, smooth spotlight slide (#125)
+
 ## [0.5.1] - 2026-04-14
 
 ### Added
