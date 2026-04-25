@@ -361,7 +361,15 @@
     "done": "完成",
     "unknownError": "发生未知错误",
     "failedFallback": "解密失败",
-    "saveWarning": "解密成功但文件无法保存到资料库。请从我的购买中重试。"
+    "saveWarning": "解密成功但文件无法保存到资料库。请从我的购买中重试。",
+    "explanationStub": "在开发模式下，解密使用模拟数据。当合约部署后，这将使用您钱包的签名来导出解密密钥并显示加密消息。",
+    "explanationIntro": "解密使用零知识密码学安全地显示消息。流程：",
+    "explanationStep1": "您的钱包签名导出一个唯一的密钥",
+    "explanationStep2": "查询区块链历史以获取加密数据",
+    "explanationStep3": "BLS12-381 配对运算计算解密密钥（通过 WASM）",
+    "explanationStep4": "消息在您的浏览器本地解密",
+    "explanationWasmReady": "WASM 密码学已加载并就绪。",
+    "explanationWasmMissing": "WASM 证明者未加载 — 从仪表板加载以启用解密。"
   },
   "placeBid": {
     "title": "出价",

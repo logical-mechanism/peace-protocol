@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getSubcategories, getCategoryConfig, type FileCategory, type SubCategory } from '../config/categories';
+import { getSubcategories, getCategoryConfig, translateSubcategoryLabel, type FileCategory, type SubCategory } from '../config/categories';
 import Select, { type SelectOption } from './Select';
 
 interface SubCategorySelectorProps {
@@ -16,16 +16,8 @@ const ChildChevron = (
   </svg>
 );
 
-function toOptions(items: SubCategory[]): SelectOption[] {
-  return items.map((s) => ({
-    value: s.id,
-    label: s.label,
-    trailing: s.children && s.children.length > 0 ? ChildChevron : undefined,
-  }));
-}
-
 function SubCategorySelector({ category, selected, onChange, disabled }: SubCategorySelectorProps) {
-  const { t } = useTranslation('dashboard');
+  const { t } = useTranslation(['dashboard', 'common']);
   const subcategories = getSubcategories(category);
 
   if (subcategories.length === 0) return null;
@@ -57,12 +49,30 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
     onChange(level1Id);
   };
 
+  // Adapter so translateSubcategoryLabel can call the namespaced common.json
+  // keys via a single translation callback.
+  const tCommon = (key: string, opts?: { defaultValue?: string }) => t(`common:${key}`, opts);
+
+  const localizeLevel1 = (s: SubCategory) => translateSubcategoryLabel(tCommon, category, s.id, s.label);
+  const localizeLevel2 = (parentId: string, c: SubCategory) =>
+    translateSubcategoryLabel(tCommon, category, `${parentId}_${c.id}`, c.label);
+
+  const toLevel1Options = (items: SubCategory[]): SelectOption[] =>
+    items.map((s) => ({
+      value: s.id,
+      label: localizeLevel1(s),
+      trailing: s.children && s.children.length > 0 ? ChildChevron : undefined,
+    }));
+
+  const toLevel2Options = (parentId: string, items: SubCategory[]): SelectOption[] =>
+    items.map((c) => ({ value: c.id, label: localizeLevel2(parentId, c) }));
+
   const breadcrumbParts: string[] = [];
-  if (categoryConfig) breadcrumbParts.push(categoryConfig.label);
-  if (level1Item) breadcrumbParts.push(level1Item.label);
+  if (categoryConfig) breadcrumbParts.push(t(`common:categories.${categoryConfig.id}`));
+  if (level1Item) breadcrumbParts.push(localizeLevel1(level1Item));
   if (level2Id) {
     const level2Item = level2Items.find((c) => c.id === level2Id);
-    breadcrumbParts.push(level2Item?.label ?? level2Id);
+    breadcrumbParts.push(level2Item ? localizeLevel2(level1Id, level2Item) : level2Id);
   }
 
   return (
@@ -101,7 +111,7 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
 
       <Select
         value={level1Id}
-        options={toOptions(subcategories)}
+        options={toLevel1Options(subcategories)}
         onChange={handleLevel1Select}
         placeholder={t('filters.subcategory.placeholder')}
         disabled={disabled}
@@ -112,7 +122,7 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
         <div className="mt-2">
           <Select
             value={level2Id}
-            options={toOptions(level2Items)}
+            options={toLevel2Options(level1Id, level2Items)}
             onChange={handleLevel2Select}
             placeholder={t('filters.subcategory.placeholder')}
             disabled={disabled}

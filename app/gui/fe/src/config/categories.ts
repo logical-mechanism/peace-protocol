@@ -191,7 +191,9 @@ export function buildCategoryPath(category: FileCategory, subcategory?: string):
   return `${category}:${subcategory}`;
 }
 
-/** Get the display label for a full category path (e.g. "audio:music:rock" → "Audio > Music > Rock"). */
+/** Get the display label for a full category path (e.g. "audio:music:rock" → "Audio > Music > Rock").
+ * Falls back to hardcoded English labels — for translated output use
+ * `translateCategoryPathLabel(t, ...)`. */
 export function getCategoryPathLabel(categoryPath: string): string {
   const parts = categoryPath.split(':');
   const topLevel = getCategoryConfig(parts[0] as FileCategory);
@@ -204,6 +206,47 @@ export function getCategoryPathLabel(categoryPath: string): string {
   if (parts.length >= 3 && sub?.children) {
     const child = sub.children.find((c) => c.id === parts[2]);
     labels.push(child?.label ?? parts[2]);
+  }
+
+  return labels.join(' > ');
+}
+
+/** Minimal i18n function shape — accepts the i18next `t` returned by
+ * `useTranslation('common')`. Defined locally so this module stays free of
+ * a hard dependency on the i18next type surface. */
+type TranslateFn = (key: string, options?: { defaultValue?: string }) => string;
+
+/** Translate a single subcategory id under a top-level category. For nested
+ * children (e.g. `audio` → `music` → `rock`), pass `subId="music_rock"`. */
+export function translateSubcategoryLabel(
+  t: TranslateFn,
+  category: FileCategory,
+  subId: string,
+  fallback?: string,
+): string {
+  return t(`categories.sub.${category}.${subId}`, { defaultValue: fallback ?? subId });
+}
+
+/** Translate a category path like `"audio:music:rock"` → `"Audio > Music > Rock"`
+ * using the locale's `categories.*` and `categories.sub.*` keys. */
+export function translateCategoryPathLabel(t: TranslateFn, categoryPath: string): string {
+  const parts = categoryPath.split(':');
+  const topLevel = getCategoryConfig(parts[0] as FileCategory);
+  if (!topLevel) return categoryPath;
+  const labels: string[] = [t(`categories.${topLevel.id}`, { defaultValue: topLevel.label })];
+  if (parts.length === 1) return labels[0];
+
+  const sub = topLevel.subcategories?.find((s) => s.id === parts[1]);
+  labels.push(translateSubcategoryLabel(t, topLevel.id, parts[1], sub?.label ?? parts[1]));
+
+  if (parts.length >= 3 && sub?.children) {
+    const child = sub.children.find((c) => c.id === parts[2]);
+    // Nested children live under `<parent>_<child>` in the locale to keep
+    // the JSON structure flat; a single concatenated id is easier to scan
+    // and avoids ambiguity with i18next's dot key separator.
+    labels.push(
+      translateSubcategoryLabel(t, topLevel.id, `${parts[1]}_${parts[2]}`, child?.label ?? parts[2]),
+    );
   }
 
   return labels.join(' > ');

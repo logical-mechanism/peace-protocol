@@ -361,7 +361,15 @@
     "done": "Fertig",
     "unknownError": "Unbekannter Fehler aufgetreten",
     "failedFallback": "Entschlüsselung fehlgeschlagen",
-    "saveWarning": "Entschlüsselung erfolgreich, aber die Datei konnte nicht in der Bibliothek gespeichert werden. Versuche es erneut über Meine Käufe."
+    "saveWarning": "Entschlüsselung erfolgreich, aber die Datei konnte nicht in der Bibliothek gespeichert werden. Versuche es erneut über Meine Käufe.",
+    "explanationStub": "Im Entwicklungsmodus verwendet die Entschlüsselung simulierte Daten. Sobald die Verträge bereitgestellt sind, wird Ihre Wallet-Signatur den Entschlüsselungsschlüssel ableiten und die verschlüsselte Nachricht offenbaren.",
+    "explanationIntro": "Die Entschlüsselung verwendet Zero-Knowledge-Kryptografie, um die Nachricht sicher offenzulegen. Der Ablauf:",
+    "explanationStep1": "Ihre Wallet-Signatur leitet einen einzigartigen geheimen Schlüssel ab",
+    "explanationStep2": "Der Blockchain-Verlauf wird nach Verschlüsselungsdaten abgefragt",
+    "explanationStep3": "BLS12-381-Paarungsoperationen berechnen den Entschlüsselungsschlüssel (via WASM)",
+    "explanationStep4": "Die Nachricht wird lokal in Ihrem Browser entschlüsselt",
+    "explanationWasmReady": "WASM-Kryptografie geladen und bereit.",
+    "explanationWasmMissing": "WASM-Prover nicht geladen — laden Sie ihn vom Dashboard, um die Entschlüsselung zu aktivieren."
   },
   "placeBid": {
     "title": "Gebot abgeben",

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import '../i18n';
-import { FILE_CATEGORIES, type CategoryConfig } from '../config/categories';
+import { FILE_CATEGORIES, translateSubcategoryLabel, type CategoryConfig, type FileCategory } from '../config/categories';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -60,7 +60,15 @@ function getLabel(selected: string[], t: (key: string, options?: Record<string, 
     if (parts.length > 1) {
       const parent = FILE_CATEGORIES.find((c) => c.id === parts[0]);
       const sub = parent?.subcategories?.find((s) => s.id === parts[1]);
-      if (parent && sub) return `${t(`common:categories.${parent.id}`)} > ${sub.label}`;
+      if (parent && sub) {
+        const subLabel = translateSubcategoryLabel(
+          (key, opts) => t(`common:${key}`, opts),
+          parent.id,
+          sub.id,
+          sub.label,
+        );
+        return `${t(`common:categories.${parent.id}`)} > ${subLabel}`;
+      }
     }
     return t('dashboard:filters.categoryOneSelected');
   }
@@ -130,10 +138,32 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     }
   }
 
-  // Translate top-level category labels; subcategory/genre names are kept as-is
+  // Translate top-level, subcategory, and nested-child labels via the
+  // `categories.sub.<cat>.<id>` keys; fall back to the hardcoded English
+  // label from categories.ts when a translation is missing.
   function nodeLabel(node: CategoryNode): string {
-    const topLevel = TOP_LEVEL_IDS.includes(node.id);
-    return topLevel ? t(`common:categories.${node.id}`) : node.label;
+    if (TOP_LEVEL_IDS.includes(node.id)) {
+      return t(`common:categories.${node.id}`);
+    }
+    const parts = node.id.split(':');
+    const category = parts[0] as FileCategory;
+    if (parts.length === 2) {
+      return translateSubcategoryLabel(
+        (key, opts) => t(`common:${key}`, opts),
+        category,
+        parts[1],
+        node.label,
+      );
+    }
+    if (parts.length === 3) {
+      return translateSubcategoryLabel(
+        (key, opts) => t(`common:${key}`, opts),
+        category,
+        `${parts[1]}_${parts[2]}`,
+        node.label,
+      );
+    }
+    return node.label;
   }
 
   function renderNode(node: CategoryNode, depth: number = 0) {

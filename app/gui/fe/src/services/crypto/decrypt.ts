@@ -730,28 +730,17 @@ export async function decryptEncryption(
 }
 
 /**
- * Get a user-friendly explanation of the decryption process.
+ * State of the decryption pipeline used by the UI to render a translated
+ * explanation. Returning state (rather than a pre-formatted English string)
+ * lets the modal compose locale-aware copy via i18next.
  */
-export function getDecryptionExplanation(): string {
-  if (isStubMode()) {
-    return (
-      'In development mode, decryption uses simulated data. ' +
-      'When contracts are deployed, this will use your wallet signature to derive ' +
-      'the decryption key and reveal the encrypted message.'
-    );
-  }
+export interface DecryptionExplanationState {
+  mode: 'stub' | 'real';
+  /** Only meaningful when `mode === 'real'`. */
+  wasmReady: boolean;
+}
 
-  const wasmStatus = isWasmDecryptAvailable()
-    ? 'WASM cryptography loaded and ready.'
-    : 'WASM prover not loaded - load it from the dashboard to enable decryption.';
-
-  return (
-    'Decryption uses zero-knowledge cryptography to securely reveal the message. ' +
-    'The process:\n' +
-    '1. Your wallet signature derives a unique secret key\n' +
-    '2. The blockchain history is queried for encryption data\n' +
-    '3. BLS12-381 pairing operations compute the decryption key (via WASM)\n' +
-    '4. The message is decrypted locally in your browser\n\n' +
-    wasmStatus
-  );
+export function getDecryptionExplanationState(): DecryptionExplanationState {
+  if (isStubMode()) return { mode: 'stub', wasmReady: false };
+  return { mode: 'real', wasmReady: isWasmDecryptAvailable() };
 }

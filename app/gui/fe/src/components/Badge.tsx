@@ -34,7 +34,7 @@ export default function Badge({
 }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-[var(--radius-sm)] ${variantClasses[variant]} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-[var(--radius-sm)] whitespace-nowrap ${variantClasses[variant]} ${className}`}
     >
       {dot && (
         <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${dotColors[variant]}`} />

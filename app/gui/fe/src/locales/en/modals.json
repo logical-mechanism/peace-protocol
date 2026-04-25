@@ -361,7 +361,15 @@
     "done": "Done",
     "unknownError": "Unknown error occurred",
     "failedFallback": "Failed to decrypt",
-    "saveWarning": "Decryption succeeded but file could not be saved to library. Try again from My Purchases."
+    "saveWarning": "Decryption succeeded but file could not be saved to library. Try again from My Purchases.",
+    "explanationStub": "In development mode, decryption uses simulated data. When contracts are deployed, this will use your wallet signature to derive the decryption key and reveal the encrypted message.",
+    "explanationIntro": "Decryption uses zero-knowledge cryptography to securely reveal the message. The process:",
+    "explanationStep1": "Your wallet signature derives a unique secret key",
+    "explanationStep2": "The blockchain history is queried for encryption data",
+    "explanationStep3": "BLS12-381 pairing operations compute the decryption key (via WASM)",
+    "explanationStep4": "The message is decrypted locally in your browser",
+    "explanationWasmReady": "WASM cryptography loaded and ready.",
+    "explanationWasmMissing": "WASM prover not loaded — load it from the dashboard to enable decryption."
   },
   "placeBid": {
     "title": "Place Bid",

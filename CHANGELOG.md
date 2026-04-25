@@ -30,6 +30,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Data Layer: Verify button width no longer animates on click
 - Tutorials: Iagon primer Start button now opens Settings → Data Layer directly
 - Tutorials: eliminate choppy transitions when the spotlight moves between anchors — dedupe polling renders, scroll once per step, grace window across modal/tab handoffs, smooth spotlight slide (#125)
+- i18n: translate hierarchical sub-categories (eg. `categories.text.message`, `audio.music.rock`) — `SubCategorySelector`, `CategoryFilter`, and modal pickers now render localized labels across all 17 locales
+- i18n: localize the DecryptModal "How decryption works" helper — was hardcoded English, now state-driven with translated steps and WASM status across all 17 locales
+- Badge: add `whitespace-nowrap` so longer translations of `Active`, `Pending`, etc. no longer wrap awkwardly inside small chips
 
 ## [0.5.1] - 2026-04-14
 

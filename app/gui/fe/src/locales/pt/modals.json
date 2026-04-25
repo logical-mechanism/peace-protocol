@@ -361,7 +361,15 @@
     "done": "Concluído",
     "unknownError": "Ocorreu um erro desconhecido",
     "failedFallback": "Falha ao descriptografar",
-    "saveWarning": "A descriptografia foi bem-sucedida, mas o arquivo não pôde ser salvo na biblioteca. Tente novamente em Minhas Compras."
+    "saveWarning": "A descriptografia foi bem-sucedida, mas o arquivo não pôde ser salvo na biblioteca. Tente novamente em Minhas Compras.",
+    "explanationStub": "No modo de desenvolvimento, a descriptografia usa dados simulados. Quando os contratos forem implantados, isso usará a assinatura da sua carteira para derivar a chave de descriptografia e revelar a mensagem criptografada.",
+    "explanationIntro": "A descriptografia usa criptografia de conhecimento zero para revelar a mensagem com segurança. O processo:",
+    "explanationStep1": "A assinatura da sua carteira deriva uma chave secreta única",
+    "explanationStep2": "O histórico da blockchain é consultado para dados de criptografia",
+    "explanationStep3": "As operações de emparelhamento BLS12-381 calculam a chave de descriptografia (via WASM)",
+    "explanationStep4": "A mensagem é descriptografada localmente no seu navegador",
+    "explanationWasmReady": "Criptografia WASM carregada e pronta.",
+    "explanationWasmMissing": "Prover WASM não carregado — carregue-o do painel para habilitar a descriptografia."
   },
   "placeBid": {
     "title": "Fazer Lance",

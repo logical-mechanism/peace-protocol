@@ -361,7 +361,15 @@
     "done": "Fine",
     "unknownError": "Si e verificato un errore sconosciuto",
     "failedFallback": "Impossibile decrittare",
-    "saveWarning": "Decrittazione riuscita ma impossibile salvare il file nella libreria. Riprova da I miei acquisti."
+    "saveWarning": "Decrittazione riuscita ma impossibile salvare il file nella libreria. Riprova da I miei acquisti.",
+    "explanationStub": "In modalità sviluppo, la decrittazione utilizza dati simulati. Quando i contratti saranno distribuiti, questo userà la firma del tuo wallet per derivare la chiave di decrittazione e rivelare il messaggio crittografato.",
+    "explanationIntro": "La decrittazione utilizza crittografia a conoscenza zero per rivelare il messaggio in modo sicuro. Il processo:",
+    "explanationStep1": "La firma del tuo wallet deriva una chiave segreta unica",
+    "explanationStep2": "La cronologia della blockchain viene interrogata per i dati di crittografia",
+    "explanationStep3": "Le operazioni di accoppiamento BLS12-381 calcolano la chiave di decrittazione (via WASM)",
+    "explanationStep4": "Il messaggio viene decrittato localmente nel tuo browser",
+    "explanationWasmReady": "Crittografia WASM caricata e pronta.",
+    "explanationWasmMissing": "Prover WASM non caricato — caricalo dalla dashboard per abilitare la decrittazione."
   },
   "placeBid": {
     "title": "Fai un'offerta",
