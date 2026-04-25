@@ -158,7 +158,6 @@ export function reconcileWithOnChain(
 ): ReconciliationResult {
   const records = getTransactions(walletPkh);
   const onChainHashSet = new Set(onChainRecords.map(o => o.txHash));
-  const existingHashes = new Set(records.map(r => r.txHash));
   let changed = false;
   const discrepancies: ReconciliationDiscrepancy[] = [];
 
@@ -176,10 +175,34 @@ export function reconcileWithOnChain(
     }
   }
 
-  // Add on-chain records not yet in local storage
+  // Add or refresh on-chain records.
+  // For new hashes: insert. For existing hashes: refresh fields where on-chain
+  // has authoritative data the local copy is missing (timestamp, amount,
+  // counterparty, block height). Without this, an entry once persisted with
+  // null/0 timestamp would never get its real timestamp from a later reconcile,
+  // and would stay sorted at the bottom forever.
+  const recordsByHash = new Map(records.map(r => [r.txHash, r]));
   for (const onChain of onChainRecords) {
-    if (!existingHashes.has(onChain.txHash)) {
+    const existing = recordsByHash.get(onChain.txHash);
+    if (!existing) {
       records.push(onChain);
+      changed = true;
+      continue;
+    }
+    if (onChain.timestamp && (!existing.timestamp || existing.timestamp <= 0)) {
+      existing.timestamp = onChain.timestamp;
+      changed = true;
+    }
+    if (onChain.amountLovelace !== undefined && existing.amountLovelace === undefined) {
+      existing.amountLovelace = onChain.amountLovelace;
+      changed = true;
+    }
+    if (onChain.counterparty && !existing.counterparty) {
+      existing.counterparty = onChain.counterparty;
+      changed = true;
+    }
+    if (onChain.confirmedAtBlock && !existing.confirmedAtBlock) {
+      existing.confirmedAtBlock = onChain.confirmedAtBlock;
       changed = true;
     }
   }

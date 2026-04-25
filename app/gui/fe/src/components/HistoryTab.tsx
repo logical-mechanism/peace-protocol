@@ -314,6 +314,7 @@ function HistoryTab({
       );
     }
 
+
     return result;
   }, [allRecords, statusFilter, typeFilter, dateRange, debouncedSearch]);
 

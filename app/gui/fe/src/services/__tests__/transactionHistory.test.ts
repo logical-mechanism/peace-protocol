@@ -224,6 +224,43 @@ describe('transactionHistory', () => {
     }
   });
 
+  it('reconcileWithOnChain refreshes timestamp on existing record when on-chain has a real one', () => {
+    const hash = 'a'.repeat(64);
+    // Earlier reconcile saved this with a stale 0 timestamp (the historical bug).
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'confirmed', timestamp: 0, type: 'receive' }));
+
+    // New reconcile: on-chain now reports the real timestamp.
+    reconcileWithOnChain(WALLET, [
+      makeRecord({ txHash: hash, status: 'confirmed', timestamp: 1777135121000, type: 'receive' }),
+    ]);
+
+    const records = getTransactions(WALLET);
+    expect(records).toHaveLength(1);
+    expect(records[0].timestamp).toBe(1777135121000);
+  });
+
+  it('reconcileWithOnChain backfills missing amount/counterparty/block on existing records', () => {
+    const hash = 'b'.repeat(64);
+    addTransaction(WALLET, makeRecord({ txHash: hash, status: 'confirmed', timestamp: 0, type: 'receive' }));
+
+    reconcileWithOnChain(WALLET, [
+      makeRecord({
+        txHash: hash,
+        status: 'confirmed',
+        timestamp: 1777135121000,
+        type: 'receive',
+        amountLovelace: 12_345_678,
+        counterparty: 'dd996ca1174aa2e32dbbad88046b440ff563a3cde0716a56865400c6',
+        confirmedAtBlock: 4643117,
+      }),
+    ]);
+
+    const [r] = getTransactions(WALLET);
+    expect(r.amountLovelace).toBe(12_345_678);
+    expect(r.counterparty).toBe('dd996ca1174aa2e32dbbad88046b440ff563a3cde0716a56865400c6');
+    expect(r.confirmedAtBlock).toBe(4643117);
+  });
+
   it('reconcileWithOnChain caps at 100', () => {
     // Pre-fill 60 local records
     for (let i = 0; i < 50; i++) {
