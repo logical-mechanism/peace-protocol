@@ -74,6 +74,19 @@ export function useUpdateCheck(autoCheck = false) {
     }
   }, [])
 
+  // Stash the most recently observed `available` info so cancel can
+  // restore the user to the "Update available v0.X.Y" view instead of
+  // dumping them back to a blank idle state. Updated via effect rather
+  // than inside a setState updater because React 18+ may invoke the
+  // updater lazily — the ref would still be null when the cancel
+  // handler ran.
+  const lastAvailableInfoRef = useRef<UpdateInfo | null>(null)
+  useEffect(() => {
+    if (state.status === 'available') {
+      lastAvailableInfoRef.current = state.info
+    }
+  }, [state])
+
   const downloadUpdate = useCallback(
     async (downloadUrl: string, expectedSize?: number | null) => {
       setState({
@@ -88,12 +101,32 @@ export function useUpdateCheck(autoCheck = false) {
         setState({ status: 'downloaded', filePath })
         return filePath
       } catch (err) {
-        setState({ status: 'error', message: `${err}` })
+        const msg = `${err}`
+        if (msg === 'cancelled') {
+          // User-initiated abort — restore the available view if we have
+          // info, else fall back to idle. Don't surface as an error.
+          if (lastAvailableInfoRef.current) {
+            setState({ status: 'available', info: lastAvailableInfoRef.current })
+          } else {
+            setState({ status: 'idle' })
+          }
+          return null
+        }
+        setState({ status: 'error', message: msg })
         return null
       }
     },
     [],
   )
+
+  const cancelDownload = useCallback(async () => {
+    try {
+      await invoke('cancel_update_download')
+    } catch {
+      // The Rust command can't fail; if it somehow did, the in-flight
+      // download_update will still resolve with its own error path.
+    }
+  }, [])
 
   const dismiss = useCallback(() => {
     dismissedRef.current = true
@@ -119,5 +152,5 @@ export function useUpdateCheck(autoCheck = false) {
     return () => clearTimeout(timer)
   }, [autoCheck, checkForUpdate])
 
-  return { state, checkForUpdate, downloadUpdate, dismiss, reset }
+  return { state, checkForUpdate, downloadUpdate, cancelDownload, dismiss, reset }
 }

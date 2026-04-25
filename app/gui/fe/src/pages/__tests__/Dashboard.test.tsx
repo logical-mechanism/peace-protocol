@@ -69,6 +69,7 @@ vi.mock('../../contexts/UpdateContext', () => ({
     state: { status: 'idle' as const },
     checkForUpdate: vi.fn(),
     downloadUpdate: vi.fn(),
+    cancelDownload: vi.fn(),
     dismiss: vi.fn(),
     reset: vi.fn(),
   }),

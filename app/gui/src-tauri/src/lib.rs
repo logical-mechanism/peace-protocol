@@ -457,6 +457,7 @@ pub fn run() {
             // the node has finished initialization (outgoing peer connections).
             app.manage(NodeSocketReady(AtomicBool::new(false)));
             app.manage(ExpressReady(AtomicBool::new(false)));
+            app.manage(commands::updater::DownloadCancelFlag::default());
 
             // App-specific temp directory — wiped on startup to clean crash orphans
             // (SNARK temp files contain secret cryptographic material)
@@ -684,6 +685,7 @@ pub fn run() {
             commands::updater::get_current_version,
             commands::updater::check_for_update,
             commands::updater::download_update,
+            commands::updater::cancel_update_download,
             // Audio playback commands (rodio — bypasses WebKitGTK/GStreamer)
             commands::audio::audio_play,
             commands::audio::audio_pause,

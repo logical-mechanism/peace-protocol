@@ -383,6 +383,7 @@
     "viewFullNotes": "Expand",
     "downloadUpdate": "Download Update",
     "downloading": "Downloading update...",
+    "cancelDownload": "Cancel",
     "downloadedTitle": "Update downloaded",
     "savedTo": "Saved to: {{path}}",
     "restartHint": "Close and reopen the app to use the new version.",

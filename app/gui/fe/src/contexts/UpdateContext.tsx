@@ -5,6 +5,7 @@ interface UpdateContextValue {
   state: UpdateState
   checkForUpdate: () => Promise<UpdateInfo | null>
   downloadUpdate: (downloadUrl: string, expectedSize?: number | null) => Promise<string | null>
+  cancelDownload: () => Promise<void>
   dismiss: () => void
   reset: () => void
 }

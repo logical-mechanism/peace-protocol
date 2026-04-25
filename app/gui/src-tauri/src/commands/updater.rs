@@ -1,6 +1,24 @@
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
+
+/// Shared flag the frontend toggles to cancel an in-flight download.
+/// `download_update` resets it to `false` at start and polls inside the chunk
+/// loop; `cancel_update_download` flips it to `true`.
+pub struct DownloadCancelFlag(pub Arc<AtomicBool>);
+
+impl Default for DownloadCancelFlag {
+    fn default() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+}
+
+/// Sentinel returned by `download_update` when the user cancelled. The
+/// frontend matches on this exact string to distinguish a cancel from a real
+/// error and avoid showing an error toast.
+pub const CANCELLED_SENTINEL: &str = "cancelled";
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct UpdateInfo {
@@ -154,6 +172,7 @@ pub async fn check_for_update() -> Result<UpdateInfo, String> {
 pub async fn download_update(
     download_url: String,
     expected_size: Option<u64>,
+    cancel_flag: tauri::State<'_, DownloadCancelFlag>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     use futures_util::StreamExt;
@@ -163,6 +182,12 @@ pub async fn download_update(
     if !is_valid_download_url(&download_url) {
         return Err("Invalid download URL: must be from the project repository".to_string());
     }
+
+    // Reset cancellation flag at start of each download. If the user clicked
+    // Cancel during a previous (already-finished) download, that signal must
+    // not pre-cancel this one.
+    let flag = cancel_flag.0.clone();
+    flag.store(false, Ordering::SeqCst);
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(600))
@@ -214,6 +239,13 @@ pub async fn download_update(
     let mut rate = RateTracker::new();
 
     while let Some(chunk) = stream.next().await {
+        if flag.load(Ordering::Relaxed) {
+            // Drop the file handle before deleting so the OS doesn't keep it
+            // alive on Windows. Best-effort tmp cleanup — ignore failure.
+            drop(file);
+            let _ = tokio::fs::remove_file(&tmp_path).await;
+            return Err(CANCELLED_SENTINEL.to_string());
+        }
         let chunk = chunk.map_err(|e| format!("Download stream error: {e}"))?;
         file.write_all(&chunk)
             .await
@@ -272,6 +304,16 @@ pub async fn download_update(
     );
 
     Ok(final_path.to_string_lossy().into())
+}
+
+/// Signals an in-flight `download_update` to abort at its next chunk
+/// boundary. Idempotent — flipping the flag while no download is running is a
+/// no-op (the next download resets it). Returns immediately; the frontend
+/// observes the cancellation when `download_update` returns
+/// `Err(CANCELLED_SENTINEL)`.
+#[tauri::command]
+pub fn cancel_update_download(cancel_flag: tauri::State<'_, DownloadCancelFlag>) {
+    cancel_flag.0.store(true, Ordering::SeqCst);
 }
 
 /// Resolves the directory containing the running AppImage.
@@ -428,6 +470,17 @@ mod tests {
             rate > 1_500_000.0,
             "expected rolling rate to reflect recent burst, got {rate}"
         );
+    }
+
+    #[test]
+    fn cancel_flag_default_is_false_and_shared_across_clones() {
+        let flag = DownloadCancelFlag::default();
+        assert!(!flag.0.load(Ordering::SeqCst));
+        let cloned = flag.0.clone();
+        cloned.store(true, Ordering::SeqCst);
+        // Both Arc clones observe the same atomic — the cancel command can
+        // flip the flag and `download_update`'s loop sees it.
+        assert!(flag.0.load(Ordering::SeqCst));
     }
 
     #[test]

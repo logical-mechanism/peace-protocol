@@ -26,7 +26,7 @@ export default function UpdateSection() {
   const { t } = useTranslation('settings')
   const [currentVersion, setCurrentVersion] = useState<string>('')
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
-  const { state, checkForUpdate, downloadUpdate, reset } = useUpdate()
+  const { state, checkForUpdate, downloadUpdate, cancelDownload, reset } = useUpdate()
   const toast = useToast()
 
   useEffect(() => {
@@ -147,9 +147,18 @@ export default function UpdateSection() {
           <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-[var(--text-secondary)]">{t('update.downloading')}</span>
-              <span className="text-[var(--text-muted)] font-mono">
-                {state.progress.percent.toFixed(1)}%
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[var(--text-muted)] font-mono">
+                  {state.progress.percent.toFixed(1)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { void cancelDownload() }}
+                  className="btn-base btn-tertiary px-3 py-1 text-xs"
+                >
+                  {t('update.cancelDownload')}
+                </button>
+              </div>
             </div>
             <div className="w-full h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
               <div

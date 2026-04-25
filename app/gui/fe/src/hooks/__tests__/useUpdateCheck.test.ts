@@ -149,6 +149,51 @@ describe('useUpdateCheck', () => {
     })
   })
 
+  it('cancelDownload invokes the Rust cancel command', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce(undefined)
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.cancelDownload()
+    })
+
+    expect(invoke).toHaveBeenCalledWith('cancel_update_download')
+  })
+
+  it('downloadUpdate restores to available state when download is cancelled', async () => {
+    // First a check so the hook has the available info to restore.
+    ;(invoke as Mock).mockResolvedValueOnce(MOCK_UPDATE_INFO)
+    const { result } = renderHook(() => useUpdateCheck())
+    await act(async () => {
+      await result.current.checkForUpdate()
+    })
+    expect(result.current.state.status).toBe('available')
+
+    // Now download_update rejects with the cancel sentinel.
+    ;(invoke as Mock).mockRejectedValueOnce('cancelled')
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    expect(result.current.state.status).toBe('available')
+    if (result.current.state.status === 'available') {
+      expect(result.current.state.info.latest_version).toBe('0.4.3')
+    }
+  })
+
+  it('downloadUpdate falls back to idle on cancel when no prior available info', async () => {
+    ;(invoke as Mock).mockRejectedValueOnce('cancelled')
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    expect(result.current.state.status).toBe('idle')
+  })
+
   it('downloadUpdate sets error state on failure', async () => {
     ;(invoke as Mock).mockRejectedValueOnce('Disk full')
 

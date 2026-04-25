@@ -290,6 +290,39 @@ describe('UpdateSection', () => {
     })
   })
 
+  it('shows a Cancel button while downloading and invokes cancel_update_download on click', async () => {
+    ;(invoke as Mock).mockImplementation((cmd: string) => {
+      if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
+      if (cmd === 'check_for_update') return Promise.resolve({
+        current_version: '0.4.2',
+        latest_version: '0.4.3',
+        update_available: true,
+        download_url: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        release_notes: '',
+        published_at: '',
+        download_size: 600_000_000,
+      })
+      if (cmd === 'download_update') return new Promise(() => {})
+      if (cmd === 'cancel_update_download') return Promise.resolve()
+      return Promise.reject(new Error(`unmocked: ${cmd}`))
+    })
+
+    renderUpdateSection()
+
+    fireEvent.click(screen.getByText('Check for Updates'))
+    await waitFor(() => expect(screen.getByText('Download Update')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Download Update'))
+
+    await waitFor(() => expect(screen.getByText('Downloading update...')).toBeInTheDocument())
+
+    const cancelBtn = screen.getByText('Cancel')
+    fireEvent.click(cancelBtn)
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('cancel_update_download')
+    })
+  })
+
   it('shows downloaded state with file path', async () => {
     const downloadPath = '/home/user/Veiled_0.4.3_amd64.AppImage'
     ;(invoke as Mock).mockImplementation((cmd: string) => {
