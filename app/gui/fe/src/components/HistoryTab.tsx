@@ -29,6 +29,7 @@ import { useDebounce } from '../hooks/useDebounce';
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
   'accept-bid', 'cancel-pending', 'complete-sale',
+  'send', 'receive',
 ];
 
 type DateRange = 'all' | '24h' | '7d' | '30d';
@@ -79,14 +80,23 @@ function HistoryTab({
 
   const hasDataRef = useRef(false);
 
-  // Recover historical transactions from Koios (on-demand or auto-triggered)
+  // Recover historical transactions from Koios (on-demand or auto-triggered).
+  // Fetches protocol-related txs and plain wallet activity (send/receive) in parallel,
+  // then merges them — dedupe by txHash so a tx can never appear twice.
   const recoverHistory = useCallback(async () => {
     if (!userPkh || recovering) return;
     setRecovering(true);
     try {
-      const recovered = await chainApi.getHistory(userPkh);
-      if (recovered.length > 0) {
-        const asRecords: TransactionRecord[] = recovered.map(r => ({
+      const [protocol, activity] = await Promise.all([
+        chainApi.getHistory(userPkh),
+        chainApi.getWalletActivity(userPkh),
+      ]);
+      const seen = new Set<string>();
+      const merged: TransactionRecord[] = [];
+      for (const r of [...protocol, ...activity]) {
+        if (seen.has(r.txHash)) continue;
+        seen.add(r.txHash);
+        merged.push({
           txHash: r.txHash,
           type: (r.type as TransactionRecord['type']) || 'create-listing',
           tokenName: r.tokenName,
@@ -96,8 +106,10 @@ function HistoryTab({
           amountLovelace: r.amountLovelace,
           counterparty: r.counterparty,
           confirmedAtBlock: r.confirmedAtBlock,
-        }));
-        const { records } = reconcileWithOnChain(userPkh, asRecords);
+        });
+      }
+      if (merged.length > 0) {
+        const { records } = reconcileWithOnChain(userPkh, merged);
         setAllRecords(records);
         onHistoryUpdated?.(records);
       }

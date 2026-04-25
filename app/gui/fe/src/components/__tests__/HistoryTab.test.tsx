@@ -15,7 +15,11 @@ vi.mock('../../contexts/NodeContext', () => ({
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
-  chainApi: { getConfirmations: vi.fn() },
+  chainApi: {
+    getConfirmations: vi.fn(),
+    getHistory: vi.fn().mockResolvedValue([]),
+    getWalletActivity: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 vi.mock('../../services/transactionHistory', () => ({
@@ -35,6 +39,8 @@ vi.mock('../../services/transactionHistory', () => ({
       'accept-bid': 'Accept Bid',
       'cancel-pending': 'Cancel Pending',
       'complete-sale': 'Complete Sale',
+      'send': 'Sent ADA',
+      'receive': 'Received ADA',
     };
     return labels[type] || type;
   }),
@@ -58,7 +64,7 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-import { encryptionsApi, bidsApi } from '../../services/api';
+import { encryptionsApi, bidsApi, chainApi } from '../../services/api';
 import { resolvePendingTxs, reconcileWithOnChain, clearHistory } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
@@ -101,6 +107,8 @@ beforeEach(() => {
   (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (reconcileWithOnChain as ReturnType<typeof vi.fn>).mockReturnValue({ discrepancies: [] });
+  (chainApi.getHistory as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 describe('HistoryTab', () => {
@@ -215,6 +223,62 @@ describe('HistoryTab', () => {
       expect(clearHistory).toHaveBeenCalledWith(USER_PKH);
       expect(onClearHistory).toHaveBeenCalled();
     });
+  });
+
+  it('renders send/receive activity records merged with protocol history', async () => {
+    const sendRecord = makeRecord({
+      type: 'send',
+      description: 'Sent payment to friend',
+      status: 'confirmed',
+      tokenName: undefined,
+      amountLovelace: 5_000_000,
+    });
+    const receiveRecord = makeRecord({
+      type: 'receive',
+      description: 'Received payment',
+      status: 'confirmed',
+      tokenName: undefined,
+      amountLovelace: 7_500_000,
+    });
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([sendRecord, receiveRecord]);
+
+    renderTab({ transactions: [sendRecord, receiveRecord] });
+
+    await waitFor(() => {
+      expect(screen.getByText('Sent payment to friend')).toBeInTheDocument();
+      expect(screen.getByText('Received payment')).toBeInTheDocument();
+    });
+  });
+
+  it('dedupes by txHash when activity and protocol history overlap', async () => {
+    const sharedHash = 'a'.repeat(64);
+    (chainApi.getHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { txHash: sharedHash, type: 'create-listing', timestamp: 1000, status: 'confirmed' },
+    ]);
+    (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { txHash: sharedHash, type: 'send', timestamp: 1000, status: 'confirmed' },
+    ]);
+    // Recovery only fires when local history is sparse (< 5)
+    const { getTransactions } = await import('../../services/transactionHistory');
+    (getTransactions as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(reconcileWithOnChain).toHaveBeenCalledWith(
+        USER_PKH,
+        expect.arrayContaining([expect.objectContaining({ txHash: sharedHash })]),
+      );
+    });
+    // Should only carry one record for the shared hash, not two
+    const reconcileCall = (reconcileWithOnChain as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([, records]) => Array.isArray(records) && records.some((r: TransactionRecord) => r.txHash === sharedHash),
+    );
+    expect(reconcileCall).toBeDefined();
+    const matching = reconcileCall![1].filter((r: TransactionRecord) => r.txHash === sharedHash);
+    expect(matching).toHaveLength(1);
+    // First-wins ordering (protocol history before activity) preserves the protocol type
+    expect(matching[0].type).toBe('create-listing');
   });
 
   it('does not clear history when ConfirmModal is cancelled', async () => {
