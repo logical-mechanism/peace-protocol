@@ -379,6 +379,8 @@
     "upToDate": "You're on the latest version",
     "availableBadge": "Update available: v{{version}}",
     "releaseNotes": "Release notes:",
+    "releaseNotesModalTitle": "Release notes",
+    "viewFullNotes": "Expand",
     "downloadUpdate": "Download Update",
     "downloading": "Downloading update...",
     "downloadedTitle": "Update downloaded",

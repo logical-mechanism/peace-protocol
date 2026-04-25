@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import UpdateSection from '../UpdateSection'
 import { UpdateProvider } from '../../../contexts/UpdateContext'
+import { ModalProvider } from '../../../contexts/ModalContext'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { Mock } from 'vitest'
@@ -25,9 +26,11 @@ let progressHandler: ((event: { payload: { downloaded_bytes: number; total_bytes
 
 function renderUpdateSection() {
   return render(
-    <UpdateProvider>
-      <UpdateSection />
-    </UpdateProvider>,
+    <ModalProvider>
+      <UpdateProvider>
+        <UpdateSection />
+      </UpdateProvider>
+    </ModalProvider>,
   )
 }
 
@@ -210,6 +213,33 @@ describe('UpdateSection', () => {
     expect(screen.getByText('Download Update')).toBeInTheDocument()
     expect(screen.getByText('New features')).toBeInTheDocument()
     expect(screen.getByText('572.2 MB')).toBeInTheDocument()
+  })
+
+  it('expands release notes into a modal when "Expand" is clicked', async () => {
+    ;(invoke as Mock).mockImplementation((cmd: string) => {
+      if (cmd === 'get_current_version') return Promise.resolve('0.4.2')
+      if (cmd === 'check_for_update') return Promise.resolve({
+        current_version: '0.4.2',
+        latest_version: '0.4.3',
+        update_available: true,
+        download_url: 'https://github.com/logical-mechanism/peace-protocol/releases/download/v0.4.3/Veiled_0.4.3_amd64.AppImage',
+        release_notes: 'New features',
+        published_at: '2026-03-15T00:00:00Z',
+        download_size: 600000000,
+      })
+      return Promise.reject(new Error(`unmocked: ${cmd}`))
+    })
+
+    renderUpdateSection()
+
+    fireEvent.click(screen.getByText('Check for Updates'))
+    await waitFor(() => expect(screen.getByText('Expand')).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText('Expand'))
+
+    // Modal title and version stamp render in the dialog
+    await waitFor(() => expect(screen.getByText('Release notes')).toBeInTheDocument())
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-labelledby', 'release-notes-modal-title')
   })
 
   it('shows error state with retry button', async () => {

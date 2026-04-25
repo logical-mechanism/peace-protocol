@@ -6,6 +6,7 @@ import { useUpdate } from '../../contexts/UpdateContext'
 import type { UpdateInfo } from '../../hooks/useUpdateCheck'
 import { useToast } from '../../components/Toast'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import ReleaseNotesModal from '../../components/ReleaseNotesModal'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -24,6 +25,7 @@ function formatEta(seconds: number): string {
 export default function UpdateSection() {
   const { t } = useTranslation('settings')
   const [currentVersion, setCurrentVersion] = useState<string>('')
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
   const { state, checkForUpdate, downloadUpdate, reset } = useUpdate()
   const toast = useToast()
 
@@ -106,11 +108,25 @@ export default function UpdateSection() {
               </div>
 
               {state.info.release_notes && (
-                <div className="mb-4 max-h-40 overflow-y-auto">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('update.releaseNotes')}</p>
-                  <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap font-sans leading-relaxed">
-                    {state.info.release_notes}
-                  </pre>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-[var(--text-muted)]">{t('update.releaseNotes')}</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowReleaseNotes(true)}
+                      className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                      {t('update.viewFullNotes')}
+                    </button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto">
+                    <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap font-sans leading-relaxed">
+                      {state.info.release_notes}
+                    </pre>
+                  </div>
                 </div>
               )}
 
@@ -201,6 +217,15 @@ export default function UpdateSection() {
           </div>
         )}
       </div>
+
+      {state.status === 'available' && (
+        <ReleaseNotesModal
+          isOpen={showReleaseNotes}
+          onClose={() => setShowReleaseNotes(false)}
+          version={state.info.latest_version}
+          releaseNotes={state.info.release_notes}
+        />
+      )}
     </div>
   )
 }
