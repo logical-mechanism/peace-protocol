@@ -231,7 +231,14 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
       .map(t => t.tx_hash);
 
     if (activityHashes.length === 0) {
-      apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
+      // Don't cache empty results — Koios may have been mid-indexing or the user
+      // may have just received a tx. Caching [] for 60s would mask the new entry.
+      logger.info('No wallet activity found', {
+        pkh,
+        credentialTxCount: credentialTxs.length,
+        protocolHashCount: protocolHashSet.size,
+        requestId: req.requestId,
+      });
       return res.json({ data: [] });
     }
 
@@ -245,7 +252,9 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
 
     records.sort((a, b) => b.timestamp - a.timestamp);
 
-    apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
+    if (records.length > 0) {
+      apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
+    }
     return res.json({ data: records });
   } catch (error) {
     logger.error('Failed to fetch wallet activity', { error: String(error), pkh, requestId: req.requestId });

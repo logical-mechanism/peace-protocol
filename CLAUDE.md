@@ -79,7 +79,7 @@ All active product development happens here. The full architecture reference liv
 
 - **App name:** "Veiled" (single word — spaces produce awkward binary names).
 - **Identifier:** `com.peace-protocol.veiled-desktop` (kept stable for app data dir compatibility).
-- **Backend requires explicit build.** Tauri runs `node dist/index.js`, *not* `tsx src/index.ts`. Every change in `app/gui/be/src/` needs `cd app/gui/be && npm run build` before restarting Tauri. The frontend hot-reloads via Vite; the backend does not. `run.sh` starts a `tsc --watch` automatically — if you run `tauri dev` manually, you have to handle this yourself.
+- **Backend requires explicit build AND re-bundle.** Tauri runs `node dist/index.js`, *not* `tsx src/index.ts`. Worse, it loads from a *bundled* copy at `app/gui/src-tauri/resources/be/dist/`, not from `app/gui/be/dist/`. So a backend change needs `cd app/gui/be && npm run build` *and* `cd app/gui && npm run bundle:be` (copies `be/dist/` into `src-tauri/resources/be/dist/`) before restarting Tauri. `run.sh` runs both on startup, but the `tsc --watch` it leaves running only updates `be/dist/` — the bundled copy stays stale until you re-run `bundle:be` and restart. The frontend hot-reloads via Vite; the backend does not.
 - **127.0.0.1 not localhost.** WebKitGTK on Linux has DNS resolution issues; all local URLs use `127.0.0.1`.
 - **No CLAUDE.md duplication.** This file deliberately stays out of GUI internals — see `app/gui/CLAUDE.md` for context boundaries, modal patterns, IPC commands, and other GUI-specific conventions.
 
