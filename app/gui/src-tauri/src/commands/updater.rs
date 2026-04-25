@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 use tauri::Emitter;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -17,6 +18,49 @@ pub struct DownloadProgress {
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub percent: f64,
+    pub bytes_per_sec: f64,
+}
+
+/// Rolling window over (timestamp, cumulative_bytes) samples used to estimate
+/// the download rate. Old samples (>1s) are pruned before each rate query so
+/// the result reflects the most recent throughput, not the all-run average.
+const RATE_WINDOW: Duration = Duration::from_secs(1);
+
+struct RateTracker {
+    samples: Vec<(Instant, u64)>,
+}
+
+impl RateTracker {
+    fn new() -> Self {
+        Self {
+            samples: Vec::new(),
+        }
+    }
+
+    fn record(&mut self, now: Instant, cumulative: u64) {
+        self.samples.push((now, cumulative));
+        self.prune(now);
+    }
+
+    fn prune(&mut self, now: Instant) {
+        if let Some(cutoff) = now.checked_sub(RATE_WINDOW) {
+            self.samples.retain(|(t, _)| *t >= cutoff);
+        }
+    }
+
+    fn rate_bytes_per_sec(&self) -> f64 {
+        if self.samples.len() < 2 {
+            return 0.0;
+        }
+        let (t0, b0) = self.samples.first().copied().unwrap();
+        let (t1, b1) = self.samples.last().copied().unwrap();
+        let elapsed = t1.duration_since(t0).as_secs_f64();
+        if elapsed <= 0.0 {
+            return 0.0;
+        }
+        let delta = b1.saturating_sub(b0) as f64;
+        delta / elapsed
+    }
 }
 
 /// Returns the current app version (compiled from Cargo.toml).
@@ -102,9 +146,14 @@ pub async fn check_for_update() -> Result<UpdateInfo, String> {
 }
 
 /// Downloads the update AppImage with streaming progress events.
+///
+/// `expected_size` is the asset size from the GitHub release JSON. We prefer
+/// it over `Content-Length` because GitHub's redirect to the asset CDN can
+/// strip or misreport the header, leaving percent stuck at 0.
 #[tauri::command]
 pub async fn download_update(
     download_url: String,
+    expected_size: Option<u64>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
     use futures_util::StreamExt;
@@ -134,7 +183,9 @@ pub async fn download_update(
         return Err(format!("Download failed: HTTP {}", response.status()));
     }
 
-    let total_bytes = response.content_length().unwrap_or(0);
+    let total_bytes = expected_size
+        .or_else(|| response.content_length())
+        .unwrap_or(0);
     let filename = download_url
         .rsplit('/')
         .next()
@@ -159,7 +210,8 @@ pub async fn download_update(
 
     let mut downloaded: u64 = 0;
     let mut stream = response.bytes_stream();
-    let mut last_emit = std::time::Instant::now();
+    let mut last_emit = Instant::now();
+    let mut rate = RateTracker::new();
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("Download stream error: {e}"))?;
@@ -167,9 +219,10 @@ pub async fn download_update(
             .await
             .map_err(|e| format!("Write error: {e}"))?;
         downloaded += chunk.len() as u64;
+        rate.record(Instant::now(), downloaded);
 
         // Throttle progress events to ~10/sec
-        if last_emit.elapsed() > std::time::Duration::from_millis(100) {
+        if last_emit.elapsed() > Duration::from_millis(100) {
             let percent = if total_bytes > 0 {
                 (downloaded as f64 / total_bytes as f64) * 100.0
             } else {
@@ -181,9 +234,10 @@ pub async fn download_update(
                     downloaded_bytes: downloaded,
                     total_bytes,
                     percent,
+                    bytes_per_sec: rate.rate_bytes_per_sec(),
                 },
             );
-            last_emit = std::time::Instant::now();
+            last_emit = Instant::now();
         }
     }
 
@@ -213,6 +267,7 @@ pub async fn download_update(
             downloaded_bytes: downloaded,
             total_bytes: downloaded,
             percent: 100.0,
+            bytes_per_sec: 0.0,
         },
     );
 
@@ -329,5 +384,60 @@ mod tests {
         let dir = get_appimage_dir();
         assert_eq!(dir, Some(PathBuf::from("/home/user/Desktop")));
         std::env::remove_var("APPIMAGE");
+    }
+
+    #[test]
+    fn rate_tracker_empty() {
+        let r = RateTracker::new();
+        assert_eq!(r.rate_bytes_per_sec(), 0.0);
+    }
+
+    #[test]
+    fn rate_tracker_single_sample() {
+        let mut r = RateTracker::new();
+        r.record(Instant::now(), 1_000);
+        assert_eq!(r.rate_bytes_per_sec(), 0.0);
+    }
+
+    #[test]
+    fn rate_tracker_computes_bytes_per_sec_over_window() {
+        let mut r = RateTracker::new();
+        let t0 = Instant::now();
+        r.record(t0, 0);
+        r.record(t0 + Duration::from_millis(500), 500_000);
+        r.record(t0 + Duration::from_millis(1_000), 1_000_000);
+        // Over the 1s window, downloaded 1_000_000 bytes → 1 MB/s.
+        assert!((r.rate_bytes_per_sec() - 1_000_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn rate_tracker_prunes_old_samples() {
+        let mut r = RateTracker::new();
+        let t0 = Instant::now();
+        // 5 seconds of slow download history that should be discarded.
+        r.record(t0, 0);
+        r.record(t0 + Duration::from_secs(1), 100);
+        r.record(t0 + Duration::from_secs(2), 200);
+        r.record(t0 + Duration::from_secs(3), 300);
+        r.record(t0 + Duration::from_secs(4), 400);
+        // A burst in the last second: jumps to 2_000_400 bytes.
+        r.record(t0 + Duration::from_secs(5), 2_000_400);
+        // The old slow window must not drag the rate down — recent burst dominates.
+        let rate = r.rate_bytes_per_sec();
+        assert!(
+            rate > 1_500_000.0,
+            "expected rolling rate to reflect recent burst, got {rate}"
+        );
+    }
+
+    #[test]
+    fn rate_tracker_zero_elapsed_returns_zero() {
+        let mut r = RateTracker::new();
+        let t = Instant::now();
+        // Multiple samples at the same instant — elapsed is zero.
+        r.record(t, 0);
+        r.record(t, 100);
+        r.record(t, 200);
+        assert_eq!(r.rate_bytes_per_sec(), 0.0);
     }
 }
