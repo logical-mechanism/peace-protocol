@@ -225,6 +225,40 @@ describe('HistoryTab', () => {
     });
   });
 
+  it('refresh() fetches wallet activity and shows receive records', async () => {
+    const incomingHash = 'a'.repeat(64);
+    (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        txHash: incomingHash,
+        type: 'receive',
+        timestamp: Date.now(),
+        status: 'confirmed',
+        amountLovelace: 5_000_000,
+      },
+    ]);
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        txHash: incomingHash,
+        type: 'receive',
+        timestamp: Date.now(),
+        status: 'confirmed',
+        amountLovelace: 5_000_000,
+      },
+    ]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(chainApi.getWalletActivity).toHaveBeenCalledWith(USER_PKH);
+      expect(reconcileWithOnChain).toHaveBeenCalledWith(
+        USER_PKH,
+        expect.arrayContaining([
+          expect.objectContaining({ txHash: incomingHash, type: 'receive' }),
+        ]),
+      );
+    });
+  });
+
   it('renders send/receive activity records merged with protocol history', async () => {
     const sendRecord = makeRecord({
       type: 'send',
@@ -250,7 +284,7 @@ describe('HistoryTab', () => {
     });
   });
 
-  it('dedupes by txHash when activity and protocol history overlap', async () => {
+  it('dedupes by txHash when activity and protocol history overlap during recovery', async () => {
     const sharedHash = 'a'.repeat(64);
     (chainApi.getHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
       { txHash: sharedHash, type: 'create-listing', timestamp: 1000, status: 'confirmed' },
@@ -264,21 +298,20 @@ describe('HistoryTab', () => {
 
     renderTab();
 
+    // recoverHistory makes a reconcile call that includes BOTH endpoints' records merged.
+    // Find that specific call — the one whose record for sharedHash has type === 'create-listing'
+    // (first-wins ordering: protocol history is pushed before activity).
     await waitFor(() => {
-      expect(reconcileWithOnChain).toHaveBeenCalledWith(
-        USER_PKH,
-        expect.arrayContaining([expect.objectContaining({ txHash: sharedHash })]),
+      const recoverCall = (reconcileWithOnChain as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([, records]) => Array.isArray(records)
+          && records.some((r: TransactionRecord) => r.txHash === sharedHash && r.type === 'create-listing'),
       );
+      expect(recoverCall).toBeDefined();
+      const matching = recoverCall![1].filter((r: TransactionRecord) => r.txHash === sharedHash);
+      // Dedup: only one record for the shared hash, never duplicated
+      expect(matching).toHaveLength(1);
+      expect(matching[0].type).toBe('create-listing');
     });
-    // Should only carry one record for the shared hash, not two
-    const reconcileCall = (reconcileWithOnChain as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([, records]) => Array.isArray(records) && records.some((r: TransactionRecord) => r.txHash === sharedHash),
-    );
-    expect(reconcileCall).toBeDefined();
-    const matching = reconcileCall![1].filter((r: TransactionRecord) => r.txHash === sharedHash);
-    expect(matching).toHaveLength(1);
-    // First-wins ordering (protocol history before activity) preserves the protocol type
-    expect(matching[0].type).toBe('create-listing');
   });
 
   it('does not clear history when ConfirmModal is cancelled', async () => {

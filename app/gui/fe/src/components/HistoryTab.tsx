@@ -130,13 +130,17 @@ function HistoryTab({
     }
     if (!hasDataRef.current) setLoading(true);
     try {
-      // 1. Fetch on-chain data (current UTxOs owned by user)
-      const [encryptions, bids] = await Promise.all([
+      // 1. Fetch on-chain data (current UTxOs owned by user) + wallet activity in parallel.
+      // Activity is cached server-side for 60s so calling it on every refresh is cheap and
+      // surfaces incoming sends/receives without requiring the Recover button.
+      const [encryptions, bids, activity] = await Promise.all([
         encryptionsApi.getAll(),
         bidsApi.getAll(),
+        chainApi.getWalletActivity(userPkh),
       ]);
 
       const onChainRecords: TransactionRecord[] = [];
+      const seenHashes = new Set<string>();
       for (const e of encryptions) {
         if (e.sellerPkh === userPkh) {
           onChainRecords.push({
@@ -147,6 +151,7 @@ function HistoryTab({
             status: 'confirmed',
             description: e.description || t('history.listingDescription', { tokenName: e.tokenName }),
           });
+          seenHashes.add(e.utxo.txHash);
         }
       }
       for (const b of bids) {
@@ -159,7 +164,23 @@ function HistoryTab({
             status: 'confirmed',
             description: t('history.bidDescription', { amount: (b.amount / 1_000_000).toLocaleString() }),
           });
+          seenHashes.add(b.utxo.txHash);
         }
+      }
+      for (const a of activity) {
+        if (seenHashes.has(a.txHash)) continue;
+        seenHashes.add(a.txHash);
+        onChainRecords.push({
+          txHash: a.txHash,
+          type: (a.type as TransactionRecord['type']) || 'receive',
+          tokenName: a.tokenName,
+          timestamp: a.timestamp,
+          status: 'confirmed',
+          description: a.description,
+          amountLovelace: a.amountLovelace,
+          counterparty: a.counterparty,
+          confirmedAtBlock: a.confirmedAtBlock,
+        });
       }
 
       // 2. Reconcile: persist on-chain records + promote matching pending/failed -> confirmed
