@@ -361,7 +361,15 @@
     "done": "Tamam",
     "unknownError": "Bilinmeyen hata oluştu",
     "failedFallback": "Şifre çözülemedi",
-    "saveWarning": "Şifre çözme başarılı oldu ancak dosya kütüphaneye kaydedilemedi. Satın Alımlarım'dan tekrar deneyin."
+    "saveWarning": "Şifre çözme başarılı oldu ancak dosya kütüphaneye kaydedilemedi. Satın Alımlarım'dan tekrar deneyin.",
+    "explanationStub": "Geliştirme modunda, şifre çözme simüle edilmiş veriler kullanır. Sözleşmeler dağıtıldığında, bu, şifre çözme anahtarını türetmek ve şifrelenmiş mesajı ortaya çıkarmak için cüzdan imzanızı kullanacaktır.",
+    "explanationIntro": "Şifre çözme, mesajı güvenli bir şekilde ortaya çıkarmak için sıfır bilgi kriptografisi kullanır. Süreç:",
+    "explanationStep1": "Cüzdan imzanız benzersiz bir gizli anahtar türetir",
+    "explanationStep2": "Blockchain geçmişi şifreleme verileri için sorgulanır",
+    "explanationStep3": "BLS12-381 eşleştirme işlemleri şifre çözme anahtarını hesaplar (WASM üzerinden)",
+    "explanationStep4": "Mesaj tarayıcınızda yerel olarak çözülür",
+    "explanationWasmReady": "WASM kriptografisi yüklendi ve hazır.",
+    "explanationWasmMissing": "WASM kanıtlayıcı yüklenmedi — şifre çözmeyi etkinleştirmek için panodan yükleyin."
   },
   "placeBid": {
     "title": "Teklif Ver",

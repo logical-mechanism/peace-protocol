@@ -559,7 +559,7 @@ export default function ImportListingModal({
               {/* Auto-detected category */}
               {formData.category !== 'other' && (
                 <p className="text-xs text-[var(--text-muted)]">
-                  {t('modals:importListing.categoryAutoDetected')} <span className="font-medium text-[var(--text-secondary)]">{formData.category}</span>
+                  {t('modals:importListing.categoryAutoDetected')} <span className="font-medium text-[var(--text-secondary)]">{t(`common:categories.${formData.category}`)}</span>
                 </p>
               )}
 

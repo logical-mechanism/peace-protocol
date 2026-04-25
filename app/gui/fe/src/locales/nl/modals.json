@@ -361,7 +361,15 @@
     "done": "Klaar",
     "unknownError": "Onbekende fout opgetreden",
     "failedFallback": "Ontsleutelen mislukt",
-    "saveWarning": "Ontsleuteling gelukt, maar het bestand kon niet worden opgeslagen in de bibliotheek. Probeer opnieuw via Mijn aankopen."
+    "saveWarning": "Ontsleuteling gelukt, maar het bestand kon niet worden opgeslagen in de bibliotheek. Probeer opnieuw via Mijn aankopen.",
+    "explanationStub": "In ontwikkelmodus gebruikt decryptie gesimuleerde data. Wanneer contracten zijn uitgerold, gebruikt dit je wallet-handtekening om de decryptiesleutel af te leiden en het versleutelde bericht te onthullen.",
+    "explanationIntro": "Decryptie gebruikt zero-knowledge cryptografie om het bericht veilig te onthullen. Het proces:",
+    "explanationStep1": "Je wallet-handtekening leidt een unieke geheime sleutel af",
+    "explanationStep2": "De blockchain-geschiedenis wordt geraadpleegd voor encryptiegegevens",
+    "explanationStep3": "BLS12-381 pairing-bewerkingen berekenen de decryptiesleutel (via WASM)",
+    "explanationStep4": "Het bericht wordt lokaal in je browser ontcijferd",
+    "explanationWasmReady": "WASM-cryptografie geladen en klaar.",
+    "explanationWasmMissing": "WASM-prover niet geladen — laad deze vanaf het dashboard om decryptie in te schakelen."
   },
   "placeBid": {
     "title": "Bod plaatsen",

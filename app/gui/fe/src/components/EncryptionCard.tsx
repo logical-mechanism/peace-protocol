@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay } from '../services/api';
+import { getTopLevelCategory } from '../config/categories';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -115,15 +116,15 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={t('card.filterByCategory', { category: t(`common:categories.${encryption.category || 'text'}`) })}
-                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${encryption.category || 'text'}`) })}
+                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
                 className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
               >
-                {t(`common:categories.${encryption.category || 'text'}`)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </button>
             ) : (
               <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
-                {t(`common:categories.${encryption.category || 'text'}`)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </span>
             )}
             {encryption.nsfw && (
@@ -226,15 +227,15 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={t('card.filterByCategory', { category: t(`common:categories.${encryption.category || 'text'}`) })}
-                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${encryption.category || 'text'}`) })}
+                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
                 className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
-                {t(`common:categories.${encryption.category || 'text'}`)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </button>
             ) : (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {t(`common:categories.${encryption.category || 'text'}`)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </span>
             )}
             {bidCount > 0 ? (

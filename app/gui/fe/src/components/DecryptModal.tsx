@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
+import { decryptBid, decryptEncryption, getDecryptionExplanationState, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
+import { getCategoryConfig, type FileCategory } from '../config/categories';
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
@@ -283,10 +284,32 @@ export default function DecryptModal({
                 </div>
               )}
 
-              {/* How it works */}
+              {/* How it works — state-driven, localized copy. */}
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:decrypt.howItWorks')}</h3>
-                <p className="text-sm text-[var(--text-muted)]">{getDecryptionExplanation()}</p>
+                {(() => {
+                  const explanation = getDecryptionExplanationState();
+                  if (explanation.mode === 'stub') {
+                    return (
+                      <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                    );
+                  }
+                  const wasmStatusKey = explanation.wasmReady
+                    ? 'modals:decrypt.explanationWasmReady'
+                    : 'modals:decrypt.explanationWasmMissing';
+                  return (
+                    <div className="text-sm text-[var(--text-muted)] space-y-2">
+                      <p>{t('modals:decrypt.explanationIntro')}</p>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>{t('modals:decrypt.explanationStep1')}</li>
+                        <li>{t('modals:decrypt.explanationStep2')}</li>
+                        <li>{t('modals:decrypt.explanationStep3')}</li>
+                        <li>{t('modals:decrypt.explanationStep4')}</li>
+                      </ol>
+                      <p>{t(wasmStatusKey)}</p>
+                    </div>
+                  );
+                })()}
 
                 {isStubMode() && (
                   <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
@@ -471,7 +494,11 @@ export default function DecryptModal({
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {t('modals:decrypt.fileDecrypted', { category: encryption.category.charAt(0).toUpperCase() + encryption.category.slice(1) })}
+                    {t('modals:decrypt.fileDecrypted', {
+                      category: getCategoryConfig(encryption.category as FileCategory)
+                        ? t(`common:categories.${encryption.category}`)
+                        : encryption.category,
+                    })}
                   </p>
                   {encryption.description && (
                     <p className="text-xs text-[var(--text-muted)]">{encryption.description}</p>

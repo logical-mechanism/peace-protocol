@@ -361,7 +361,15 @@
     "done": "완료",
     "unknownError": "알 수 없는 오류가 발생했습니다",
     "failedFallback": "복호화에 실패했습니다",
-    "saveWarning": "복호화에 성공했지만 파일을 라이브러리에 저장할 수 없습니다. 내 구매에서 다시 시도하세요."
+    "saveWarning": "복호화에 성공했지만 파일을 라이브러리에 저장할 수 없습니다. 내 구매에서 다시 시도하세요.",
+    "explanationStub": "개발 모드에서는 복호화에 시뮬레이션 데이터를 사용합니다. 계약이 배포되면 지갑 서명을 사용하여 복호화 키를 도출하고 암호화된 메시지를 공개합니다.",
+    "explanationIntro": "복호화는 영지식 암호화를 사용하여 메시지를 안전하게 공개합니다. 프로세스:",
+    "explanationStep1": "지갑 서명이 고유한 비밀 키를 도출합니다",
+    "explanationStep2": "블록체인 기록에서 암호화 데이터를 조회합니다",
+    "explanationStep3": "BLS12-381 페어링 연산이 복호화 키를 계산합니다 (WASM 사용)",
+    "explanationStep4": "메시지는 브라우저에서 로컬로 복호화됩니다",
+    "explanationWasmReady": "WASM 암호화 로드 및 준비 완료.",
+    "explanationWasmMissing": "WASM 프루버가 로드되지 않았습니다 — 복호화를 활성화하려면 대시보드에서 로드하세요."
   },
   "placeBid": {
     "title": "입찰하기",

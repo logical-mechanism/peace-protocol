@@ -361,7 +361,15 @@
     "done": "Terminé",
     "unknownError": "Une erreur inconnue est survenue",
     "failedFallback": "Échec du déchiffrement",
-    "saveWarning": "Le déchiffrement a réussi mais le fichier n'a pas pu être enregistré dans la bibliothèque. Réessayez depuis Mes achats."
+    "saveWarning": "Le déchiffrement a réussi mais le fichier n'a pas pu être enregistré dans la bibliothèque. Réessayez depuis Mes achats.",
+    "explanationStub": "En mode développement, le déchiffrement utilise des données simulées. Une fois les contrats déployés, la signature de votre wallet servira à dériver la clé de déchiffrement et révéler le message chiffré.",
+    "explanationIntro": "Le déchiffrement utilise la cryptographie à divulgation nulle pour révéler le message en toute sécurité. Le processus :",
+    "explanationStep1": "La signature de votre wallet dérive une clé secrète unique",
+    "explanationStep2": "L'historique de la blockchain est interrogé pour obtenir les données de chiffrement",
+    "explanationStep3": "Les opérations de couplage BLS12-381 calculent la clé de déchiffrement (via WASM)",
+    "explanationStep4": "Le message est déchiffré localement dans votre navigateur",
+    "explanationWasmReady": "Cryptographie WASM chargée et prête.",
+    "explanationWasmMissing": "Prouveur WASM non chargé — chargez-le depuis le tableau de bord pour activer le déchiffrement."
   },
   "placeBid": {
     "title": "Placer une offre",

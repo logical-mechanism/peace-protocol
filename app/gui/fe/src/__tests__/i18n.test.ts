@@ -62,4 +62,50 @@ describe('i18n', () => {
       expect(i18n.t('common:card.bid', { count: 5 })).toBe('5 bids')
     })
   })
+
+  describe('category sub-labels and decrypt explanation across locales', () => {
+    // Spot-check a representative subset rather than every key in every
+    // locale — the script that generates the sub-tree guarantees full
+    // coverage; the test guards against accidental deletions.
+    const SUPPORTED = ['de', 'en', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko',
+                       'nl', 'pl', 'pt', 'ru', 'th', 'tr', 'vi', 'zh'] as const
+    const REQUIRED_SUB_KEYS = [
+      'categories.sub.text.message',
+      'categories.sub.audio.music',
+      'categories.sub.audio.music_rock',
+      'categories.sub.video.film',
+      'categories.sub.video.film_horror',
+      'categories.sub.other.archive',
+    ]
+    const REQUIRED_DECRYPT_KEYS = [
+      'modals:decrypt.explanationStub',
+      'modals:decrypt.explanationIntro',
+      'modals:decrypt.explanationStep1',
+      'modals:decrypt.explanationStep4',
+      'modals:decrypt.explanationWasmReady',
+      'modals:decrypt.explanationWasmMissing',
+    ]
+
+    it.each(SUPPORTED)('locale %s has every sub-category key populated', async (lang) => {
+      await i18n.changeLanguage(lang)
+      for (const key of REQUIRED_SUB_KEYS) {
+        const value = i18n.t(`common:${key}`)
+        // i18next returns the key string when missing; presence is enough
+        // for the spot-check, since translations are language-specific.
+        expect(value).not.toBe(key)
+        expect(value.length).toBeGreaterThan(0)
+      }
+      await i18n.changeLanguage('en')
+    })
+
+    it.each(SUPPORTED)('locale %s has every decrypt explanation key populated', async (lang) => {
+      await i18n.changeLanguage(lang)
+      for (const key of REQUIRED_DECRYPT_KEYS) {
+        const value = i18n.t(key)
+        expect(value).not.toBe(key)
+        expect(value.length).toBeGreaterThan(0)
+      }
+      await i18n.changeLanguage('en')
+    })
+  })
 })

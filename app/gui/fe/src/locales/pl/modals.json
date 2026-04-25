@@ -361,7 +361,15 @@
     "done": "Gotowe",
     "unknownError": "Wystapil nieznany blad",
     "failedFallback": "Nie udalo sie odszyfrowac",
-    "saveWarning": "Odszyfrowywanie powiodlo sie, ale nie udalo sie zapisac pliku w bibliotece. Sprobuj ponownie z Moich zakupow."
+    "saveWarning": "Odszyfrowywanie powiodlo sie, ale nie udalo sie zapisac pliku w bibliotece. Sprobuj ponownie z Moich zakupow.",
+    "explanationStub": "W trybie deweloperskim odszyfrowywanie używa symulowanych danych. Gdy kontrakty zostaną wdrożone, użyje to podpisu Twojego portfela do uzyskania klucza odszyfrowania i ujawnienia zaszyfrowanej wiadomości.",
+    "explanationIntro": "Odszyfrowywanie wykorzystuje kryptografię zero-knowledge, aby bezpiecznie ujawnić wiadomość. Proces:",
+    "explanationStep1": "Podpis Twojego portfela tworzy unikalny tajny klucz",
+    "explanationStep2": "Historia blockchain jest przeszukiwana w poszukiwaniu danych szyfrowania",
+    "explanationStep3": "Operacje parowania BLS12-381 obliczają klucz odszyfrowania (przez WASM)",
+    "explanationStep4": "Wiadomość jest odszyfrowywana lokalnie w Twojej przeglądarce",
+    "explanationWasmReady": "Kryptografia WASM załadowana i gotowa.",
+    "explanationWasmMissing": "Prover WASM nie załadowany — załaduj go z pulpitu nawigacyjnego, aby włączyć odszyfrowywanie."
   },
   "placeBid": {
     "title": "Zloz oferte",

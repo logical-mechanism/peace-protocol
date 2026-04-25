@@ -361,7 +361,15 @@
     "done": "Listo",
     "unknownError": "Ocurrió un error desconocido",
     "failedFallback": "Error al descifrar",
-    "saveWarning": "El descifrado fue exitoso pero el archivo no se pudo guardar en la biblioteca. Inténtalo de nuevo desde Mis compras."
+    "saveWarning": "El descifrado fue exitoso pero el archivo no se pudo guardar en la biblioteca. Inténtalo de nuevo desde Mis compras.",
+    "explanationStub": "En modo desarrollo, el descifrado usa datos simulados. Cuando se desplieguen los contratos, esto usará la firma de tu wallet para derivar la clave de descifrado y revelar el mensaje cifrado.",
+    "explanationIntro": "El descifrado utiliza criptografía de conocimiento cero para revelar el mensaje de forma segura. El proceso:",
+    "explanationStep1": "La firma de tu wallet deriva una clave secreta única",
+    "explanationStep2": "Se consulta el historial de la blockchain para obtener los datos de cifrado",
+    "explanationStep3": "Las operaciones de emparejamiento BLS12-381 calculan la clave de descifrado (vía WASM)",
+    "explanationStep4": "El mensaje se descifra localmente en tu navegador",
+    "explanationWasmReady": "Criptografía WASM cargada y lista.",
+    "explanationWasmMissing": "Prover WASM no cargado — cárgalo desde el panel para habilitar el descifrado."
   },
   "placeBid": {
     "title": "Hacer oferta",

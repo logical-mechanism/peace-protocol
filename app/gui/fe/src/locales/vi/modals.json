@@ -361,7 +361,15 @@
     "done": "Xong",
     "unknownError": "Đã xảy ra lỗi không xác định",
     "failedFallback": "Không thể giải mã",
-    "saveWarning": "Giải mã thành công nhưng không thể lưu tệp vào thư viện. Thử lại từ Mua hàng của tôi."
+    "saveWarning": "Giải mã thành công nhưng không thể lưu tệp vào thư viện. Thử lại từ Mua hàng của tôi.",
+    "explanationStub": "Trong chế độ phát triển, giải mã sử dụng dữ liệu mô phỏng. Khi các hợp đồng được triển khai, điều này sẽ sử dụng chữ ký ví của bạn để tạo khóa giải mã và tiết lộ tin nhắn được mã hóa.",
+    "explanationIntro": "Giải mã sử dụng mã hóa zero-knowledge để tiết lộ tin nhắn một cách an toàn. Quy trình:",
+    "explanationStep1": "Chữ ký ví của bạn tạo ra một khóa bí mật duy nhất",
+    "explanationStep2": "Lịch sử blockchain được truy vấn để lấy dữ liệu mã hóa",
+    "explanationStep3": "Các phép ghép cặp BLS12-381 tính toán khóa giải mã (qua WASM)",
+    "explanationStep4": "Tin nhắn được giải mã cục bộ trong trình duyệt của bạn",
+    "explanationWasmReady": "Mật mã WASM đã được tải và sẵn sàng.",
+    "explanationWasmMissing": "Trình chứng minh WASM chưa được tải — tải nó từ bảng điều khiển để bật giải mã."
   },
   "placeBid": {
     "title": "Đặt giá",

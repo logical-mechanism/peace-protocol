@@ -361,7 +361,15 @@
     "done": "Selesai",
     "unknownError": "Terjadi kesalahan yang tidak diketahui",
     "failedFallback": "Gagal mendekripsi",
-    "saveWarning": "Dekripsi berhasil tetapi berkas tidak dapat disimpan ke perpustakaan. Coba lagi dari Pembelian Saya."
+    "saveWarning": "Dekripsi berhasil tetapi berkas tidak dapat disimpan ke perpustakaan. Coba lagi dari Pembelian Saya.",
+    "explanationStub": "Dalam mode pengembangan, dekripsi menggunakan data simulasi. Ketika kontrak diterapkan, ini akan menggunakan tanda tangan wallet Anda untuk menurunkan kunci dekripsi dan mengungkap pesan terenkripsi.",
+    "explanationIntro": "Dekripsi menggunakan kriptografi zero-knowledge untuk mengungkap pesan dengan aman. Prosesnya:",
+    "explanationStep1": "Tanda tangan wallet Anda menurunkan kunci rahasia yang unik",
+    "explanationStep2": "Riwayat blockchain dikuerikan untuk data enkripsi",
+    "explanationStep3": "Operasi pasangan BLS12-381 menghitung kunci dekripsi (via WASM)",
+    "explanationStep4": "Pesan didekripsi secara lokal di browser Anda",
+    "explanationWasmReady": "Kriptografi WASM dimuat dan siap.",
+    "explanationWasmMissing": "Prover WASM belum dimuat — muat dari dasbor untuk mengaktifkan dekripsi."
   },
   "placeBid": {
     "title": "Ajukan Tawaran",

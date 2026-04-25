@@ -7,6 +7,7 @@ import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
+import { getTopLevelCategory } from '../config/categories';
 import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
 import ListingImage from './ListingImage';
@@ -149,7 +150,7 @@ function LibraryCard({
                   <span className="text-xs font-mono text-[var(--text-muted)]" title={item.tokenName}>
                     {truncateHex(item.tokenName, 8, 4)}
                   </span>
-                  <Badge variant="neutral">{t(`common:categories.${item.category || 'text'}`)}</Badge>
+                  <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
                   {item.contentMissing && (
                     <Badge variant="warning">{t('library.missingBadge')}</Badge>
                   )}
@@ -295,7 +296,7 @@ function LibraryCard({
                 truncateHex(item.tokenName, 12, 8)
               )}
             </span>
-            <Badge variant="neutral">{t(`common:categories.${item.category || 'text'}`)}</Badge>
+            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
             {item.contentMissing && (
               <Badge variant="warning">{t('library.missingBadge')}</Badge>
             )}

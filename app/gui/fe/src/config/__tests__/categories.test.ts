@@ -10,6 +10,8 @@ import {
   getSubcategories,
   findSubcategory,
   getAllSubcategories,
+  translateSubcategoryLabel,
+  translateCategoryPathLabel,
   FILE_CATEGORIES,
   type FileCategory,
 } from '../categories';
@@ -227,6 +229,67 @@ describe('categories', () => {
       const all = getAllSubcategories();
       const expectedCount = FILE_CATEGORIES.reduce((sum, cat) => sum + (cat.subcategories?.length ?? 0), 0);
       expect(all.length).toBe(expectedCount);
+    });
+  });
+
+  describe('translateSubcategoryLabel', () => {
+    // Stub the i18next-shaped t function: returns the localized value when
+    // the key is recognized, otherwise the provided defaultValue.
+    const stubT = (table: Record<string, string>) =>
+      (key: string, opts?: { defaultValue?: string }) =>
+        table[key] ?? opts?.defaultValue ?? key;
+
+    it('looks up sub keys under categories.sub.<cat>.<id>', () => {
+      const t = stubT({ 'categories.sub.audio.music': 'Música' });
+      expect(translateSubcategoryLabel(t, 'audio', 'music', 'Music')).toBe('Música');
+    });
+
+    it('falls back to the provided fallback when a key is missing', () => {
+      const t = stubT({});
+      expect(translateSubcategoryLabel(t, 'audio', 'music', 'Music')).toBe('Music');
+    });
+
+    it('falls back to the id when no fallback is given', () => {
+      const t = stubT({});
+      expect(translateSubcategoryLabel(t, 'audio', 'music')).toBe('music');
+    });
+  });
+
+  describe('translateCategoryPathLabel', () => {
+    const stubT = (table: Record<string, string>) =>
+      (key: string, opts?: { defaultValue?: string }) =>
+        table[key] ?? opts?.defaultValue ?? key;
+
+    it('translates a top-level-only path', () => {
+      const t = stubT({ 'categories.audio': 'Audio-DE' });
+      expect(translateCategoryPathLabel(t, 'audio')).toBe('Audio-DE');
+    });
+
+    it('translates a two-level path with " > " separator', () => {
+      const t = stubT({
+        'categories.audio': 'Audio',
+        'categories.sub.audio.music': 'Musik',
+      });
+      expect(translateCategoryPathLabel(t, 'audio:music')).toBe('Audio > Musik');
+    });
+
+    it('translates a three-level path using <parent>_<child> child key', () => {
+      const t = stubT({
+        'categories.audio': 'Audio',
+        'categories.sub.audio.music': 'Musik',
+        'categories.sub.audio.music_rock': 'Rock-DE',
+      });
+      expect(translateCategoryPathLabel(t, 'audio:music:rock')).toBe('Audio > Musik > Rock-DE');
+    });
+
+    it('falls back to hardcoded English labels when keys are missing', () => {
+      const t = stubT({});
+      expect(translateCategoryPathLabel(t, 'audio:music:rock')).toBe('Audio > Music > Rock');
+    });
+
+    it('returns the path itself for an unknown top-level category', () => {
+      const t = stubT({});
+      expect(translateCategoryPathLabel(t, 'unknown')).toBe('unknown');
     });
   });
 });
