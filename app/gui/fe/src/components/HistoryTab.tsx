@@ -12,6 +12,7 @@ import LoadingSpinner, { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
 import ConfirmModal from './ConfirmModal';
 import InfoTooltip from './InfoTooltip';
+import ScrollToTop from './ScrollToTop';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
   getTypeLabelKey,
@@ -77,6 +78,7 @@ function HistoryTab({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const hasRecoveredRef = useRef(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const hasDataRef = useRef(false);
 
@@ -600,8 +602,10 @@ function HistoryTab({
           searchQuery={searchQuery}
           confirmations={confirmations}
           onRetryListing={onRetryListing}
+          parentRef={listScrollRef}
         />
       )}
+      <ScrollToTop scrollContainer={listScrollRef} />
     </div>
     <ConfirmModal
       isOpen={showClearConfirm}
@@ -621,14 +625,15 @@ function VirtualizedHistoryList({
   searchQuery,
   confirmations,
   onRetryListing,
+  parentRef,
 }: {
   items: TransactionRecord[];
   searchQuery: string;
   confirmations: Map<string, number>;
   onRetryListing?: (draftId: string) => void;
+  parentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useTranslation('dashboard');
-  const parentRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: items.length,
