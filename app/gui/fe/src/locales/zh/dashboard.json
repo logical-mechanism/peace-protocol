@@ -302,7 +302,9 @@
       "create-collateral": "设置抵押品",
       "optimize-wallet": "优化钱包",
       "update-price": "更新价格",
-      "update-bid": "更新出价"
+      "update-bid": "更新出价",
+      "send": "已发送 ADA",
+      "receive": "已接收 ADA"
     }
   },
   "library": {

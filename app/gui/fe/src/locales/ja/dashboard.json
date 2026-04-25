@@ -302,7 +302,9 @@
       "create-collateral": "担保設定",
       "optimize-wallet": "ウォレット最適化",
       "update-price": "価格更新",
-      "update-bid": "入札更新"
+      "update-bid": "入札更新",
+      "send": "ADAを送信",
+      "receive": "ADAを受信"
     }
   },
   "library": {

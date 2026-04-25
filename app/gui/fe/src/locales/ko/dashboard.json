@@ -302,7 +302,9 @@
       "create-collateral": "담보 설정",
       "optimize-wallet": "지갑 최적화",
       "update-price": "가격 업데이트",
-      "update-bid": "입찰 업데이트"
+      "update-bid": "입찰 업데이트",
+      "send": "ADA 전송",
+      "receive": "ADA 수신"
     }
   },
   "library": {

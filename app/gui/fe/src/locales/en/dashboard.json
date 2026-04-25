@@ -302,7 +302,9 @@
       "create-collateral": "Set Collateral",
       "optimize-wallet": "Optimize Wallet",
       "update-price": "Update Price",
-      "update-bid": "Update Bid"
+      "update-bid": "Update Bid",
+      "send": "Sent ADA",
+      "receive": "Received ADA"
     }
   },
   "library": {

@@ -10,7 +10,7 @@ import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import { playSound } from './notificationSound';
 
-export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
+export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid' | 'send' | 'receive';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
 
 export interface TransactionRecord {
@@ -263,6 +263,8 @@ export function getTypeLabel(type: TransactionType): string {
     case 'optimize-wallet': return 'Optimize Wallet';
     case 'update-price': return 'Update Price';
     case 'update-bid': return 'Update Bid';
+    case 'send': return 'Sent ADA';
+    case 'receive': return 'Received ADA';
   }
 }
 

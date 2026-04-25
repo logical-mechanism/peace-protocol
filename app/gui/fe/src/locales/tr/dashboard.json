@@ -302,7 +302,9 @@
       "create-collateral": "Teminat ayarla",
       "optimize-wallet": "Cüzdanı optimize et",
       "update-price": "Fiyatı güncelle",
-      "update-bid": "Teklifi güncelle"
+      "update-bid": "Teklifi güncelle",
+      "send": "ADA gönderildi",
+      "receive": "ADA alındı"
     }
   },
   "library": {
