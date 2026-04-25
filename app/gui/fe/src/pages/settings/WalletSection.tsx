@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
 import { getAutolockMinutes, setAutolockMinutes } from '../../services/autolock'
@@ -34,6 +36,7 @@ export default function WalletSection({
   tipSlot,
   lock,
 }: WalletSectionProps) {
+  const { t } = useTranslation('settings')
   const navigate = useNavigate()
   const toast = useToast()
   const walletHealth = useWalletHealth(wallet, tipSlot, stage)
@@ -70,7 +73,7 @@ export default function WalletSection({
 
   const handleRevealMnemonic = useCallback(async () => {
     if (!mnemonicPassword) {
-      setMnemonicError('Password required')
+      setMnemonicError(t('wallet.passwordRequired'))
       return
     }
     setMnemonicLoading(true)
@@ -84,7 +87,7 @@ export default function WalletSection({
     } finally {
       setMnemonicLoading(false)
     }
-  }, [mnemonicPassword])
+  }, [mnemonicPassword, t])
 
   const handleHideMnemonic = useCallback(() => {
     setShowMnemonic(false)
@@ -105,9 +108,9 @@ export default function WalletSection({
         navigator.clipboard.writeText('').catch(() => {})
       }, 30000)
     } else {
-      toast.warning('Copy failed', 'Could not copy to clipboard.')
+      toast.warning(t('wallet.copyFailedTitle'), t('wallet.copyClipboardFailedBody'))
     }
-  }, [mnemonicWords, toast])
+  }, [mnemonicWords, toast, t])
 
   const handleCopyAddress = useCallback(async () => {
     if (!address) return
@@ -116,9 +119,9 @@ export default function WalletSection({
       setAddressCopied(true)
       setTimeout(() => setAddressCopied(false), 2000)
     } else {
-      toast.warning('Copy failed', 'Could not copy address to clipboard.')
+      toast.warning(t('wallet.copyFailedTitle'), t('wallet.copyAddressFailedBody'))
     }
-  }, [address, toast])
+  }, [address, toast, t])
 
   const handleCreateCollateral = useCallback(async () => {
     if (!wallet) return
@@ -127,30 +130,30 @@ export default function WalletSection({
     try {
       const result = await createCollateral(wallet)
       if (result.success && result.txHash) {
-        toast.transactionSuccess('Collateral Created', result.txHash)
+        toast.transactionSuccess(t('wallet.collateralSuccessTitle'), result.txHash)
         if (userPkh) {
           addTransaction(userPkh, {
             txHash: result.txHash,
             type: 'create-collateral',
             timestamp: Date.now(),
             status: 'pending',
-            description: 'Set 5 ADA collateral UTxO',
+            description: t('wallet.collateralSuccessDescription'),
             amountLovelace: 5_000_000,
           })
         }
         setLastActiveTab('history')
         navigate('/dashboard')
       } else if (result.success && result.error) {
-        toast.info('Collateral Ready', result.error)
+        toast.info(t('wallet.collateralReadyTitle'), result.error)
       } else {
-        toast.error('Collateral Failed', result.error || 'Unknown error')
+        toast.error(t('wallet.collateralFailedTitle'), result.error || t('wallet.unknownError'))
       }
     } catch (err) {
-      toast.error('Collateral Failed', err instanceof Error ? err.message : 'Unknown error')
+      toast.error(t('wallet.collateralFailedTitle'), err instanceof Error ? err.message : t('wallet.unknownError'))
     } finally {
       setCollateralLoading(false)
     }
-  }, [wallet, toast, userPkh, navigate])
+  }, [wallet, toast, userPkh, navigate, t])
 
   const handleDefragWallet = useCallback(async () => {
     if (!wallet) return
@@ -159,7 +162,7 @@ export default function WalletSection({
     try {
       const result = await defragWallet(wallet)
       if (result.success && result.txHash) {
-        const title = result.error ? 'Wallet Partially Optimized' : 'Wallet Optimized'
+        const title = result.error ? t('wallet.walletPartiallyOptimizedTitle') : t('wallet.walletOptimizedTitle')
         toast.transactionSuccess(title, result.txHash, result.error)
         if (userPkh) {
           addTransaction(userPkh, {
@@ -168,35 +171,39 @@ export default function WalletSection({
             timestamp: Date.now(),
             status: 'pending',
             description: result.error
-              ? `Optimized wallet (partial — ${result.error})`
-              : 'Consolidated UTxOs for optimal transaction building',
+              ? t('wallet.walletOptimizedPartialDescription', { error: result.error })
+              : t('wallet.walletOptimizedDescription'),
           })
         }
         setLastActiveTab('history')
         navigate('/dashboard')
       } else {
-        toast.error('Optimization Failed', result.error || 'Unknown error')
+        toast.error(t('wallet.optimizationFailedTitle'), result.error || t('wallet.unknownError'))
       }
     } catch (err) {
-      toast.error('Optimization Failed', err instanceof Error ? err.message : 'Unknown error')
+      toast.error(t('wallet.optimizationFailedTitle'), err instanceof Error ? err.message : t('wallet.unknownError'))
     } finally {
       setDefragLoading(false)
     }
-  }, [wallet, toast, userPkh, navigate])
+  }, [wallet, toast, userPkh, navigate, t])
+
+  const tokenCount = defragPreview
+    ? defragPreview.tokenOutputs.reduce((sum, tok) => sum + tok.assets.length, 0)
+    : 0
 
   return (
     <>
       <div className="space-y-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-4">Wallet Info</h2>
+          <h2 className="text-lg font-medium mb-4">{t('wallet.infoTitle')}</h2>
           <div className="space-y-4">
             <div>
-              <span className="text-sm text-[var(--text-muted)]">Status</span>
-              <p className="text-lg font-medium capitalize">{walletState}</p>
+              <span className="text-sm text-[var(--text-muted)]">{t('wallet.status')}</span>
+              <p className="text-lg font-medium capitalize">{walletState === 'unlocked' ? t('wallet.statusUnlocked') : walletState === 'locked' ? t('wallet.statusLocked') : t('wallet.statusLoading')}</p>
             </div>
             {address && (
               <div>
-                <span className="text-sm text-[var(--text-muted)]">Address</span>
+                <span className="text-sm text-[var(--text-muted)]">{t('wallet.address')}</span>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="text-sm font-mono bg-[var(--bg-secondary)] px-3 py-2 rounded-[var(--radius-md)] break-all flex-1">
                     {address}
@@ -205,15 +212,15 @@ export default function WalletSection({
                     onClick={handleCopyAddress}
                     className="px-3 py-2 text-sm rounded-[var(--radius-md)] shrink-0 btn-base btn-tertiary"
                   >
-                    {addressCopied ? 'Copied' : 'Copy'}
+                    {addressCopied ? t('wallet.copied') : t('wallet.copy')}
                   </button>
                 </div>
               </div>
             )}
             {lovelace && (
               <div>
-                <span className="text-sm text-[var(--text-muted)]">Balance</span>
-                <p className="text-lg font-medium text-[var(--accent)]">{formatAdaDisplay(lovelace)} ADA</p>
+                <span className="text-sm text-[var(--text-muted)]">{t('wallet.balance')}</span>
+                <p className="text-lg font-medium text-[var(--accent)]">{t('wallet.balanceAda', { amount: formatAdaDisplay(lovelace) })}</p>
               </div>
             )}
           </div>
@@ -221,39 +228,39 @@ export default function WalletSection({
 
         {/* Wallet Management */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Wallet Management</h2>
+          <h2 className="text-lg font-medium mb-2">{t('wallet.managementTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            Manage your wallet's UTxO set for optimal transaction building.
+            {t('wallet.managementDescription')}
           </p>
 
           {walletHealth.isChecking ? (
-            <p className="text-sm text-[var(--text-muted)]">Analyzing wallet...</p>
+            <p className="text-sm text-[var(--text-muted)]">{t('wallet.analyzing')}</p>
           ) : stage !== 'synced' ? (
-            <p className="text-sm text-[var(--text-muted)]">Node must be synced to analyze wallet health.</p>
+            <p className="text-sm text-[var(--text-muted)]">{t('wallet.nodeMustBeSynced')}</p>
           ) : (
             <div className="space-y-4">
               {/* Status Grid */}
               <div className="grid grid-cols-2 gap-4 p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
                 <div>
                   <span className="text-sm text-[var(--text-muted)] inline-flex items-center gap-1">
-                    Collateral
-                    <InfoTooltip text="A dedicated 5 ADA UTxO required by Cardano for Plutus script transactions. It is returned to you if the transaction succeeds." />
+                    {t('wallet.collateral')}
+                    <InfoTooltip text={t('wallet.collateralTooltip')} />
                   </span>
                   <p className={`text-sm font-medium flex items-center gap-2 ${walletHealth.hasCollateral ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
                     <span className={`w-2 h-2 rounded-full ${walletHealth.hasCollateral ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
-                    {walletHealth.hasCollateral ? 'Set (5 ADA)' : 'Not Set'}
+                    {walletHealth.hasCollateral ? t('wallet.collateralSet') : t('wallet.collateralNotSet')}
                   </p>
                 </div>
                 <div>
-                  <span className="text-sm text-[var(--text-muted)]">UTxO Count</span>
+                  <span className="text-sm text-[var(--text-muted)]">{t('wallet.utxoCount')}</span>
                   <p className="text-sm font-medium">{walletHealth.utxoCount}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-[var(--text-muted)]">Pure ADA UTxOs</span>
+                  <span className="text-sm text-[var(--text-muted)]">{t('wallet.pureAdaUtxos')}</span>
                   <p className="text-sm font-medium">{walletHealth.pureAdaCount}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-[var(--text-muted)]">Token-bearing UTxOs</span>
+                  <span className="text-sm text-[var(--text-muted)]">{t('wallet.tokenUtxos')}</span>
                   <p className="text-sm font-medium">{walletHealth.tokenUtxoCount}</p>
                 </div>
               </div>
@@ -265,11 +272,11 @@ export default function WalletSection({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                   <div>
-                    <p className="text-sm font-medium text-[var(--warning)]">Wallet needs optimization</p>
+                    <p className="text-sm font-medium text-[var(--warning)]">{t('wallet.needsOptimization')}</p>
                     <p className="text-sm text-[var(--text-muted)]">
-                      Your wallet has {walletHealth.utxoCount} UTxO{walletHealth.utxoCount !== 1 ? 's' : ''}.
-                      {!walletHealth.hasCollateral && ' No collateral UTxO found.'}
-                      {walletHealth.utxoCount > 10 && ' Consolidating will improve transaction efficiency.'}
+                      {t('wallet.fragmentationMessage', { count: walletHealth.utxoCount })}
+                      {!walletHealth.hasCollateral && ` ${t('wallet.noCollateralFound')}`}
+                      {walletHealth.utxoCount > 10 && ` ${t('wallet.consolidatingHint')}`}
                     </p>
                   </div>
                 </div>
@@ -278,18 +285,21 @@ export default function WalletSection({
               {/* Defrag Preview */}
               {defragPreview && !defragPreviewLoading && walletHealth.utxoCount > 1 && (
                 <div className="p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">Optimization preview:</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('wallet.optimizationPreview')}</p>
                   <p className="text-sm">
-                    {defragPreview.inputCount} UTxO{defragPreview.inputCount !== 1 ? 's' : ''} &rarr; {defragPreview.resultingUtxoCount} UTxO{defragPreview.resultingUtxoCount !== 1 ? 's' : ''}
-                    {defragPreview.tokenOutputs.length > 0 && (
+                    {t('wallet.previewUtxoChange', {
+                      from: t('wallet.utxoLabel', { count: defragPreview.inputCount }),
+                      to: t('wallet.utxoLabel', { count: defragPreview.resultingUtxoCount }),
+                    })}
+                    {tokenCount > 0 && (
                       <span className="text-[var(--text-muted)]">
-                        {' '}({defragPreview.tokenOutputs.reduce((sum, t) => sum + t.assets.length, 0)} token{defragPreview.tokenOutputs.reduce((sum, t) => sum + t.assets.length, 0) !== 1 ? 's' : ''} consolidated)
+                        {' '}{t('wallet.tokensConsolidated', { count: tokenCount })}
                       </span>
                     )}
                   </p>
                   {defragPreview.capped && (
                     <p className="text-xs text-[var(--warning)] mt-1">
-                      Limited to first 200 UTxOs. Run again to continue.
+                      {t('wallet.previewCapped')}
                     </p>
                   )}
                   {!defragPreview.isFeasible && defragPreview.infeasibleReason && (
@@ -302,7 +312,7 @@ export default function WalletSection({
               <div className="space-y-3">
                 {!walletHealth.hasCollateral && (
                   <p className="text-sm text-[var(--text-muted)]">
-                    Collateral is a small ADA deposit (5 ADA) required by Cardano smart contracts for transaction validation.
+                    {t('wallet.collateralExplainer')}
                   </p>
                 )}
                 <div className="flex gap-3">
@@ -312,7 +322,7 @@ export default function WalletSection({
                       disabled={collateralLoading || defragLoading}
                       className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                     >
-                      {collateralLoading ? 'Creating...' : 'Set Collateral (5 ADA)'}
+                      {collateralLoading ? t('wallet.creatingCollateral') : t('wallet.setCollateralButton')}
                     </button>
                   )}
                   <button
@@ -321,12 +331,12 @@ export default function WalletSection({
                     className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                     title={defragPreview && !defragPreview.isFeasible ? defragPreview.infeasibleReason : undefined}
                   >
-                    {defragLoading ? 'Optimizing...' : 'Optimize Wallet'}
+                    {defragLoading ? t('wallet.optimizingWallet') : t('wallet.optimizeWalletButton')}
                   </button>
-                  <InfoTooltip text="Combines multiple small UTxOs into fewer, larger ones. This reduces transaction complexity and fees." />
+                  <InfoTooltip text={t('wallet.optimizationTooltip')} />
                 </div>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Optimization combines small UTxOs into fewer, larger ones to reduce transaction fees.
+                  {t('wallet.optimizationHint')}
                 </p>
               </div>
             </div>
@@ -335,9 +345,9 @@ export default function WalletSection({
 
         {/* Recovery Phrase */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Recovery Phrase</h2>
+          <h2 className="text-lg font-medium mb-2">{t('wallet.recoveryTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            View your 24-word recovery phrase. You will need to re-enter your password.
+            {t('wallet.recoveryDescription')}
           </p>
 
           {!showMnemonic ? (
@@ -347,7 +357,7 @@ export default function WalletSection({
                 value={mnemonicPassword}
                 onChange={(e) => setMnemonicPassword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleRevealMnemonic()}
-                placeholder="Enter wallet password"
+                placeholder={t('wallet.passwordPlaceholder')}
                 className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
               />
               {mnemonicError && (
@@ -358,7 +368,7 @@ export default function WalletSection({
                 disabled={mnemonicLoading || !mnemonicPassword}
                 className="px-4 py-2 text-sm bg-[var(--warning)] text-black rounded-[var(--radius-md)] hover:bg-[var(--warning)]/90 btn-base"
               >
-                {mnemonicLoading ? 'Verifying...' : 'Reveal Recovery Phrase'}
+                {mnemonicLoading ? t('wallet.verifying') : t('wallet.revealButton')}
               </button>
             </div>
           ) : (
@@ -376,13 +386,13 @@ export default function WalletSection({
                   onClick={handleCopyMnemonic}
                   className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
-                  {mnemonicCopied ? 'Copied!' : 'Copy to Clipboard'}
+                  {mnemonicCopied ? t('wallet.copyMnemonicCopied') : t('wallet.copyMnemonicButton')}
                 </button>
                 <button
                   onClick={handleHideMnemonic}
                   className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
-                  Hide Recovery Phrase
+                  {t('wallet.hideMnemonicButton')}
                 </button>
               </div>
             </div>
@@ -391,18 +401,18 @@ export default function WalletSection({
 
         {/* Auto-Lock */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Auto-Lock</h2>
+          <h2 className="text-lg font-medium mb-2">{t('wallet.autoLockTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            Automatically lock the wallet after a period of inactivity.
+            {t('wallet.autoLockDescription')}
           </p>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: '5 min', value: 5 },
-              { label: '10 min', value: 10 },
-              { label: '15 min', value: 15 },
-              { label: '30 min', value: 30 },
-              { label: '1 hour', value: 60 },
-              { label: 'Never', value: 0 },
+              { labelKey: 'wallet.autoLock5', value: 5 },
+              { labelKey: 'wallet.autoLock10', value: 10 },
+              { labelKey: 'wallet.autoLock15', value: 15 },
+              { labelKey: 'wallet.autoLock30', value: 30 },
+              { labelKey: 'wallet.autoLock60', value: 60 },
+              { labelKey: 'wallet.autoLockNever', value: 0 },
             ].map((preset) => (
               <button
                 key={preset.value}
@@ -416,7 +426,7 @@ export default function WalletSection({
                     : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
                 }`}
               >
-                {preset.label}
+                {t(preset.labelKey)}
               </button>
             ))}
           </div>
@@ -424,15 +434,15 @@ export default function WalletSection({
 
         {/* Lock Wallet */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Lock Wallet</h2>
+          <h2 className="text-lg font-medium mb-2">{t('wallet.lockWalletTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-4">
-            Lock your wallet to require password entry before using it again.
+            {t('wallet.lockWalletDescription')}
           </p>
           <button
             onClick={() => { lock(); navigate('/') }}
             className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Lock Wallet
+            {t('wallet.lockWalletButton')}
           </button>
         </div>
       </div>
@@ -442,10 +452,10 @@ export default function WalletSection({
         isOpen={walletConfirmAction === 'collateral'}
         onClose={() => setWalletConfirmAction(null)}
         onConfirm={handleCreateCollateral}
-        title="Set Collateral"
-        message="This will create a dedicated 5 ADA collateral UTxO by sending ADA to yourself. Collateral is required for all Plutus script transactions (listings, bids, etc.)."
-        description="A transaction fee (~0.2 ADA) will be deducted. You need at least 6.5 ADA total in your wallet."
-        confirmLabel="Set Collateral"
+        title={t('wallet.confirmCollateralTitle')}
+        message={t('wallet.confirmCollateralMessage')}
+        description={t('wallet.confirmCollateralDescription')}
+        confirmLabel={t('wallet.confirmCollateralButton')}
         confirmVariant="default"
         loading={collateralLoading}
       />
@@ -453,10 +463,15 @@ export default function WalletSection({
         isOpen={walletConfirmAction === 'defrag'}
         onClose={() => setWalletConfirmAction(null)}
         onConfirm={handleDefragWallet}
-        title="Optimize Wallet"
-        message={`This will consolidate your ${walletHealth.utxoCount} UTxOs into an optimized set for efficient transaction building.${defragPreview ? ` Result: ${defragPreview.resultingUtxoCount} UTxO${defragPreview.resultingUtxoCount !== 1 ? 's' : ''}.` : ''}`}
-        description="All UTxOs will be consumed and new ones created in a single transaction. A transaction fee (~0.2 ADA) will be deducted."
-        confirmLabel="Optimize Wallet"
+        title={t('wallet.confirmDefragTitle')}
+        message={
+          t('wallet.confirmDefragMessage', { count: walletHealth.utxoCount })
+          + (defragPreview
+            ? t('wallet.confirmDefragResult', { utxo: t('wallet.utxoLabel', { count: defragPreview.resultingUtxoCount }) })
+            : '')
+        }
+        description={t('wallet.confirmDefragDescription')}
+        confirmLabel={t('wallet.confirmDefragButton')}
         confirmVariant="default"
         loading={defragLoading}
       />

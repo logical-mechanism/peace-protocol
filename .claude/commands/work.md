@@ -25,7 +25,7 @@ Pick up a draft from the **Veiled Application** GitHub Project board and impleme
 List all Todo items from the board:
 
 ```bash
-gh project item-list 5 --owner logical-mechanism --format json
+gh project item-list 5 --owner logical-mechanism --format json -L 999
 ```
 
 Filter the results to items with Status = "Todo".

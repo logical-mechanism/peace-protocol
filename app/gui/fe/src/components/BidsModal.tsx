@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import { BidStatusBadge } from './Badge';
@@ -23,6 +24,7 @@ export default function BidsModal({
   bids,
   onAcceptBid,
 }: BidsModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState } = useModalStack('bids', isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,9 @@ export default function BidsModal({
 
   const pendingBids = sortedBids.filter((b) => b.status === 'pending');
   const otherBids = sortedBids.filter((b) => b.status !== 'pending');
+  // First pending bid's Accept button gets the tutorial anchor id so the
+  // first-bid-accepted tour can spotlight it.
+  const firstPendingBidToken = pendingBids[0]?.tokenName;
 
   const canAcceptBids = encryption.status === 'active';
 
@@ -71,7 +76,7 @@ export default function BidsModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="bids-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              Bids for Listing
+              {t('modals:bids.title')}
             </h2>
             <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5" title={encryption.tokenName}>
               {truncateHex(encryption.tokenName, 12, 6)}
@@ -80,7 +85,7 @@ export default function BidsModal({
           {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('modals:common.closeDialog')}
             tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
@@ -99,17 +104,17 @@ export default function BidsModal({
         <div className="px-6 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-subtle)]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-[var(--text-muted)]">Suggested Price</p>
+              <p className="text-xs text-[var(--text-muted)]">{t('modals:bids.suggestedPrice')}</p>
               <p className="text-sm font-medium text-[var(--accent)]">
                 {encryption.suggestedPrice
                   ? `${formatAda(encryption.suggestedPrice)} ADA`
-                  : 'No price set'}
+                  : t('modals:bids.noPriceSet')}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-[var(--text-muted)]">Total Bids</p>
+              <p className="text-xs text-[var(--text-muted)]">{t('modals:bids.totalBids')}</p>
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                {bids.length} ({pendingBids.length} pending)
+                {t('modals:bids.totalBidsValue', { total: bids.length, pending: pendingBids.length })}
               </p>
             </div>
           </div>
@@ -119,8 +124,8 @@ export default function BidsModal({
         <div className="flex-1 overflow-y-auto p-6">
           {bids.length === 0 ? (
             <EmptyState
-              title="No bids yet"
-              description="Once buyers place bids on this listing, they will appear here"
+              title={t('modals:bids.emptyTitle')}
+              description={t('modals:bids.emptyBody')}
             />
           ) : (
             <div className="space-y-4">
@@ -128,7 +133,7 @@ export default function BidsModal({
               {pendingBids.length > 0 && (
                 <div>
                   <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-3">
-                    Pending Bids ({pendingBids.length})
+                    {t('modals:bids.pendingSection', { count: pendingBids.length })}
                   </h3>
                   <div className="space-y-3">
                     {pendingBids.map((bid) => (
@@ -138,6 +143,7 @@ export default function BidsModal({
                         canAccept={canAcceptBids}
                         onAccept={onAcceptBid}
                         formatLovelace={formatLovelace}
+                        isFirstPending={bid.tokenName === firstPendingBidToken}
                       />
                     ))}
                   </div>
@@ -148,7 +154,7 @@ export default function BidsModal({
               {otherBids.length > 0 && (
                 <div>
                   <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide mb-3">
-                    Past Bids ({otherBids.length})
+                    {t('modals:bids.pastSection', { count: otherBids.length })}
                   </h3>
                   <div className="space-y-3">
                     {otherBids.map((bid) => (
@@ -170,19 +176,19 @@ export default function BidsModal({
         <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
           {!canAcceptBids && encryption.status === 'pending' && (
             <p className="text-xs text-[var(--warning)] text-center mb-3">
-              Cannot accept new bids while a sale is pending
+              {t('modals:bids.cannotAcceptPending')}
             </p>
           )}
           {!canAcceptBids && encryption.status === 'completed' && (
             <p className="text-xs text-[var(--success)] text-center mb-3">
-              This listing has been sold
+              {t('modals:bids.sold')}
             </p>
           )}
           <button
             onClick={onClose}
             className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Close
+            {t('common:actions.close')}
           </button>
         </div>
       </div>
@@ -196,6 +202,9 @@ interface BidCardProps {
   canAccept: boolean;
   onAccept?: (bid: BidDisplay) => void;
   formatLovelace: (amount: number) => string;
+  /** When true, the Accept button gets the `#tutorial-bid-accept-button` id
+   * so the first-bid-accepted tour can spotlight it. */
+  isFirstPending?: boolean;
 }
 
 function BidCard({
@@ -203,7 +212,9 @@ function BidCard({
   canAccept,
   onAccept,
   formatLovelace,
+  isFirstPending,
 }: BidCardProps) {
+  const { t } = useTranslation('modals');
   const [now] = useState(Date.now);
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]">
@@ -224,17 +235,18 @@ function BidCard({
 
           {/* Date */}
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            Placed {formatDateTime(bid.createdAt)}
+            {t('bids.placed', { date: formatDateTime(bid.createdAt) })}
           </p>
         </div>
 
         {/* Accept Button */}
         {canAccept && bid.status === 'pending' && onAccept && (
           <button
+            id={isFirstPending ? 'tutorial-bid-accept-button' : undefined}
             onClick={() => onAccept(bid)}
             className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex-shrink-0 btn-base btn-success"
           >
-            Accept Bid
+            {t('bids.acceptBid')}
           </button>
         )}
       </div>
@@ -243,20 +255,20 @@ function BidCard({
       <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-1.5">
         {bid.lockedUntil > 0 && (
           <div className="flex items-center justify-between">
-            <span className="text-xs text-[var(--text-muted)]">Lock Status</span>
+            <span className="text-xs text-[var(--text-muted)]">{t('bids.lockStatus')}</span>
             {bid.lockedUntil > now ? (
               <span className="text-xs font-medium text-[var(--warning)]">
-                Locked until {new Date(bid.lockedUntil).toLocaleString()}
+                {t('bids.lockedUntil', { date: new Date(bid.lockedUntil).toLocaleString() })}
               </span>
             ) : (
               <span className="text-xs font-medium text-[var(--text-muted)]">
-                Unlocked
+                {t('bids.unlocked')}
               </span>
             )}
           </div>
         )}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[var(--text-muted)]">Bid Token</span>
+          <span className="text-xs text-[var(--text-muted)]">{t('bids.bidToken')}</span>
           <span className="text-xs font-mono text-[var(--text-muted)]" title={bid.tokenName}>
             {bid.tokenName.slice(0, 16)}...
           </span>

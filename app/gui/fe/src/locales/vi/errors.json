@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Đã xảy ra lỗi",
+    "action": "Thử lại. Nếu sự cố vẫn tiếp tục, hãy khởi động lại ứng dụng."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo không khả dụng",
+    "message": "Bộ lập chỉ mục UTxO đang khởi động hoặc không thể truy cập.",
+    "action": "Chờ nút đồng bộ xong, sau đó thử lại."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo không khả dụng",
+    "message": "Bộ lập chỉ mục UTxO không phản hồi.",
+    "action": "Chờ nút đồng bộ xong, hoặc kiểm tra trạng thái tiến trình trong Cài đặt."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios hết thời gian chờ",
+    "message": "Dịch vụ giao dịch không phản hồi kịp thời. Kết nối nút có thể bị suy giảm.",
+    "action": "Thử khởi động lại nút từ Cài đặt, hoặc chờ nút đồng bộ hoàn toàn."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Không thể kết nối Ogmios",
+    "message": "Dịch vụ giao dịch không thể truy cập trên cổng dự kiến.",
+    "action": "Đảm bảo nút đang chạy, hoặc khởi động lại từ Cài đặt."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios không khả dụng",
+    "message": "Dịch vụ gửi giao dịch không phản hồi.",
+    "action": "Chờ nút đồng bộ xong, hoặc kiểm tra trạng thái tiến trình trong Cài đặt."
+  },
+  "network": {
+    "title": "Lỗi mạng",
+    "message": "Không thể kết nối đến dịch vụ yêu cầu.",
+    "action": "Kiểm tra kết nối internet và đảm bảo nút đang chạy."
+  },
+  "noCollateral": {
+    "title": "Không có tài sản thế chấp",
+    "message": "Ví của bạn cần UTxO tài sản thế chấp 5 ADA chuyên dụng cho các giao dịch hợp đồng thông minh.",
+    "action": "Đi đến Cài đặt > Ví và nhấp \"Đặt tài sản thế chấp\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Không đủ tiền cho tài sản thế chấp",
+    "message": "Ví của bạn không có đủ ADA để tạo UTxO tài sản thế chấp.",
+    "action": "Gửi ít nhất 10 ADA đến địa chỉ ví của bạn."
+  },
+  "collateralInsufficient": {
+    "title": "Tài sản thế chấp không đủ",
+    "message": "Giao dịch yêu cầu nhiều tài sản thế chấp hơn hiện có.",
+    "action": "Đảm bảo ví có UTxO được đặt làm tài sản thế chấp. Thử làm mới số dư ví."
+  },
+  "insufficientBalance": {
+    "title": "Số dư không đủ",
+    "message": "Ví của bạn không có đủ ADA cho giao dịch này.",
+    "action": "Thêm ADA vào ví và thử lại."
+  },
+  "iagonAuth": {
+    "title": "Xác thực Iagon thất bại",
+    "message": "Khóa API Iagon không hợp lệ hoặc đã hết hạn.",
+    "action": "Đi đến Cài đặt \u2192 Lớp dữ liệu và xác thực lại."
+  },
+  "iagonFileTooLarge": {
+    "title": "Tệp quá lớn cho Iagon",
+    "message": "Iagon không hỗ trợ tải lên tệp có kích thước này.",
+    "action": "Chọn tệp dưới 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Bộ nhớ Iagon đầy",
+    "message": "Hạn mức bộ nhớ tài khoản Iagon của bạn đã đầy.",
+    "action": "Kiểm tra mức sử dụng bộ nhớ tài khoản Iagon."
+  },
+  "iagonGeneric": {
+    "title": "Lỗi dịch vụ lưu trữ",
+    "message": "Không thể truy cập dịch vụ lưu trữ phi tập trung Iagon.",
+    "action": "Kiểm tra kết nối internet. Iagon có thể tạm thời không khả dụng."
+  },
+  "timeout": {
+    "title": "Hết thời gian chờ",
+    "message": "Thao tác mất quá nhiều thời gian để hoàn thành.",
+    "action": "Thử lại. Nếu sự cố vẫn tiếp tục, dịch vụ có thể đang quá tải."
+  },
+  "mnemonicChecksum": {
+    "title": "Cụm từ khôi phục không hợp lệ",
+    "message": "Cụm từ khôi phục có mã kiểm tra không hợp lệ. Một hoặc nhiều từ có thể sai.",
+    "action": "Kiểm tra lại từng từ với bản sao lưu đã ghi và thử lại."
+  },
+  "passwordTooShort": {
+    "title": "Mật khẩu quá ngắn",
+    "message": "Mật khẩu phải có ít nhất 12 ký tự.",
+    "action": "Chọn mật khẩu dài hơn đáp ứng tất cả yêu cầu hiển thị."
+  },
+  "walletGeneric": {
+    "title": "Lỗi ví",
+    "message": "Đã xảy ra sự cố với thao tác ví.",
+    "action": "Thử mở khóa ví lại. Nếu sự cố vẫn tiếp tục, khởi động lại ứng dụng."
+  },
+  "incorrectPassword": {
+    "title": "Mật khẩu sai",
+    "message": "Mật khẩu bạn nhập không đúng.",
+    "action": "Kiểm tra lại mật khẩu và thử lại."
+  },
+  "snarkOom": {
+    "title": "Không đủ bộ nhớ",
+    "message": "Quá trình tạo chứng minh đã hết bộ nhớ.",
+    "action": "Đóng các ứng dụng khác để giải phóng bộ nhớ và thử lại."
+  },
+  "snarkSetupMissing": {
+    "title": "Thiếu tệp thiết lập SNARK",
+    "message": "Không tìm thấy tệp thiết lập SNARK cần thiết.",
+    "action": "Đi đến Cài đặt để tải lại tệp thiết lập SNARK."
+  },
+  "snarkInProgress": {
+    "title": "Chứng minh đang chạy",
+    "message": "Một chứng minh không tiết lộ thông tin đang được tạo.",
+    "action": "Chờ chứng minh hiện tại hoàn thành trước khi bắt đầu chứng minh khác."
+  },
+  "snarkGeneric": {
+    "title": "Lỗi tạo chứng minh",
+    "message": "Bộ chứng minh SNARK gặp lỗi.",
+    "action": "Thử lại. Nếu sự cố vẫn tiếp tục, kiểm tra tệp thiết lập đã cài đúng chưa."
+  },
+  "scriptValidation": {
+    "title": "Xác thực script thất bại",
+    "message": "Script hợp đồng thông minh thất bại trong quá trình xác thực.",
+    "action": "Trạng thái trên chuỗi có thể đã thay đổi. Làm mới và thử lại."
+  },
+  "txConflict": {
+    "title": "Xung đột giao dịch",
+    "message": "Một hoặc nhiều đầu vào đã được sử dụng bởi giao dịch khác.",
+    "action": "Người khác có thể đã thao tác trên danh mục này. Làm mới trang và thử lại."
+  },
+  "feeError": {
+    "title": "Lỗi phí giao dịch",
+    "message": "Phí giao dịch được tính quá thấp.",
+    "action": "Thử lại. Nếu sự cố vẫn tiếp tục, khởi động lại ứng dụng để làm mới thông số phí."
+  },
+  "txFailed": {
+    "title": "Giao dịch thất bại",
+    "message": "Không thể gửi giao dịch lên chuỗi khối.",
+    "action": "Trạng thái trên chuỗi có thể đã thay đổi. Làm mới và thử lại."
+  },
+  "accessDenied": {
+    "title": "Truy cập bị từ chối",
+    "message": "Yêu cầu đã bị máy chủ chặn.",
+    "action": "Đây có thể là sự cố cấu hình. Thử khởi động lại ứng dụng."
+  },
+  "diskFull": {
+    "title": "Ổ đĩa đầy",
+    "message": "Không đủ dung lượng ổ đĩa để hoàn thành thao tác này.",
+    "action": "Giải phóng dung lượng ổ đĩa và thử lại. Kiểm tra Cài đặt > Lưu trữ để xem tùy chọn dọn dẹp."
+  },
+  "portConflict": {
+    "title": "Xung đột cổng",
+    "message": "Một cổng cần thiết đã được sử dụng bởi tiến trình khác.",
+    "action": "Đóng các ứng dụng khác có thể đang sử dụng cổng, hoặc khởi động lại ứng dụng."
+  }
+}

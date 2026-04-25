@@ -27,7 +27,9 @@ app/gui/
 ├── fe/                              # React 19 frontend (Vite)
 │   ├── src/
 │   │   ├── App.tsx                  # Router + auth/state guards
-│   │   ├── main.tsx                 # Entry: initializeTheme → ErrorBoundary → ShutdownOverlay → Wallet → Node → Wasm → AcceptBidQueue → Router → Modal → App
+│   │   ├── main.tsx                 # Entry: initializeTheme + initializeLanguage → ErrorBoundary → ShutdownOverlay → Wallet → Node → Wasm → AcceptBidQueue → Router → Modal → App
+│   │   ├── i18n.ts                  # i18next initialization (18 locales, browser language detection)
+│   │   ├── locales/                 # Translation files: de, en, es, fr, hi, id, it, ja, ko, nl, pl, pt, ru, th, tr, vi, zh
 │   │   ├── index.css                # CSS variables (dark/light theme) + Tailwind v4
 │   │   ├── fonts.css                # @font-face declarations for Inter + JetBrains Mono (self-hosted woff2)
 │   │   ├── config/                 # App configuration
@@ -42,12 +44,13 @@ app/gui/
 │   │   │   ├── settings/            # Settings page section components
 │   │   │   │   ├── NetworkSection.tsx, NodeSection.tsx, WalletSection.tsx
 │   │   │   │   ├── DataLayerSection.tsx, StorageSection.tsx, LogsSection.tsx
+│   │   │   │   ├── ContactSection.tsx      # Contact/support information
 │   │   │   │   ├── AutomationSection.tsx   # Auto-accept queue automation settings
 │   │   │   │   ├── PreferencesSection.tsx  # App-wide preferences (theme, NSFW, notifications, sounds)
 │   │   │   │   ├── UpdateSection.tsx       # App update checker and downloader
 │   │   │   │   ├── settingsTypes.ts     # Settings type definitions
 │   │   │   │   └── settingsSearch.ts    # Settings search/filter logic
-│   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, InfoTooltip, presentational
+│   │   ├── components/              # Tabs, modals, cards, PdfViewer, overlays, CommandPalette, InfoTooltip, presentational
 │   │   │   ├── audio/               # AudioPlayer module (extracted)
 │   │   │   │   ├── AudioPlayer.tsx  # Main player component (Winamp-style, rodio backend)
 │   │   │   │   ├── index.ts        # Barrel export
@@ -121,9 +124,12 @@ app/gui/
 │   │   │   ├── videoResumeStorage.ts # Video resume position persistence (localStorage)
 │   │   │   ├── transactionHistory.ts # Transaction record persistence (pending/confirmed/failed, PKH-keyed)
 │   │   │   ├── storageUtils.ts      # Shared localStorage try-catch helpers (storageGet/Set/Remove/GetJSON/SetJSON)
+│   │   │   ├── commandRegistry.ts   # Command palette command registry
+│   │   │   ├── languageStorage.ts   # localStorage: language/locale preference persistence
+│   │   │   ├── soundPreferences.ts  # localStorage: notification sound preferences
 │   │   │   └── *Storage.ts          # localStorage: secrets, bids, accept-bid
-│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck, useAutoAcceptDetection
-│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, formatListing, time, logClassification, contentType, formatDate
+│   │   ├── hooks/                   # useSnarkProver, useBidNotifications, usePasswordStrength, useAsyncAction, useDataRefresh, useTabFilterState, useModalStack, useDebounce, useFocusTrap, useVisibility, useWalletHealth, useUpdateCheck, useAutoAcceptDetection, useInfiniteScroll, useTutorial
+│   │   └── utils/                   # clipboard, network, truncate, nodeSyncHelpers, walletErrors, formatBytes, formatAda, formatListing, time, logClassification, contentType, formatDate, fuzzySearch
 │   └── vite.config.ts               # WASM, top-level-await, node polyfills
 ├── be/                              # Express v5 backend (TypeScript)
 │   ├── src/
@@ -174,7 +180,7 @@ app/gui/
 │   │   └── commands/
 │   │       ├── wallet.rs            # create, unlock, lock, delete, reveal
 │   │       ├── node.rs              # start, stop, status, bootstrap
-│   │       ├── config.rs            # get/set network, disk usage
+│   │       ├── config.rs            # get/set network, disk usage, OS locale
 │   │       ├── snark.rs             # prove, gt-to-hash, decrypt-to-hash, setup
 │   │       ├── secrets.rs           # store/get/remove seller, bid, accept-bid, listing-draft secrets
 │   │       ├── iagon.rs             # Iagon API key storage + HTTP proxy (reqwest, CORS bypass)
@@ -194,7 +200,7 @@ app/gui/
 │   ├── binaries/                    # Sidecar binaries (gitignored, ~600MB)
 │   ├── capabilities/default.json    # Scoped permissions (shell:allow-spawn, notification:default)
 │   ├── tauri.conf.json              # Window 1280x800, devUrl 127.0.0.1:5173
-│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, axum, zeroize
+│   └── Cargo.toml                   # Rust deps: tauri, serde, argon2, aes-gcm, reqwest, axum, zeroize, sys-locale
 ├── build.sh                         # Sources check-prereqs.sh, installs deps, runs `tauri build`
 ├── build-debug.sh                   # Sources check-prereqs.sh, installs deps, runs `tauri build --debug`
 ├── run.sh                           # Sources check-prereqs.sh, kills stale dev-port processes, installs deps, tsc watch for be, runs `tauri dev`
@@ -205,7 +211,7 @@ app/gui/
 
 ## Frontend Patterns
 
-**Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8 + @meshsdk/core-cst 1.8
+**Stack:** React 19 + Vite 7.2 + Tailwind v4 + React Router v7 + TypeScript 5.9 + MeshSDK 1.8.14 + @meshsdk/core-cst 1.8.14 + i18next 26 + react-i18next 17
 
 **State management — 5 React Contexts** (nested in main.tsx):
 - `WalletContext` — lifecycle (`loading`→`no_wallet`→`locked`→`unlocked`), MeshWallet instance, address, balance, payment key hex
@@ -223,7 +229,7 @@ app/gui/
 | `/dashboard` | unlocked + node synced | Dashboard (5 tabs) |
 | `/settings` | unlocked | Settings |
 
-**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + AcceptBidQueuePanel + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay) + Banners (OfflineBanner, SessionWarningBanner) + Toast + ErrorBoundary + Filters (CategoryFilter, DateFilter, SubCategorySelector) + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator) + descriptionUtils
+**Component hierarchy:** Pages → Tab components (Marketplace, MySales, MyPurchases, History, Library) → Modal components (CreateListing, ImportListing, PlaceBid, Decrypt, SnarkProving, SnarkDownload, Bids, UpdateBid, UpdatePrice, Confirm, Description, LibraryContent) → Card components (EncryptionCard, SalesListingCard, MyPurchaseBidCard, LibraryCard, ListingImage) + PdfViewer + ImageViewer + VideoPlayer + AudioPlayer + AcceptBidQueuePanel + Overlays (ShutdownOverlay, OnboardingOverlay, KeyboardShortcutsOverlay, TutorialOverlay) + Banners (OfflineBanner, SessionWarningBanner) + CommandPalette + Toast + ErrorBoundary + Filters (CategoryFilter, DateFilter, SubCategorySelector) + UI primitives (Badge, LoadingSpinner, DelayedSpinner, SkeletonCard, EmptyState, EmptyStateIllustrations, TransactionLink, MnemonicInput, PasswordStrengthIndicator, ScrollToTop, HighlightText, BidTimeline, PriceRangeSlider, InfoTooltip, RefreshIndicator, Select, LayoutPopover) + descriptionUtils
 
 **Transaction building** (fe/src/services/transactions/ ~2987 lines, re-exported via transactionBuilder.ts shim):
 - Split into domain modules: `txUtils.ts` (shared), `listings.ts`, `bids.ts`, `acceptBid.ts`
@@ -277,6 +283,9 @@ app/gui/
 - `acceptBidQueueStorage` — accept-bid queue state persistence (localStorage, queued/processing/completed/failed items)
 - `marketplaceFilters` — marketplace filter logic (category, price range, status filtering)
 - `nsfwStorage` — NSFW content visibility preference, PKH-keyed (localStorage)
+- `languageStorage` — language/locale preference persistence (localStorage)
+- `soundPreferences` — notification sound volume/muted preferences (localStorage)
+- `commandRegistry` — command palette command registry (keyboard shortcut actions)
 
 **Styling:** Dark/light theme via CSS custom properties in index.css, Tailwind utility classes, self-hosted fonts Inter + JetBrains Mono (declared in fonts.css as @font-face with woff2 files). Theme toggle via `themeStorage.ts` (`data-theme` attribute on `<html>`, always 'dark' or 'light'); three options — dark (default), light, system (follows OS via `matchMedia`). All colors via CSS variables (`--bg-*`, `--text-*`, `--accent`, `--success`, `--error`, etc.) with `--radius-*`, `--shadow-*`, `--transition-*`, `--space-*` spacing tokens. No per-component CSS files — all inline Tailwind utilities + variables.
 
@@ -456,11 +465,11 @@ app/gui/
 
 ## API Surface
 
-**Tauri commands** (93 commands, invoke from frontend):
+**Tauri commands** (94 commands, invoke from frontend):
 - Wallet: `wallet_exists`, `create_wallet`, `unlock_wallet`, `lock_wallet`, `delete_wallet`, `reveal_mnemonic`
 - Node: `start_node`, `stop_node`, `get_node_status`, `get_process_status`, `start_mithril_bootstrap`, `get_process_logs`
 - Chain: `get_network_tip`
-- Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`, `get_available_disk_space`
+- Config: `get_network`, `set_network`, `get_data_dir`, `get_app_config`, `get_disk_usage`, `get_available_disk_space`, `get_os_locale`
 - SNARK: `snark_check_setup`, `snark_decompress_setup`, `snark_prove`, `snark_gt_to_hash`, `snark_decrypt_to_hash`
 - Secrets: `store_seller_secrets`, `get_seller_secrets`, `remove_seller_secrets`, `list_seller_secrets`, `store_bid_secrets`, `get_bid_secrets`, `get_bid_secrets_for_encryption`, `remove_bid_secrets`, `list_bid_secret_tokens`, `store_accept_bid_secrets`, `get_accept_bid_secrets`, `remove_accept_bid_secrets`, `has_accept_bid_secrets`
 - Listing Drafts: `store_listing_draft`, `update_listing_draft`, `get_listing_draft`, `list_listing_drafts`, `remove_listing_draft`
@@ -503,15 +512,16 @@ cd app/gui/be && npm run build  # REQUIRED after any backend TS change (or use `
 - Backend: `cd be && npm test` (Vitest + node)
 - Frontend test locations:
   - `fe/src/services/crypto/__tests__/` — binding, bls12381, constants, createBid, createEncryption, decrypt, ecies, fileEncryption, hashing, level, payload, register, schnorr, snark-inputs, walletSecret, zkKeyDerivation (16 files)
-  - `fe/src/services/__tests__/` — acceptBidQueueService, acceptBidQueueStorage, acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, libraryService, listingDraftStorage, listingFormDraftStorage, marketplaceFilters, metadata, notificationSound, nsfwStorage, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (47 files)
+  - `fe/src/services/__tests__/` — acceptBidQueueService, acceptBidQueueStorage, acceptBidStorage, api, apiCache, audioPreferences, autolock, bidFormDraftStorage, bidNotifications, bidSecretStorage, chainingAdapter, commandRegistry, contentStorage, desktopNotifications, errorMessages, favoritesStorage, fileExport, filterStorage, iagonApi, iagonAuth, imageCache, kupoAdapter, languageStorage, libraryService, listingDraftStorage, listingFormDraftStorage, marketplaceFilters, metadata, notificationSound, nsfwStorage, onboardingStorage, optimisticStore, pdfSearch, pendingTxPool, providers, secretCleanup, secretStorage, snarkProver, soundPreferences, storageUtils, tabStorage, themeStorage, toastSettings, transactionBuilder, transactionBuilder.integration, transactionHistory, txOutputParser, videoPreferences, videoResumeStorage, walletManagement (50 files)
   - `fe/src/services/transactions/__tests__/` — acceptBid, bids, listings (3 files)
   - `fe/src/config/__tests__/` — categories (1 file)
-  - `fe/src/hooks/__tests__/` — useAsyncAction, useAutoAcceptDetection, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useUpdateCheck, useVisibility, useWalletHealth (13 files)
+  - `fe/src/hooks/__tests__/` — useAsyncAction, useAutoAcceptDetection, useBidNotifications, useDataRefresh, useDebounce, useFocusTrap, useInfiniteScroll, useModalStack, usePasswordStrength, useSnarkProver, useTabFilterState, useTutorial, useUpdateCheck, useVisibility, useWalletHealth (15 files)
   - `fe/src/contexts/__tests__/` — ModalContext, NodeContext, WalletContext, WasmContext (4 files)
-  - `fe/src/components/__tests__/` — AudioPlayer, audioPlayerUtils, Badge, BidsModal, BidTimeline, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, ImportListingModal, InfoTooltip, KeyboardShortcutsOverlay, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, VideoPlayer (47 files)
+  - `fe/src/components/__tests__/` — AudioPlayer, audioPlayerUtils, Badge, BidsModal, BidTimeline, CommandPalette, ConfirmModal, CreateListingModal, DecryptModal, DelayedSpinner, DescriptionModal, EmptyState, EmptyStateIllustrations, EncryptionCard, ErrorBoundary, HighlightText, HistoryTab, ImageViewer, ImportListingModal, InfoTooltip, KeyboardShortcutsOverlay, LayoutPopover, LibraryCard, LibraryContentModal, LibraryTab, ListingImage, LoadingSpinner, MarketplaceTab, MnemonicInput, MyPurchaseBidCard, MyPurchasesTab, MySalesTab, OfflineBanner, OnboardingOverlay, PasswordStrengthIndicator, PdfViewer, PlaceBidModal, PriceRangeSlider, RefreshIndicator, SalesListingCard, ScrollToTop, Select, SessionWarningBanner, ShutdownOverlay, SkeletonCard, SnarkDownloadModal, SnarkProvingModal, Toast, TransactionLink, TutorialOverlay, VideoPlayer (51 files)
   - `fe/src/pages/__tests__/` — Dashboard, NodeSync, nodeSyncHelpers, Settings, settingsLogHelpers, WalletSetup, WalletUnlock, walletUnlockErrors (8 files)
-  - `fe/src/pages/settings/__tests__/` — UpdateSection (1 file)
-  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, logClassification, network, time, truncate, walletErrors (9 files)
+  - `fe/src/pages/settings/__tests__/` — DataLayerSection, PreferencesSection, UpdateSection (3 files)
+  - `fe/src/__tests__/` — i18n (1 file)
+  - `fe/src/utils/` — clipboard, contentType, formatAda, formatBytes, fuzzySearch, logClassification, network, time, truncate, walletErrors, i18n (11 co-located test files)
   - `fe/src/utils/__tests__/` — formatDate, formatListing (2 files)
   - `fe/src/test/factories.ts` — Test data factory helpers
   - `fe/src/test/__mocks__/tauri.ts` — Tauri API mocks for testing
@@ -644,6 +654,10 @@ const json: ApiResponse<YourType> = await res.json();
 - **Desktop notifications** — `desktopNotifications.ts` uses `@tauri-apps/plugin-notification` for OS-level notifications; `notificationSound.ts` generates programmatic WAV notification pings
 - **Wallet management** — `walletManagement.ts` provides collateral creation + UTxO defragmentation via MeshTxBuilder; `useWalletHealth` hook monitors UTxO health (collateral presence, fragmentation)
 - **Theme toggle** — `themeStorage.ts` persists dark/light/system preference in localStorage (default dark); `initializeTheme()` applies before first paint to prevent flash; uses `data-theme` attribute on `<html>` (always 'dark' or 'light' — 'system' is resolved via `matchMedia('(prefers-color-scheme: dark)')` in `resolveTheme()`). `listenToSystemTheme()` subscribes to OS preference changes; WalletSection re-applies the theme on change while 'system' is selected
+- **Internationalization (i18n)** — `i18next` + `react-i18next` with 18 locales (de, en, es, fr, hi, id, it, ja, ko, nl, pl, pt, ru, th, tr, vi, zh). `i18n.ts` initializes with browser language detection (`i18next-browser-languagedetector`). `initializeLanguage()` called before `createRoot()` in main.tsx to seed locale from OS via `get_os_locale` Tauri command. `languageStorage.ts` persists language preference. All user-facing strings should use `useTranslation()` hook / `t()` function. Translation files in `fe/src/locales/{lang}/translation.json`
+- **Command palette** — `CommandPalette.tsx` provides keyboard-shortcut-driven command execution; `commandRegistry.ts` defines available commands
+- **Tutorial system** — `TutorialOverlay.tsx` + `useTutorial` hook provide step-by-step guided walkthroughs
+- **Infinite scroll** — `useInfiniteScroll` hook provides scroll-based pagination for large lists
 - **Virtual scrolling** — `@tanstack/react-virtual` available for large list performance optimization
 - **Focus traps** — `useFocusTrap` hook manages Tab key focus wrapping + focus restoration within modal/overlay containers (accessibility)
 - **Request timeout** — Backend `timeout.ts` middleware enforces 30s request timeout, returns 504 Gateway Timeout

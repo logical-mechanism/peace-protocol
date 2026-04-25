@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LibraryItem } from '../services/libraryService';
 import { readLibraryContent, deleteLibraryItem, exportLibraryContent, openWithSystem, getLibraryContentUrl, getLibrarySubtitleUrl } from '../services/libraryService';
 import { copyToClipboard } from '../utils/clipboard';
@@ -30,45 +31,8 @@ interface LibraryContentModalProps {
 type ModalState = 'loading' | 'loaded' | 'error';
 
 
-const getCategoryLabel = (category: string): string => {
-  if (!category) return 'Text';
-  return category.charAt(0).toUpperCase() + category.slice(1);
-};
+// Category labels are resolved via t('common:categories.{id}') in the component below
 
-
-/** Map file extensions to human-readable labels. */
-const FILE_TYPE_LABELS: Record<string, string> = {
-  '.pdf': 'PDF Document',
-  '.doc': 'Word Document',
-  '.docx': 'Word Document',
-  '.xls': 'Excel Spreadsheet',
-  '.xlsx': 'Excel Spreadsheet',
-  '.csv': 'CSV File',
-  '.txt': 'Text File',
-  '.rtf': 'Rich Text Document',
-  '.png': 'PNG Image',
-  '.jpg': 'JPEG Image',
-  '.jpeg': 'JPEG Image',
-  '.gif': 'GIF Image',
-  '.webp': 'WebP Image',
-  '.svg': 'SVG Image',
-  '.bmp': 'BMP Image',
-  '.mp4': 'MP4 Video',
-  '.mkv': 'MKV Video',
-  '.avi': 'AVI Video',
-  '.mov': 'MOV Video',
-  '.webm': 'WebM Video',
-  '.mp3': 'MP3 Audio',
-  '.wav': 'WAV Audio',
-  '.flac': 'FLAC Audio',
-  '.ogg': 'OGG Audio',
-  '.aac': 'AAC Audio',
-  '.m4a': 'M4A Audio',
-  '.opus': 'Opus Audio',
-  '.m4v': 'M4V Video',
-  '.pptx': 'PowerPoint Presentation',
-  '.odt': 'OpenDocument Text',
-};
 
 /** Determine view mode based on file extension, falling back to category for old listings. */
 function getViewMode(category: string, fileExtension?: string) {
@@ -205,6 +169,7 @@ export default function LibraryContentModal({
   currentIndex,
   onNavigate,
 }: LibraryContentModalProps) {
+  const { t, i18n } = useTranslation(['modals', 'common']);
   const [state, setState] = useState<ModalState>('loading');
   const [textContent, setTextContent] = useState<string | null>(null);
   const [rawContent, setRawContent] = useState<Uint8Array | null>(null);
@@ -236,7 +201,7 @@ export default function LibraryContentModal({
 
     if (item.contentMissing) {
       setState('error');
-      setError('Content file not found on disk. The file may have been moved or deleted.');
+      setError(t('modals:libraryContent.contentMissingError'));
       return;
     }
 
@@ -274,12 +239,12 @@ export default function LibraryContentModal({
       } catch (err) {
         if (cancelled) return;
         setState('error');
-        setError(err instanceof Error ? err.message : 'Failed to load content');
+        setError(err instanceof Error ? err.message : t('modals:libraryContent.loadFailed'));
       }
     })();
 
     return () => { cancelled = true; };
-  }, [isOpen, item]);
+  }, [isOpen, item, t]);
 
   // Stack-aware Escape key + body scroll lock
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('library-content', isOpen, onClose, deleting || confirmingDelete);
@@ -384,9 +349,12 @@ export default function LibraryContentModal({
 
   const viewMode = getViewMode(item.category, item.fileExtension);
   const isWideModal = viewMode === 'pdf' || viewMode === 'image' || viewMode === 'audio' || viewMode === 'video';
+  const extKey = item.fileExtension ? item.fileExtension.toLowerCase().replace(/^\./, '') : '';
   const fileTypeLabel = item.fileExtension
-    ? (FILE_TYPE_LABELS[item.fileExtension.toLowerCase()] || `${item.fileExtension.toUpperCase().slice(1)} File`)
-    : getCategoryLabel(item.category) + ' file';
+    ? (i18n.exists(`modals:libraryContent.fileTypes.${extKey}`)
+        ? t(`modals:libraryContent.fileTypes.${extKey}`)
+        : t('modals:libraryContent.fileDefault', { type: item.fileExtension.toUpperCase().slice(1) }))
+    : t('modals:libraryContent.fileDefault', { type: t(`common:categories.${item.category || 'text'}`) });
   // Show Save As for all non-text categories (documents, other, audio, image, video)
   const showSaveAs = item.category !== 'text' && !!item.category;
 
@@ -422,8 +390,8 @@ export default function LibraryContentModal({
                   disabled={!canGoPrev}
                   tabIndex={-1}
                   className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
-                  title="Previous item (←)"
-                  aria-label="Previous item"
+                  title={t('modals:libraryContent.prevItemTitle')}
+                  aria-label={t('modals:libraryContent.prevItem')}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -433,11 +401,11 @@ export default function LibraryContentModal({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 id="library-content-title" className="text-xl font-semibold text-[var(--text-primary)]">
-                    Library
+                    {t('modals:libraryContent.title')}
                   </h2>
                   {items && items.length > 1 && currentIndex != null && (
                     <span className="text-sm text-[var(--text-muted)]">
-                      {currentIndex + 1} of {items.length}
+                      {t('modals:libraryContent.position', { current: currentIndex + 1, total: items.length })}
                     </span>
                   )}
                 </div>
@@ -454,8 +422,8 @@ export default function LibraryContentModal({
                   disabled={!canGoNext}
                   tabIndex={-1}
                   className="p-2 rounded-[var(--radius-md)] disabled:opacity-30 btn-base btn-icon"
-                  title="Next item (→)"
-                  aria-label="Next item"
+                  title={t('modals:libraryContent.nextItemTitle')}
+                  aria-label={t('modals:libraryContent.nextItem')}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -465,7 +433,7 @@ export default function LibraryContentModal({
               {/* Header X — tabIndex={-1} (Escape closes per ARIA pattern). */}
               <button
                 onClick={onClose}
-                aria-label="Close dialog"
+                aria-label={t('modals:common.closeDialog')}
                 tabIndex={-1}
                 className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
               >
@@ -481,32 +449,32 @@ export default function LibraryContentModal({
             {/* Metadata — compact two-row layout */}
             <div className="mb-3 px-3 py-2 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="accent">{getCategoryLabel(item.category)}</Badge>
+                <Badge variant="accent">{t(`common:categories.${item.category || 'text'}`)}</Badge>
                 {item.fileExtension && (
                   <Badge variant="neutral">{item.fileExtension.toUpperCase().slice(1)}</Badge>
                 )}
-                {item.contentMissing && <Badge variant="warning">Content Missing</Badge>}
+                {item.contentMissing && <Badge variant="warning">{t('modals:libraryContent.contentMissing')}</Badge>}
                 {item.description && (
                   <span className="text-xs text-[var(--text-secondary)] truncate ml-1" title={item.description}>{item.description}</span>
                 )}
               </div>
               <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-[var(--text-muted)]">
                 {item.sellerPkh && (<>
-                  <span><span className="text-[var(--accent)] opacity-70">Seller:</span> <span className="font-mono text-[var(--text-secondary)]" title={item.sellerPkh}>{truncateHex(item.sellerPkh, 10, 6)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">{t('modals:libraryContent.seller')}</span> <span className="font-mono text-[var(--text-secondary)]" title={item.sellerPkh}>{truncateHex(item.sellerPkh, 10, 6)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
                 {item.createdAt && (<>
-                  <span><span className="text-[var(--accent)] opacity-70">Listed:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.createdAt)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">{t('modals:libraryContent.listed')}</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.createdAt)}</span></span>
                   <span className="opacity-30">&middot;</span>
                 </>)}
-                <span><span className="text-[var(--accent)] opacity-70">Decrypted:</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.decryptedAt)}</span></span>
+                <span><span className="text-[var(--accent)] opacity-70">{t('modals:libraryContent.decrypted')}</span> <span className="text-[var(--text-secondary)]">{formatDateTime(item.decryptedAt)}</span></span>
                 {item.storageLayer && (<>
                   <span className="opacity-30">&middot;</span>
-                  <span><span className="text-[var(--accent)] opacity-70">Storage:</span> <span className="text-[var(--text-secondary)]">{item.storageLayer}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">{t('modals:libraryContent.storage')}</span> <span className="text-[var(--text-secondary)]">{item.storageLayer}</span></span>
                 </>)}
                 {item.fileSize != null && (<>
                   <span className="opacity-30">&middot;</span>
-                  <span><span className="text-[var(--accent)] opacity-70">Size:</span> <span className="text-[var(--text-secondary)]">{formatBytes(item.fileSize)}</span></span>
+                  <span><span className="text-[var(--accent)] opacity-70">{t('modals:libraryContent.size')}</span> <span className="text-[var(--text-secondary)]">{formatBytes(item.fileSize)}</span></span>
                 </>)}
               </div>
             </div>
@@ -532,7 +500,7 @@ export default function LibraryContentModal({
                 <div className="absolute top-3 right-3">
                   <button
                     onClick={handleCopy}
-                    aria-label="Copy text content to clipboard"
+                    aria-label={t('modals:libraryContent.copyAriaLabel')}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                   >
                     {copied ? (
@@ -540,14 +508,14 @@ export default function LibraryContentModal({
                         <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        Copied!
+                        {t('modals:libraryContent.copied')}
                       </>
                     ) : (
                       <>
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        Copy
+                        {t('modals:libraryContent.copy')}
                       </>
                     )}
                   </button>
@@ -604,7 +572,7 @@ export default function LibraryContentModal({
                   {fileTypeLabel}
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">
-                  This file type cannot be previewed. Use Save As to open it with an external application.
+                  {t('modals:libraryContent.cannotPreview')}
                 </p>
               </div>
             )}
@@ -616,7 +584,7 @@ export default function LibraryContentModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
                 <span className="text-sm text-[var(--success)] truncate">
-                  Saved to {exportedPath}
+                  {t('modals:libraryContent.savedTo', { path: exportedPath })}
                 </span>
               </div>
             )}
@@ -626,7 +594,7 @@ export default function LibraryContentModal({
            * initial focus from useFocusTrap) while still appearing on the
            * right visually. */}
           <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
-            <div className="flex flex-row-reverse gap-3">
+            <div data-tutorial="library-content-actions" className="flex flex-row-reverse gap-3">
               <button
                 onClick={onClose}
                 className={`flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer ${
@@ -635,7 +603,7 @@ export default function LibraryContentModal({
                     : 'bg-[var(--accent)] text-white hover:bg-[var(--accent)]/90'
                 }`}
               >
-                Close
+                {t('modals:libraryContent.close')}
               </button>
               {showSaveAs && (
                 <>
@@ -655,18 +623,18 @@ export default function LibraryContentModal({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
                     )}
-                    Save As
+                    {t('modals:libraryContent.saveAs')}
                   </button>
                   <button
                     onClick={handleOpenExternal}
                     disabled={state !== 'loaded'}
                     className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-secondary)] hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Open with system default application"
+                    title={t('modals:libraryContent.openExternalTitle')}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    Open Externally
+                    {t('modals:libraryContent.openExternal')}
                   </button>
                 </>
               )}
@@ -678,14 +646,14 @@ export default function LibraryContentModal({
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  Relist
+                  {t('modals:libraryContent.relist')}
                 </button>
               )}
               <button
                 onClick={() => setConfirmingDelete(true)}
                 className="px-4 py-2.5 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
               >
-                Delete from Library
+                {t('modals:libraryContent.deleteFromLibrary')}
               </button>
             </div>
           </div>
@@ -697,9 +665,9 @@ export default function LibraryContentModal({
         isOpen={confirmingDelete}
         onClose={() => setConfirmingDelete(false)}
         onConfirm={handleDelete}
-        title="Delete from Library"
-        message="This will permanently remove the decrypted content and metadata from your device. This action cannot be undone."
-        confirmLabel="Delete"
+        title={t('modals:libraryContent.deleteTitle')}
+        message={t('modals:libraryContent.deleteMessage')}
+        confirmLabel={t('modals:libraryContent.deleteConfirm')}
         confirmVariant="danger"
         loading={deleting}
       />

@@ -57,5 +57,5 @@ cd ..
 
 echo -e "\033[1;36m\nRunning GUI Tests\033[0m"
 cd gui
-./test.sh | tee -a "../../$OUT"
-cd ../..
+./test.sh | tee -a "../$OUT"
+cd ..

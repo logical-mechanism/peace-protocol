@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import type { IWallet } from '@meshsdk/core'
-import { connectIagon, disconnectIagon, isIagonConnected, getValidApiKey, getStoredApiKey } from '../../services/iagonAuth'
+import { connectIagon, disconnectIagon, isIagonConnected, hasValidApiKey, getStoredApiKey, handleIagonError, isIagonAuthError, onIagonAuthFailure } from '../../services/iagonAuth'
 import { verifyApiKey, deleteFile as iagonDeleteFile, getStorageUsage } from '../../services/iagonApi'
 import { getOrphanedDrafts, removeListingDraft, type ListingDraft } from '../../services/listingDraftStorage'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -20,6 +22,7 @@ export default function DataLayerSection({
   address,
   walletState,
 }: DataLayerSectionProps) {
+  const { t } = useTranslation('settings')
   const toast = useToast()
 
   // Iagon state
@@ -38,28 +41,51 @@ export default function DataLayerSection({
   const [storageUsage, setStorageUsage] = useState<{ totalBytes: number; fileCount: number } | null>(null)
   const [storageUsageLoading, setStorageUsageLoading] = useState(false)
 
-  // Hold toast in a ref so refreshStorageUsage stays referentially stable
-  // (useToast() returns a fresh object each render, which would otherwise
-  // retrigger the auto-fetch effect and cause an infinite loop).
+  // Hold toast + t in refs so refreshStorageUsage stays referentially stable
+  // (useToast() / useTranslation() return a fresh object each render, which
+  // would otherwise retrigger the auto-fetch effect and cause an infinite loop).
   const toastRef = useRef(toast)
   toastRef.current = toast
+  const tRef = useRef(t)
+  tRef.current = t
+
+  // Flag set while Verify / Refresh / orphan-delete etc. are in-flight. The
+  // global auth-failure listener checks this so that when the handler itself
+  // is going to update state in its `finally`, the listener doesn't
+  // double-set mid-await and produce an intermediate "connecting..." render.
+  const iagonOperationInFlightRef = useRef(false)
 
   const refreshStorageUsage = useCallback(async () => {
+    iagonOperationInFlightRef.current = true
     setStorageUsageLoading(true)
     try {
       const apiKey = await getStoredApiKey()
       if (!apiKey) {
-        toastRef.current.error('Storage Usage', 'Iagon API key is not accessible. Reconnect to refresh usage.')
+        toastRef.current.error(tRef.current('dataLayer.storageUsageToastTitle'), tRef.current('dataLayer.storageUsageKeyMissing'))
         return
       }
       const usage = await getStorageUsage(apiKey)
       setStorageUsage(usage)
     } catch (err) {
       console.error('Failed to fetch Iagon storage usage:', err)
-      const msg = err instanceof Error ? err.message : 'Failed to fetch storage usage'
-      toastRef.current.error('Storage Usage', msg)
+      // AUTH_FAILED: disconnect, emit event, and surface the expiry message
+      // inline. handleIagonError returns true when it matched — the Dashboard
+      // listener still fires the sticky warning toast, so no local toast is
+      // needed here.
+      const authError = await handleIagonError(err)
+      if (authError) {
+        setIagonConnected(false)
+        setStorageUsage(null)
+        setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
+        return
+      }
+      const msg = isIagonAuthError(err)
+        ? tRef.current('dataLayer.iagonKeyExpired')
+        : err instanceof Error ? err.message : tRef.current('dataLayer.storageUsageFetchFailed')
+      toastRef.current.error(tRef.current('dataLayer.storageUsageToastTitle'), msg)
     } finally {
       setStorageUsageLoading(false)
+      iagonOperationInFlightRef.current = false
     }
   }, [])
 
@@ -76,6 +102,23 @@ export default function DataLayerSection({
     isIagonConnected().then(setIagonConnected).catch(console.error)
   }, [])
 
+  // Keep the local "connected" indicator in sync when anything in the app
+  // detects AUTH_FAILED. This is what flips the green dot to grey without
+  // the user having to click Verify themselves. If a local handler (Verify,
+  // Refresh, orphan delete) is already running, it will update state in its
+  // `finally` — skipping here avoids the intermediate render where iagon
+  // flips to disconnected while iagonLoading is still true, which is what
+  // produced the flashing buttons.
+  useEffect(() => {
+    const unsubscribe = onIagonAuthFailure(() => {
+      if (iagonOperationInFlightRef.current) return
+      setIagonConnected(false)
+      setStorageUsage(null)
+      setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
+    })
+    return unsubscribe
+  }, [])
+
   // Load orphaned drafts on mount
   useEffect(() => {
     getOrphanedDrafts().then(setOrphanedDrafts).catch((err) => console.warn('Failed to load orphaned drafts:', err))
@@ -90,12 +133,12 @@ export default function DataLayerSection({
       setIagonConnected(true)
     } catch (err) {
       console.error('Failed to connect Iagon:', err)
-      const msg = err instanceof Error ? err.message : 'Failed to connect to Iagon'
-      setIagonError(`${msg}. You can paste your API key from app.iagon.com below instead.`)
+      const msg = err instanceof Error ? err.message : t('dataLayer.connectFailedDefault')
+      setIagonError(`${msg}${t('dataLayer.connectFailedSuffix')}`)
     } finally {
       setIagonLoading(false)
     }
-  }, [wallet, address])
+  }, [wallet, address, t])
 
   const handleDisconnectIagon = useCallback(async () => {
     setIagonLoading(true)
@@ -105,27 +148,49 @@ export default function DataLayerSection({
       setIagonConnected(false)
     } catch (err) {
       console.error('Failed to disconnect Iagon:', err)
-      setIagonError(err instanceof Error ? err.message : 'Failed to disconnect')
+      setIagonError(err instanceof Error ? err.message : t('dataLayer.disconnectFailed'))
     } finally {
       setIagonLoading(false)
     }
-  }, [])
+  }, [t])
 
   const handleVerifyIagon = useCallback(async () => {
+    // Read `t` / `toast` from refs so this callback stays referentially
+    // stable across renders (toast is a fresh object every render, which
+    // otherwise rebuilds the button's onClick handler).
+    iagonOperationInFlightRef.current = true
     setIagonLoading(true)
-    setIagonError('')
     try {
-      const key = await getValidApiKey()
-      if (key) {
+      const stored = await getStoredApiKey()
+      if (!stored) {
+        setIagonConnected(false)
+        setIagonError(tRef.current('dataLayer.verifyNoKey'))
+        setStorageUsage(null)
+        return
+      }
+      // hasValidApiKey cleans up the stored key and fires the auth-failure
+      // event on rejection. The listener checks `iagonOperationInFlightRef`
+      // and no-ops so that THIS handler owns every state update — batching
+      // them into a single post-await render avoids the brief flicker where
+      // iagonConnected flips before iagonLoading does.
+      const valid = await hasValidApiKey()
+      if (valid) {
+        setIagonError('')
         setIagonConnected(true)
+        toastRef.current.success(
+          tRef.current('dataLayer.verifyOkTitle'),
+          tRef.current('dataLayer.verifyOkBody'),
+        )
       } else {
         setIagonConnected(false)
-        setIagonError('API key is no longer valid. Please reconnect.')
+        setStorageUsage(null)
+        setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
       }
     } catch (err) {
-      setIagonError(err instanceof Error ? err.message : 'Verification failed')
+      setIagonError(err instanceof Error ? err.message : tRef.current('dataLayer.verificationFailed'))
     } finally {
       setIagonLoading(false)
+      iagonOperationInFlightRef.current = false
     }
   }, [])
 
@@ -136,21 +201,22 @@ export default function DataLayerSection({
     try {
       const valid = await verifyApiKey(manualApiKey.trim())
       if (!valid) {
-        setIagonError('API key is invalid or expired. Check your key and try again.')
+        setIagonError(t('dataLayer.manualKeyInvalid'))
         return
       }
       await invoke('store_iagon_api_key', { apiKey: manualApiKey.trim() })
       setIagonConnected(true)
       setManualApiKey('')
     } catch (err) {
-      setIagonError(err instanceof Error ? err.message : 'Failed to save API key')
+      setIagonError(err instanceof Error ? err.message : t('dataLayer.manualKeySaveFailed'))
     } finally {
       setIagonLoading(false)
     }
-  }, [manualApiKey])
+  }, [manualApiKey, t])
 
   const handleDeleteOrphan = useCallback(async (draft: ListingDraft) => {
     if (!draft.iagonFileId) return
+    iagonOperationInFlightRef.current = true
     setOrphanCleanupLoading(draft.id)
     try {
       const apiKey = await getStoredApiKey()
@@ -161,9 +227,17 @@ export default function DataLayerSection({
       setOrphanedDrafts(prev => prev.filter(d => d.id !== draft.id))
     } catch (err) {
       console.error('Failed to delete orphaned file:', err)
-      setIagonError(err instanceof Error ? err.message : 'Failed to delete file')
+      const authError = await handleIagonError(err)
+      if (authError) {
+        setIagonConnected(false)
+        setStorageUsage(null)
+        setIagonError(tRef.current('dataLayer.iagonKeyExpired'))
+        return
+      }
+      setIagonError(err instanceof Error ? err.message : tRef.current('dataLayer.orphanedDeleteFailed'))
     } finally {
       setOrphanCleanupLoading(null)
+      iagonOperationInFlightRef.current = false
     }
   }, [])
 
@@ -190,22 +264,24 @@ export default function DataLayerSection({
     setOrphanedDrafts(prev => prev.filter(d => !successSet.has(d.id)))
 
     if (failedCount === 0) {
-      toast.success('Cleanup Complete', `Deleted ${total} orphaned file${total === 1 ? '' : 's'}.`)
+      toast.success(t('dataLayer.orphanedCleanupTitle'), t('dataLayer.orphanedCleanupBody', { count: total }))
     } else if (succeededIds.length > 0) {
-      toast.warning('Partial Cleanup', `Deleted ${succeededIds.length} of ${total} files. ${failedCount} could not be removed.`)
+      toast.warning(
+        t('dataLayer.orphanedPartialTitle'),
+        t('dataLayer.orphanedPartialBody', { succeeded: succeededIds.length, total, failed: failedCount }),
+      )
     } else {
-      toast.error('Cleanup Failed', 'Could not delete any orphaned files. Check your internet connection.')
+      toast.error(t('dataLayer.orphanedFailedTitle'), t('dataLayer.orphanedFailedBody'))
     }
-  }, [orphanedDrafts, toast])
+  }, [orphanedDrafts, toast, t])
 
   return (
     <>
       <div className="space-y-6">
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h2 className="text-lg font-medium mb-2">Iagon Decentralized Storage</h2>
+          <h2 className="text-lg font-medium mb-2">{t('dataLayer.iagonTitle')}</h2>
           <p className="text-sm text-[var(--text-muted)] mb-6">
-            Connect your Iagon account to upload and download files for non-text listings.
-            Your wallet signature is used for authentication — no passwords needed.
+            {t('dataLayer.iagonDescription')}
           </p>
 
           {/* Connection Status */}
@@ -217,12 +293,12 @@ export default function DataLayerSection({
             />
             <div className="flex-1">
               <p className="text-sm font-medium">
-                {iagonConnected ? 'Connected' : 'Not Connected'}
+                {iagonConnected ? t('dataLayer.connected') : t('dataLayer.notConnected')}
               </p>
               <p className="text-xs text-[var(--text-muted)]">
                 {iagonConnected
-                  ? 'API key stored securely. File categories are available.'
-                  : 'Connect to enable file uploads (document, audio, image, video).'}
+                  ? t('dataLayer.connectedSubtitle')
+                  : t('dataLayer.notConnectedSubtitle')}
               </p>
             </div>
           </div>
@@ -231,8 +307,7 @@ export default function DataLayerSection({
           {!iagonConnected && (
             <div className="mb-6 p-3 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-sm text-[var(--text-secondary)]">
-                <strong className="text-[var(--accent)]">Before connecting:</strong> You need an Iagon account with active storage.
-                Visit{' '}
+                <strong className="text-[var(--accent)]">{t('dataLayer.accountRequirementPrefix')}</strong>{t('dataLayer.accountRequirementBody')}
                 <a
                   href="https://app.iagon.com"
                   target="_blank"
@@ -240,8 +315,8 @@ export default function DataLayerSection({
                   className="text-[var(--accent)] hover:underline"
                 >
                   app.iagon.com
-                </a>{' '}
-                to create one, then return here to connect.
+                </a>
+                {t('dataLayer.accountRequirementBodyAfter')}
               </p>
             </div>
           )}
@@ -264,32 +339,44 @@ export default function DataLayerSection({
                 {iagonLoading ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Connecting...
+                    {t('dataLayer.connecting')}
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
-                    Connect Iagon
+                    {t('dataLayer.connectButton')}
                   </>
                 )}
               </button>
             ) : (
               <>
+                {/* min-w keeps the button at "Verify Connection" width even
+                    while the label is the shorter "Checking..."; otherwise
+                    the `transition: all` on .btn-base animates the width
+                    change and the Disconnect button slides left and right,
+                    which reads as flashing / ghosted buttons. */}
                 <button
                   onClick={handleVerifyIagon}
                   disabled={iagonLoading}
-                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-tertiary min-w-[160px]"
                 >
-                  {iagonLoading ? 'Checking...' : 'Verify Connection'}
+                  {iagonLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      {t('dataLayer.verifyChecking')}
+                    </>
+                  ) : (
+                    t('dataLayer.verifyButton')
+                  )}
                 </button>
                 <button
                   onClick={() => setIagonDisconnectConfirm(true)}
                   disabled={iagonLoading}
                   className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-destructive"
                 >
-                  Disconnect
+                  {t('dataLayer.disconnectButton')}
                 </button>
               </>
             )}
@@ -298,7 +385,7 @@ export default function DataLayerSection({
           {/* Requirements info */}
           {walletState !== 'unlocked' && (
             <p className="mt-4 text-xs text-[var(--warning)]">
-              Unlock your wallet first to connect to Iagon.
+              {t('dataLayer.unlockFirstHint')}
             </p>
           )}
         </div>
@@ -306,9 +393,9 @@ export default function DataLayerSection({
         {/* Manual API key input */}
         {!iagonConnected && (
           <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-            <h3 className="text-sm font-medium mb-2">Paste API Key</h3>
+            <h3 className="text-sm font-medium mb-2">{t('dataLayer.manualKeyTitle')}</h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">
-              If wallet signing doesn&apos;t work, paste your API key from{' '}
+              {t('dataLayer.manualKeyDescriptionBefore')}
               <a
                 href="https://app.iagon.com"
                 target="_blank"
@@ -317,14 +404,14 @@ export default function DataLayerSection({
               >
                 app.iagon.com
               </a>
-              {' '}instead.
+              {t('dataLayer.manualKeyDescriptionAfter')}
             </p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={manualApiKey}
                 onChange={(e) => setManualApiKey(e.target.value)}
-                placeholder="Paste your Iagon API key"
+                placeholder={t('dataLayer.manualKeyPlaceholder')}
                 className="flex-1 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
               />
               <button
@@ -332,7 +419,7 @@ export default function DataLayerSection({
                 disabled={iagonLoading || !manualApiKey.trim()}
                 className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                {iagonLoading ? 'Saving...' : 'Save Key'}
+                {iagonLoading ? t('dataLayer.manualKeySaving') : t('dataLayer.manualKeySave')}
               </button>
             </div>
           </div>
@@ -343,9 +430,9 @@ export default function DataLayerSection({
           <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-medium">Storage Usage</h3>
+                <h3 className="text-sm font-medium">{t('dataLayer.storageUsageTitle')}</h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Total encrypted data stored on Iagon across all your files.
+                  {t('dataLayer.storageUsageDescription')}
                 </p>
               </div>
               <button
@@ -353,25 +440,25 @@ export default function DataLayerSection({
                 disabled={storageUsageLoading}
                 className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                {storageUsageLoading ? 'Refreshing...' : 'Refresh'}
+                {storageUsageLoading ? t('dataLayer.storageUsageRefreshing') : t('dataLayer.storageUsageRefresh')}
               </button>
             </div>
 
             {storageUsageLoading && !storageUsage ? (
               <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
-                <DelayedSpinner size="sm" label="Loading usage" />
-                Loading usage...
+                <DelayedSpinner size="sm" label={t('dataLayer.storageUsageLoading')} />
+                {t('dataLayer.storageUsageLoadingText')}
               </div>
             ) : storageUsage ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">Total Used</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('dataLayer.storageUsageTotalUsed')}</p>
                   <p className="text-lg font-medium text-[var(--text-primary)]">
                     {formatBytes(storageUsage.totalBytes)}
                   </p>
                 </div>
                 <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)]">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">Files</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('dataLayer.storageUsageFiles')}</p>
                   <p className="text-lg font-medium text-[var(--text-primary)]">
                     {storageUsage.fileCount}
                   </p>
@@ -379,7 +466,7 @@ export default function DataLayerSection({
               </div>
             ) : (
               <p className="text-sm text-[var(--text-muted)] text-center py-4">
-                Usage unavailable.
+                {t('dataLayer.storageUsageUnavailable')}
               </p>
             )}
           </div>
@@ -389,9 +476,9 @@ export default function DataLayerSection({
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-medium">Orphaned Files</h3>
+              <h3 className="text-sm font-medium">{t('dataLayer.orphanedTitle')}</h3>
               <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                Files uploaded to Iagon whose listing transactions failed or were abandoned.
+                {t('dataLayer.orphanedDescription')}
               </p>
             </div>
             {orphanedDrafts.length > 1 && (
@@ -399,14 +486,14 @@ export default function DataLayerSection({
                 onClick={() => setOrphanDeleteAllConfirm(true)}
                 className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-destructive"
               >
-                Delete All
+                {t('dataLayer.orphanedDeleteAll')}
               </button>
             )}
           </div>
 
           {orphanedDrafts.length === 0 ? (
             <p className="text-sm text-[var(--text-muted)] text-center py-4">
-              No orphaned drafts found.
+              {t('dataLayer.orphanedNone')}
             </p>
           ) : (
             <div className="space-y-2">
@@ -432,7 +519,7 @@ export default function DataLayerSection({
                     disabled={orphanCleanupLoading === draft.id}
                     className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-destructive"
                   >
-                    {orphanCleanupLoading === draft.id ? 'Deleting...' : 'Delete'}
+                    {orphanCleanupLoading === draft.id ? t('dataLayer.orphanedDeleting') : t('dataLayer.orphanedDelete')}
                   </button>
                 </div>
               ))}
@@ -442,27 +529,27 @@ export default function DataLayerSection({
 
         {/* Info card */}
         <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-          <h3 className="text-sm font-medium mb-3">How it works</h3>
+          <h3 className="text-sm font-medium mb-3">{t('dataLayer.howItWorksTitle')}</h3>
           <div className="space-y-3 text-sm text-[var(--text-secondary)]">
             <div className="flex gap-3">
               <span className="text-[var(--accent)] font-mono text-xs mt-0.5">1</span>
-              <p>Your wallet signs a message to authenticate with Iagon (CIP-8).</p>
+              <p>{t('dataLayer.howItWorks1')}</p>
             </div>
             <div className="flex gap-3">
               <span className="text-[var(--accent)] font-mono text-xs mt-0.5">2</span>
-              <p>A persistent API key is generated and stored encrypted on disk.</p>
+              <p>{t('dataLayer.howItWorks2')}</p>
             </div>
             <div className="flex gap-3">
               <span className="text-[var(--accent)] font-mono text-xs mt-0.5">3</span>
-              <p>When you create a file listing, the encrypted file is uploaded to Iagon.</p>
+              <p>{t('dataLayer.howItWorks3')}</p>
             </div>
             <div className="flex gap-3">
               <span className="text-[var(--accent)] font-mono text-xs mt-0.5">4</span>
-              <p>Buyers download and decrypt using their own Iagon connection.</p>
+              <p>{t('dataLayer.howItWorks4')}</p>
             </div>
           </div>
           <p className="mt-4 text-xs text-[var(--text-muted)]">
-            Requires an Iagon account with storage. Visit{' '}
+            {t('dataLayer.howItWorksFooterBefore')}
             <a
               href="https://app.iagon.com"
               target="_blank"
@@ -470,8 +557,8 @@ export default function DataLayerSection({
               className="text-[var(--accent)] hover:underline"
             >
               app.iagon.com
-            </a>{' '}
-            to create one.
+            </a>
+            {t('dataLayer.howItWorksFooterAfter')}
           </p>
         </div>
       </div>
@@ -481,10 +568,10 @@ export default function DataLayerSection({
         isOpen={iagonDisconnectConfirm}
         onClose={() => setIagonDisconnectConfirm(false)}
         onConfirm={() => { setIagonDisconnectConfirm(false); handleDisconnectIagon(); }}
-        title="Disconnect Iagon"
-        message="This will remove your Iagon API key. You won't be able to upload or download files until you reconnect."
-        description="You'll need to re-authenticate with your wallet before uploading files again."
-        confirmLabel="Disconnect"
+        title={t('dataLayer.confirmDisconnectTitle')}
+        message={t('dataLayer.confirmDisconnectMessage')}
+        description={t('dataLayer.confirmDisconnectDescription')}
+        confirmLabel={t('dataLayer.confirmDisconnectButton')}
         confirmVariant="danger"
         loading={iagonLoading}
       />
@@ -494,9 +581,9 @@ export default function DataLayerSection({
         isOpen={orphanDeleteAllConfirm}
         onClose={() => setOrphanDeleteAllConfirm(false)}
         onConfirm={() => { setOrphanDeleteAllConfirm(false); handleDeleteAllOrphans(); }}
-        title="Delete Orphaned Files"
-        message={`Delete all ${orphanedDrafts.length} orphaned file${orphanedDrafts.length !== 1 ? 's' : ''} from Iagon? This cannot be undone.`}
-        confirmLabel="Delete All"
+        title={t('dataLayer.confirmDeleteAllTitle')}
+        message={t('dataLayer.confirmDeleteAllMessage', { count: orphanedDrafts.length })}
+        confirmLabel={t('dataLayer.confirmDeleteAllButton')}
         confirmVariant="danger"
       />
     </>

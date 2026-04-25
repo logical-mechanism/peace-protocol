@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Marché de données chiffrées sur Cardano",
+    "chooseCreateTitle": "Créer un nouveau portefeuille",
+    "chooseCreateSubtitle": "Générer une nouvelle phrase de récupération de 24 mots",
+    "chooseImportTitle": "Importer un portefeuille existant",
+    "chooseImportSubtitle": "Restaurer à partir d'une phrase de récupération de 24 mots",
+    "back": "Retour",
+    "steps": {
+      "backup": "Sauvegarde",
+      "verify": "Vérification",
+      "password": "Mot de passe",
+      "recoveryPhrase": "Phrase de récupération"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Phrase de récupération",
+      "verifyTitle": "Vérifier la phrase",
+      "passwordTitle": "Définir le mot de passe",
+      "warning": "Notez ces 24 mots dans l'ordre. C'est le seul moyen de récupérer votre portefeuille. Ne les partagez jamais avec qui que ce soit.",
+      "copyToClipboard": "Copier dans le presse-papiers",
+      "copied": "Copié !",
+      "wroteItDown": "Je les ai notés",
+      "verifyInstructions": "Vérifiez votre phrase de récupération en saisissant les mots suivants. Commencez à taper et sélectionnez le mot correspondant.",
+      "continue": "Continuer"
+    },
+    "import": {
+      "enterTitle": "Saisir la phrase de récupération",
+      "passwordTitle": "Définir le mot de passe",
+      "instructions": "Saisissez votre phrase de récupération de 24 mots. Commencez à taper chaque mot et sélectionnez parmi les suggestions.",
+      "pasteAll": "Coller les 24 mots",
+      "wordCount": "{{count}} / 24 mots",
+      "continue": "Continuer"
+    },
+    "password": {
+      "description": "Définissez un mot de passe pour chiffrer votre phrase de récupération. Vous aurez besoin de ce mot de passe à chaque ouverture de l'application.",
+      "label": "Mot de passe",
+      "confirmLabel": "Confirmer le mot de passe",
+      "placeholder": "Saisir le mot de passe",
+      "confirmPlaceholder": "Confirmer le mot de passe",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "capsLockOn": "Verrouillage majuscules activé",
+      "creating": "Création du portefeuille...",
+      "submit": "Créer le portefeuille"
+    },
+    "errors": {
+      "allWordsRequired": "Les 24 mots sont requis",
+      "passwordRequirements": "Le mot de passe ne remplit pas toutes les exigences",
+      "passwordMismatch": "Les mots de passe ne correspondent pas",
+      "createFailed": "Impossible de créer le portefeuille",
+      "copyFailedTitle": "Échec de la copie",
+      "copyFailedBody": "Impossible de copier le mnemonic dans le presse-papiers.",
+      "clipboardUnavailableTitle": "Presse-papiers indisponible",
+      "clipboardUnavailableBody": "Impossible d'accéder au presse-papiers. Essayez de coller directement dans les champs de mots avec Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Mot de passe",
+    "togglePasswordVisibility": "Afficher/masquer le mot de passe",
+    "capsLockOn": "Verrouillage majuscules activé",
+    "unlock": "Déverrouiller",
+    "unlocking": "Déverrouillage...",
+    "forgotPassword": "Mot de passe oublié ?",
+    "details": "Détails",
+    "copyErrorTitle": "Copier les détails de l'erreur",
+    "delete": {
+      "title": "Supprimer le portefeuille ?",
+      "description": "Cela supprimera le portefeuille chiffré de cet appareil. Vos fonds sont en sécurité si vous avez sauvegardé votre phrase de récupération de 24 mots. Vous pourrez le réimporter après la suppression.",
+      "warning": "Sans votre phrase de récupération, vos fonds seront définitivement perdus.",
+      "acknowledge": "J'ai sauvegardé ma phrase de récupération de 24 mots",
+      "cancel": "Annuler",
+      "confirm": "Supprimer le portefeuille",
+      "deleting": "Suppression..."
+    }
+  }
+}

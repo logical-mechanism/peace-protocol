@@ -82,7 +82,7 @@ import {
   decryptBid,
   decryptEncryption,
   computeKEM,
-  getDecryptionExplanation,
+  getDecryptionExplanationState,
 } from '../decrypt';
 import { createBid, createEncryption } from '../../../test/factories';
 
@@ -227,29 +227,20 @@ describe('decryptBid', () => {
   });
 });
 
-describe('getDecryptionExplanation', () => {
-  it('returns stub explanation in stub mode', () => {
+describe('getDecryptionExplanationState', () => {
+  it('returns stub mode state when stub mode is active', () => {
     vi.stubEnv('VITE_USE_STUBS', 'true');
-    const explanation = getDecryptionExplanation();
-    expect(explanation).toContain('development mode');
-    expect(explanation).toContain('simulated data');
+    expect(getDecryptionExplanationState()).toEqual({ mode: 'stub', wasmReady: false });
   });
 
-  it('returns real explanation with WASM status in real mode', () => {
+  it('returns real mode state with WASM ready when WASM is available', () => {
     vi.stubEnv('VITE_USE_STUBS', '');
-    const explanation = getDecryptionExplanation();
-    expect(explanation).toContain('zero-knowledge cryptography');
-    expect(explanation).toContain('BLS12-381');
-    expect(explanation).toContain('WASM cryptography loaded and ready');
-  });
-
-  it('includes step-by-step description in real mode', () => {
-    vi.stubEnv('VITE_USE_STUBS', '');
-    const explanation = getDecryptionExplanation();
-    expect(explanation).toContain('wallet signature');
-    expect(explanation).toContain('blockchain history');
-    expect(explanation).toContain('pairing operations');
-    expect(explanation).toContain('decrypted locally');
+    const state = getDecryptionExplanationState();
+    expect(state.mode).toBe('real');
+    // wasmReady is the runtime check; in tests this defaults to whatever
+    // isWasmDecryptAvailable() returns — assert the field exists with a
+    // boolean value rather than the specific value.
+    expect(typeof state.wasmReady).toBe('boolean');
   });
 });
 

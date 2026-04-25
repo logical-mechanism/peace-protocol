@@ -1,19 +1,20 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface Shortcut {
   keys: string;
-  description: string;
+  descriptionKey: string;
 }
 
 const SHORTCUTS: Shortcut[] = [
-  { keys: 'Ctrl + 1–5', description: 'Switch dashboard tab' },
-  { keys: 'Ctrl + R', description: 'Refresh data' },
-  { keys: 'Ctrl + K', description: 'Open command palette' },
-  { keys: '← →', description: 'Navigate tabs (when focused)' },
-  { keys: 'Home / End', description: 'First / last tab' },
-  { keys: 'Esc', description: 'Close modal or overlay' },
-  { keys: '?', description: 'Toggle this help' },
+  { keys: 'Ctrl + 1–5', descriptionKey: 'overlay.shortcuts.tabSwitch' },
+  { keys: 'Ctrl + R', descriptionKey: 'overlay.shortcuts.refresh' },
+  { keys: 'Ctrl + K', descriptionKey: 'overlay.shortcuts.commandPalette' },
+  { keys: '← →', descriptionKey: 'overlay.shortcuts.tabNavigate' },
+  { keys: 'Home / End', descriptionKey: 'overlay.shortcuts.tabFirstLast' },
+  { keys: 'Esc', descriptionKey: 'overlay.shortcuts.closeModal' },
+  { keys: '?', descriptionKey: 'overlay.shortcuts.toggleHelp' },
 ];
 
 interface KeyboardShortcutsOverlayProps {
@@ -25,6 +26,7 @@ export default function KeyboardShortcutsOverlay({
   isOpen,
   onClose,
 }: KeyboardShortcutsOverlayProps) {
+  const { t } = useTranslation('common');
   const overlayRef = useRef<HTMLDivElement>(null);
   useFocusTrap(overlayRef, isOpen);
 
@@ -59,11 +61,11 @@ export default function KeyboardShortcutsOverlay({
       >
         <div className="flex items-center justify-between mb-4">
           <h2 id="shortcuts-title" className="text-lg font-semibold text-[var(--text-primary)]">
-            Keyboard Shortcuts
+            {t('overlay.shortcutsTitle')}
           </h2>
           <button
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('overlay.shortcutsCloseDialog')}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -77,14 +79,14 @@ export default function KeyboardShortcutsOverlay({
               <tr key={s.keys} className="border-b border-[var(--border-subtle)] last:border-0">
                 <td className="py-2.5 pr-4">
                   <kbd
-                    aria-label={`Key: ${s.keys}`}
+                    aria-label={t('overlay.shortcutKeyLabel', { keys: s.keys })}
                     className="px-2 py-1 text-xs font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)]"
                   >
                     {s.keys}
                   </kbd>
                 </td>
                 <td className="py-2.5 text-sm text-[var(--text-secondary)]">
-                  {s.description}
+                  {t(s.descriptionKey)}
                 </td>
               </tr>
             ))}

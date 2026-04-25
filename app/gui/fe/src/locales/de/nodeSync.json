@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "Node-Einrichtung",
+    "bootstrapping": "Snapshot herunterladen",
+    "starting": "Node wird gestartet",
+    "syncing": "Chain wird synchronisiert",
+    "synced": "Node bereit",
+    "error": "Node-Fehler"
+  },
+  "network": {
+    "preprod": "Preprod-Netzwerk",
+    "mainnet": "Mainnet-Netzwerk"
+  },
+  "stages": {
+    "bootstrap": "Bootstrap",
+    "starting": "Starten",
+    "syncing": "Synchronisierung",
+    "ready": "Bereit"
+  },
+  "progressLabel": "Synchronisierungsfortschritt",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "Ledger wird wiedergegeben...",
+      "description": "Validiert Blöcke der Cardano-Blockchain und pflegt eine lokale Kopie des Ledgers."
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "Verbinden...",
+      "description": "Übersetzt Node-Daten in ein WebSocket-Protokoll für Transaktionserstellung und -übermittlung."
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "Starten...",
+      "description": "Indexiert UTxOs an Vertrags- und Wallet-Adressen für schnelle Guthaben- und Angebotsabfragen."
+    },
+    "states": {
+      "waiting": "Warten...",
+      "starting": "Starten...",
+      "ready": "Bereit",
+      "error": "Fehler"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "Backend-Server",
+    "syncing": "Synchronisierung {{percent}}%",
+    "indexing": "Indexierung {{percent}}%",
+    "disconnected": "Getrennt",
+    "stalled": "Blockiert",
+    "starting": "Starten...",
+    "waiting": "Warten...",
+    "synced": "Synchronisiert"
+  },
+  "syncInfo": {
+    "block": "Block {{height}} — {{percent}}%",
+    "epoch": "Epoche {{epoch}} ({{era}})",
+    "slot": "Slot {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "Blockchain-Daten nicht gefunden. Lade einen Snapshot herunter, um zu beginnen.",
+    "stopped": "Node-Infrastruktur ist gestoppt.",
+    "bootstrapDownloading": "Snapshot wird heruntergeladen: {{current}} / {{total}} Dateien",
+    "bootstrapLedgerState": "Ledger-Zustand wird heruntergeladen: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "Blockchain-Snapshot wird zum Download vorbereitet...",
+    "bootstrapGeneric": "Snapshot wird heruntergeladen...",
+    "startingNode": "Cardano Node wird gestartet...",
+    "waitingChainBridge": "Warte auf Chain-Bridge...",
+    "connectingNetwork": "Verbindung zum Netzwerk wird hergestellt...",
+    "fullySyncedStartingBackend": "Vollständig synchronisiert, Backend-Dienste werden gestartet...",
+    "fullySynced": "Vollständig synchronisiert mit {{network}}-Netzwerk",
+    "nodeSyncedWaitingKupo": "Node synchronisiert, warte auf Kupo Indexer...",
+    "syncing": "Synchronisierung mit {{network}}-Netzwerk...",
+    "syncedAtBlock": "Vollständig synchronisiert mit {{network}}-Netzwerk bei Block {{height}}",
+    "genericError": "Ein Fehler ist aufgetreten"
+  },
+  "stuckMessage": "Die letzten Blöcke dauern länger, da der Node aktuelle Transaktionen validiert. Das ist normal. Die letzten Prozent können 5–15 Minuten dauern, da der Node aktuelle Blöcke validiert.",
+  "diskSpace": {
+    "low": "Wenig Speicherplatz: {{available}} GB verfügbar, ca. {{required}} GB benötigt für {{network}}. Die Synchronisierung kann fehlschlagen, wenn der Speicherplatz ausgeht.",
+    "unknown": "Speicherplatz konnte nicht überprüft werden. Stelle sicher, dass mindestens 10 GB frei sind, bevor du synchronisierst."
+  },
+  "actions": {
+    "starting": "Starten...",
+    "downloadSnapshot": "Snapshot herunterladen & starten",
+    "startNode": "Node starten",
+    "retry": "Erneut versuchen",
+    "continueDashboard": "Weiter zum Dashboard",
+    "continueBackground": "Im Hintergrund fortsetzen",
+    "stop": "Stopp"
+  },
+  "console": {
+    "show": "Konsolenausgabe anzeigen ({{count}} Zeilen)",
+    "hide": "Konsolenausgabe ausblenden ({{count}} Zeilen)",
+    "copyLogs": "Logs kopieren",
+    "copyLogsAria": "Logs in die Zwischenablage kopieren",
+    "noLogsTitle": "Keine Logs",
+    "noLogsBody": "Es gibt keine Logzeilen zum Kopieren.",
+    "copiedTitle": "Logs kopiert",
+    "copiedBody": "Konsolenausgabe in die Zwischenablage kopiert.",
+    "copyFailedTitle": "Kopieren fehlgeschlagen",
+    "copyFailedBody": "Logs konnten nicht in die Zwischenablage kopiert werden."
+  },
+  "errorDetails": {
+    "summary": "Details",
+    "copyAria": "Fehlerdetails kopieren",
+    "errorFallback": "Fehler"
+  },
+  "wasm": {
+    "checkingSetup": "SNARK-Setup-Dateien werden überprüft...",
+    "checkingExist": "Überprüfe ob Setup-Dateien existieren...",
+    "proverReady": "SNARK-Prover bereit",
+    "setupFound": "Setup-Dateien gefunden",
+    "decompressing": "SNARK-Setup-Dateien werden dekomprimiert...",
+    "decompressingDetail": "pk.bin und ccs.bin werden dekomprimiert (~500MB)...",
+    "decompressed": "Setup-Dateien dekomprimiert"
+  },
+  "firstTimeSetup": {
+    "title": "Ersteinrichtung",
+    "description": "Ein Mithril-Snapshot wird heruntergeladen, um den Cardano Node zu starten. Dies dauert je nach Verbindungsgeschwindigkeit etwa 10-20 Minuten. Der Snapshot wird vor der Verwendung kryptografisch verifiziert."
+  }
+}

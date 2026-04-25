@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { useNode } from '../contexts/NodeContext';
 import { encryptionsApi, bidsApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
@@ -20,8 +22,9 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
 import { getNsfwEnabled } from '../services/nsfwStorage';
+import { getOnboardingState } from '../services/onboardingStorage';
 import { truncateHex } from '../utils/truncate';
-import { getCategoryLabel } from '../utils/formatListing';
+// Category labels resolved via t('common:categories.{id}')
 import Select from './Select';
 
 interface MarketplaceTabProps {
@@ -29,13 +32,17 @@ interface MarketplaceTabProps {
   lovelace?: string | null;
   onPlaceBid?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onCreateListing?: () => void;
+  onStartTutorial?: () => void;
+  /** Starts the bid tutorial on the first available listing. No-op if none are bid-eligible. */
+  onStartBidTutorial?: (encryption: EncryptionDisplay, bidCount: number) => void;
   onLocalRefresh?: () => void;
   refreshSignal?: number;
   filters: MarketplaceFilters;
   dispatch: React.Dispatch<MarketplaceAction>;
 }
 
-function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStartTutorial, onStartBidTutorial, onLocalRefresh, refreshSignal, filters, dispatch }: MarketplaceTabProps) {
+  const { t } = useTranslation('dashboard');
   const { expressReady } = useNode();
   const [encryptions, setEncryptions] = useState<EncryptionDisplay[]>([]);
   const [allBids, setAllBids] = useState<BidDisplay[]>([]);
@@ -48,6 +55,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   const [prevDataCount, setPrevDataCount] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [nsfwEnabled] = useState(() => getNsfwEnabled());
+  const [tutorialBannerDismissed, setTutorialBannerDismissed] = useState(false);
+  const [bidBannerDismissed, setBidBannerDismissed] = useState(false);
+
+  // Show tutorial banner when base onboarding is done but first listing hasn't been completed
+  const showTutorialBanner = useMemo(() => {
+    if (tutorialBannerDismissed) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstListingCompleted;
+  }, [tutorialBannerDismissed]);
 
   // Close filters panel on Escape key
   useEffect(() => {
@@ -106,13 +122,13 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         // Keep showing previously loaded data with a stale warning
         setIsStale(true);
       } else {
-        setError(err instanceof Error ? err.message : 'Failed to fetch listings');
+        setError(err instanceof Error ? err.message : t('marketplace.failedTitle'));
       }
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [t]);
 
   // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
@@ -237,6 +253,25 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     return filteredAndSorted.slice(0, currentPage * ITEMS_PER_PAGE);
   }, [filteredAndSorted, currentPage]);
 
+  // First listing the user can actually bid on — used for the bid tutorial's
+  // "Start Tour" button and to mark which card's Place Bid button gets the
+  // tutorial target id.
+  const firstBidEligible = useMemo(() => {
+    return paginatedResults.find(
+      (e) => !isOwnListing(e) && !userBidEncryptionTokens.has(e.tokenName) && e.status === 'active'
+    );
+  }, [paginatedResults, isOwnListing, userBidEncryptionTokens]);
+
+  // Show bid tutorial banner when onboarding is done, first bid not completed, AND
+  // there is actually a bid-eligible listing on screen. Hiding when the marketplace
+  // has nothing to bid on avoids a dead-end banner ("click Place Bid" with no cards).
+  const showBidBanner = useMemo(() => {
+    if (bidBannerDismissed) return false;
+    if (!firstBidEligible) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstBidCompleted;
+  }, [bidBannerDismissed, firstBidEligible]);
+
   const hasMore = paginatedResults.length < filteredAndSorted.length;
 
   const sentinelRef = useInfiniteScroll({
@@ -245,10 +280,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
   });
 
   const screenReaderMessage = loading
-    ? 'Loading marketplace listings…'
+    ? t('marketplace.loading')
     : error
-    ? 'Error loading marketplace listings'
-    : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'} loaded`;
+    ? t('marketplace.loadError')
+    : t('marketplace.loadedCount', { count: filteredAndSorted.length });
 
   const staleBanner = isStale ? (
     <div
@@ -275,7 +310,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
         />
       </svg>
-      <span>Showing cached listings — data may be outdated.</span>
+      <span>{t('marketplace.staleBannerMessage')}</span>
       <button
         onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
         className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
@@ -283,15 +318,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           background: 'var(--warning)',
           color: 'var(--bg-primary)',
         }}
-        aria-label="Retry loading marketplace listings"
+        aria-label={t('marketplace.staleRetryAria')}
       >
-        Retry
+        {t('marketplace.staleRetry')}
       </button>
       <button
         onClick={() => setIsStale(false)}
         className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
         style={{ color: 'var(--warning)' }}
-        aria-label="Dismiss stale data warning"
+        aria-label={t('marketplace.staleDismissAria')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -315,14 +350,14 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           icon={<PackageIcon />}
-          title="Failed to load listings"
+          title={t('marketplace.failedTitle')}
           description={error}
           action={
             <button
               onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Try Again
+              {t('marketplace.tryAgain')}
             </button>
           }
         />
@@ -341,9 +376,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           type="button"
           onClick={handleClearSellerFilter}
           className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
-          aria-label={`Clear seller filter for ${truncateHex(sellerPkh, 10, 6)}`}
+          aria-label={t('marketplace.clearSellerAria', { pkh: truncateHex(sellerPkh, 10, 6) })}
         >
-          <span>Seller: <span className="font-mono">{truncateHex(sellerPkh, 10, 6)}</span></span>
+          <span>{t('marketplace.sellerChipPrefix')} <span className="font-mono">{truncateHex(sellerPkh, 10, 6)}</span></span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -354,9 +389,9 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           type="button"
           onClick={handleClearCategoryFilter}
           className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-[var(--accent-muted)] text-[var(--accent)] border border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-colors duration-[var(--transition-fast)] cursor-pointer"
-          aria-label={`Clear category filter for ${getCategoryLabel(singleCategorySelected)}`}
+          aria-label={t('marketplace.clearCategoryAria', { category: t(`common:categories.${singleCategorySelected || 'text'}`) })}
         >
-          <span>Category: {getCategoryLabel(singleCategorySelected)}</span>
+          <span>{t('marketplace.categoryChipPrefix')} {t(`common:categories.${singleCategorySelected || 'text'}`)}</span>
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -371,6 +406,114 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
     <div>
       <RefreshIndicator visible={isRefreshing} />
       {staleBanner}
+      {showTutorialBanner && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('marketplace.tutorialBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('marketplace.tutorialBannerDesc')}</span>
+          </div>
+          <button
+            onClick={() => {
+              setTutorialBannerDismissed(true);
+              onStartTutorial?.();
+            }}
+            className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+            style={{
+              background: 'var(--accent)',
+              color: 'var(--bg-primary)',
+            }}
+          >
+            {t('marketplace.tutorialBannerStart')}
+          </button>
+          <button
+            onClick={() => setTutorialBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('marketplace.tutorialBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {showBidBanner && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('marketplace.bidBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('marketplace.bidBannerDesc')}</span>
+          </div>
+          {onStartBidTutorial && firstBidEligible && (
+            <button
+              onClick={() => {
+                setBidBannerDismissed(true);
+                onStartBidTutorial(firstBidEligible, getBidCount(firstBidEligible.tokenName));
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('marketplace.tutorialBannerStart')}
+            </button>
+          )}
+          <button
+            onClick={() => setBidBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('marketplace.tutorialBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {activeChips}
       {/* Toolbar */}
       <div className="mb-6">
@@ -394,17 +537,17 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             </svg>
             <input
               type="text"
-              placeholder="Search listings by name, description, or seller PKH..."
+              placeholder={t('marketplace.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-              aria-label="Search listings"
+              aria-label={t('marketplace.searchAria')}
               className="w-full pl-10 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
             />
             {searchQuery && (
               <button
                 onClick={() => dispatch({ type: 'SET_SEARCH', payload: '' })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
-                aria-label="Clear search"
+                aria-label={t('filters.clearSearch')}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -419,13 +562,13 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             className={`flex items-center gap-2 px-3 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary cursor-pointer ${
               filtersOpen ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]' : ''
             }`}
-            aria-label="Toggle filters"
+            aria-label={t('filters.toggleFilters')}
             aria-expanded={filtersOpen}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
-            <span>Filters</span>
+            <span>{t('filters.filtersLabel')}</span>
             {panelFilterCount > 0 && (
               <span className="bg-[var(--accent)] text-white rounded-full text-xs w-5 h-5 flex items-center justify-center font-medium">
                 {panelFilterCount}
@@ -447,8 +590,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
           <button
             onClick={() => { fetchEncryptions(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Refresh listings"
-            aria-label="Refresh listings"
+            title={t('marketplace.refreshTitle')}
+            aria-label={t('marketplace.refreshAria')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -469,12 +612,12 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               <Select
                 value={statusFilter}
                 options={[
-                  { value: 'all', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'pending', label: 'Pending' },
+                  { value: 'all', label: t('filters.allStatus') },
+                  { value: 'active', label: t('filters.statusActive') },
+                  { value: 'pending', label: t('filters.statusPending') },
                 ]}
                 onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MarketplaceFilters['statusFilter'] })}
-                ariaLabel="Filter by status"
+                ariaLabel={t('filters.filterByStatus')}
               />
             </div>
 
@@ -496,16 +639,16 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
 
             {/* Date Range (filters by UTxO creation date, not original listing date) */}
             <DateFilter
-              label="After"
+              label={t('filters.dateAfter')}
               value={dateFrom}
               onChange={(v) => dispatch({ type: 'SET_DATE_FROM', payload: v })}
-              ariaLabel="UTxO created after date"
+              ariaLabel={t('filters.dateAfterAria')}
             />
             <DateFilter
-              label="Before"
+              label={t('filters.dateBefore')}
               value={dateTo}
               onChange={(v) => dispatch({ type: 'SET_DATE_TO', payload: v })}
-              ariaLabel="UTxO created before date"
+              ariaLabel={t('filters.dateBeforeAria')}
             />
 
             {/* Sort */}
@@ -513,16 +656,16 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
               <Select
                 value={sortBy}
                 options={[
-                  { value: 'newest', label: 'Newest First' },
-                  { value: 'oldest', label: 'Oldest First' },
-                  { value: 'price-high', label: 'Price: High to Low' },
-                  { value: 'price-low', label: 'Price: Low to High' },
-                  { value: 'most-bids', label: 'Most Bids' },
-                  { value: 'alpha-asc', label: 'A → Z (Description)' },
-                  { value: 'alpha-desc', label: 'Z → A (Description)' },
+                  { value: 'newest', label: t('filters.sortNewest') },
+                  { value: 'oldest', label: t('filters.sortOldest') },
+                  { value: 'price-high', label: t('filters.sortPriceHigh') },
+                  { value: 'price-low', label: t('filters.sortPriceLow') },
+                  { value: 'most-bids', label: t('filters.sortMostBids') },
+                  { value: 'alpha-asc', label: t('filters.sortAlphaAsc') },
+                  { value: 'alpha-desc', label: t('filters.sortAlphaDesc') },
                 ]}
                 onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MarketplaceFilters['sortBy'] })}
-                ariaLabel="Sort listings"
+                ariaLabel={t('mySales.sortListingsAria')}
               />
             </div>
 
@@ -534,8 +677,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
-              title={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
-              aria-label={showFavoritesOnly ? 'Show all listings' : 'Show favorites only'}
+              title={showFavoritesOnly ? t('marketplace.toggleFavoritesShowAll') : t('marketplace.toggleFavoritesOnly')}
+              aria-label={showFavoritesOnly ? t('marketplace.toggleFavoritesShowAll') : t('marketplace.toggleFavoritesOnly')}
               aria-pressed={showFavoritesOnly}
             >
               <svg className="w-4 h-4" fill={showFavoritesOnly ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -551,8 +694,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
-              title={hideOwnListings ? 'Showing others only' : 'Hide your own listings'}
-              aria-label={hideOwnListings ? 'Showing others only' : 'Hide your own listings'}
+              title={hideOwnListings ? t('marketplace.toggleHideOwnOn') : t('marketplace.toggleHideOwnOff')}
+              aria-label={hideOwnListings ? t('marketplace.toggleHideOwnOn') : t('marketplace.toggleHideOwnOff')}
               aria-pressed={hideOwnListings}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -571,11 +714,11 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                   ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
                   : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
-              title={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
-              aria-label={hideNsfw ? 'NSFW hidden' : 'Hide NSFW listings'}
+              title={hideNsfw ? t('marketplace.nsfwHidden') : t('marketplace.nsfwHide')}
+              aria-label={hideNsfw ? t('marketplace.nsfwHidden') : t('marketplace.nsfwHide')}
               aria-pressed={hideNsfw}
             >
-              <span className="text-xs font-bold">NSFW</span>
+              <span className="text-xs font-bold">{t('marketplace.nsfw')}</span>
               {hideNsfw && (
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -590,15 +733,15 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
       <div role="status" className="mb-4 flex items-center gap-3 text-sm text-[var(--text-muted)]">
         <span>
           {hasMore
-            ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`
-            : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'listing' : 'listings'}`}
+            ? t('marketplace.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })
+            : t('marketplace.totalCount', { count: filteredAndSorted.length })}
         </span>
         {activeFilterCount > 0 && (
           <button
             onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
             className="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
           >
-            {activeFilterCount} {activeFilterCount === 1 ? 'filter' : 'filters'} active &mdash; Clear
+            {t('marketplace.activeFilters', { count: activeFilterCount })}
           </button>
         )}
       </div>
@@ -608,28 +751,28 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
         activeFilterCount > 0 ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
-            title="No matching listings"
-            description="Try adjusting your search or filters"
+            title={t('marketplace.noMatchingTitle')}
+            description={t('marketplace.noMatchingDesc')}
             action={
               <button
                 onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Clear Filters
+                {t('filters.clearFilters')}
               </button>
             }
           />
         ) : (
           <EmptyState
             illustration={<MarketplaceEmptyIllustration />}
-            title="No listings available yet"
-            description="Be the first to create one!"
+            title={t('marketplace.emptyTitle')}
+            description={t('marketplace.emptyDesc')}
             action={onCreateListing && (
               <button
                 onClick={onCreateListing}
                 className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                Create Listing
+                {t('marketplace.createListing')}
               </button>
             )}
           />
@@ -654,6 +797,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}
@@ -678,6 +822,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
                 onFilterByCategory={handleFilterByCategory}
                 searchQuery={searchQuery}
                 nsfwEnabled={nsfwEnabled}
+                tutorialTarget={encryption === firstBidEligible}
               />
             </div>
           ))}
@@ -691,13 +836,13 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onLoca
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
-            Showing {paginatedResults.length} of {filteredAndSorted.length}
+            {t('marketplace.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })}
           </p>
           <button
             onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
             className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Load More
+            {t('filters.loadMore')}
           </button>
           <div ref={sentinelRef} className="h-1" />
         </div>

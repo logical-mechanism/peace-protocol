@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay } from '../services/api';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
@@ -19,6 +20,7 @@ export default function UpdatePriceModal({
   onSubmit,
   encryption,
 }: UpdatePriceModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const [priceAda, setPriceAda] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,25 +53,25 @@ export default function UpdatePriceModal({
   const validateForm = (): boolean => {
     const trimmed = priceAda.trim();
     if (!trimmed) {
-      setError('Price is required');
+      setError(t('modals:updatePrice.errors.required'));
       return false;
     }
     const parsed = parseFloat(trimmed.replace(/,/g, ''));
     if (isNaN(parsed)) {
-      setError('Price must be a valid number');
+      setError(t('modals:updatePrice.errors.invalid'));
       return false;
     }
     if (parsed < 0) {
-      setError('Price cannot be negative');
+      setError(t('modals:updatePrice.errors.negative'));
       return false;
     }
     if (parsed > 45_000_000_000) {
-      setError('Price exceeds maximum (45B ADA)');
+      setError(t('modals:updatePrice.errors.max'));
       return false;
     }
     const newLovelace = Math.floor(parsed * 1_000_000);
     if (encryption?.suggestedPrice !== undefined && newLovelace === encryption.suggestedPrice) {
-      setError('New price is the same as the current price');
+      setError(t('modals:updatePrice.errors.same'));
       return false;
     }
     setError(null);
@@ -93,7 +95,7 @@ export default function UpdatePriceModal({
     e.preventDefault();
 
     if (!encryption) {
-      setSubmitError(getFriendlyError('No encryption selected'));
+      setSubmitError(getFriendlyError(t('modals:updatePrice.errors.noEncryption')));
       return;
     }
 
@@ -107,7 +109,7 @@ export default function UpdatePriceModal({
       await onSubmit(encryption, newPriceLovelace);
       onClose();
     } catch (err) {
-      setSubmitError(getFriendlyError(err instanceof Error ? err.message : 'Unknown error'));
+      setSubmitError(getFriendlyError(err instanceof Error ? err.message : t('modals:updatePrice.errors.unknown')));
     } finally {
       setIsSubmitting(false);
     }
@@ -142,7 +144,7 @@ export default function UpdatePriceModal({
         <form onSubmit={handleSubmit}>
           {/* Header */}
           <div className="p-[var(--space-lg)] border-b border-[var(--border-subtle)]">
-            <h2 id="update-price-title" className="text-lg font-semibold text-[var(--text-primary)]">Update Price</h2>
+            <h2 id="update-price-title" className="text-lg font-semibold text-[var(--text-primary)]">{t('modals:updatePrice.title')}</h2>
           </div>
 
           {/* Body */}
@@ -150,7 +152,7 @@ export default function UpdatePriceModal({
             {/* Current price display */}
             {currentPriceAda !== undefined && (
               <div className="flex items-center justify-between p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-                <span className="text-sm text-[var(--text-muted)]">Current price</span>
+                <span className="text-sm text-[var(--text-muted)]">{t('modals:updatePrice.currentPrice')}</span>
                 <span className="text-sm font-medium text-[var(--text-secondary)]">
                   {formatAda(encryption!.suggestedPrice!)} ADA
                 </span>
@@ -160,7 +162,7 @@ export default function UpdatePriceModal({
             {/* New price input */}
             <div>
               <label htmlFor="update-price-input" className="block text-sm font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">
-                New Price (ADA)
+                {t('modals:updatePrice.newPriceLabel')}
               </label>
               <input
                 ref={priceInputRef}
@@ -186,7 +188,7 @@ export default function UpdatePriceModal({
               {/* Lovelace preview */}
               {priceAda.trim() && !isNaN(parseFloat(priceAda)) && parseFloat(priceAda) >= 0 && (
                 <p id="update-price-hint" className="mt-[var(--space-1)] text-xs text-[var(--text-muted)]">
-                  = {Math.floor(parseFloat(priceAda.replace(/,/g, '')) * 1_000_000).toLocaleString()} lovelace
+                  {t('modals:updatePrice.lovelaceSuffix', { amount: Math.floor(parseFloat(priceAda.replace(/,/g, '')) * 1_000_000).toLocaleString() })}
                 </p>
               )}
             </div>
@@ -208,7 +210,7 @@ export default function UpdatePriceModal({
               disabled={isSubmitting}
               className="px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
-              Cancel
+              {t('common:actions.cancel')}
             </button>
             <button
               type="submit"
@@ -216,7 +218,7 @@ export default function UpdatePriceModal({
               className="px-[var(--space-md)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary flex items-center gap-[var(--space-2)]"
             >
               {isSubmitting && <LoadingSpinner size="sm" />}
-              {isSubmitting ? 'Updating...' : 'Update Price'}
+              {isSubmitting ? t('modals:updatePrice.submitting') : t('modals:updatePrice.submit')}
             </button>
           </div>
         </form>

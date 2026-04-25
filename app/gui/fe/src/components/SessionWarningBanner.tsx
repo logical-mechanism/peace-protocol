@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next'
 import { useWalletContext } from '../contexts/WalletContext'
 
 export default function SessionWarningBanner() {
+  const { t } = useTranslation('notifications')
   const { sessionWarningSeconds, extendSession } = useWalletContext()
 
   if (sessionWarningSeconds === null || sessionWarningSeconds > 60) return null
@@ -39,11 +41,7 @@ export default function SessionWarningBanner() {
           color: 'var(--bg-primary)',
         }}
       >
-        <span>
-          Session will lock in{' '}
-          <strong className="font-mono">{timeDisplay}</strong>
-          {' '}&mdash; click Stay Active or press any key to continue
-        </span>
+        <span>{t('banner.sessionWarning', { time: timeDisplay })}</span>
         <button
           onClick={extendSession}
           className="px-3 py-1 text-xs font-medium rounded cursor-pointer"
@@ -51,9 +49,9 @@ export default function SessionWarningBanner() {
             background: 'var(--bg-primary)',
             color: 'var(--warning)',
           }}
-          aria-label="Extend session"
+          aria-label={t('banner.extendSessionAria')}
         >
-          Stay Active
+          {t('banner.stayActive')}
         </button>
       </div>
     </div>

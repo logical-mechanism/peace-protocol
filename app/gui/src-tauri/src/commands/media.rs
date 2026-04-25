@@ -189,7 +189,7 @@ pub fn cleanup_image_cache(images_dir: &Path, max_age_secs: u64, max_size_bytes:
     // Pass 3: Enforce size cap — delete oldest first
     let total_size: u64 = images.iter().map(|i| i.size).sum();
     if total_size > max_size_bytes {
-        images.sort_by(|a, b| a.modified.cmp(&b.modified));
+        images.sort_by_key(|a| a.modified);
         let mut current_size = total_size;
         let mut deleted_size = 0u32;
         for img in &images {

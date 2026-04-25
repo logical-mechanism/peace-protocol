@@ -572,7 +572,7 @@ describe('AudioPlayer component', () => {
       });
       renderPlayer({ fileExtension: '.flac' });
       await waitForError();
-      expect(screen.getByText('FLAC')).toBeInTheDocument();
+      expect(screen.getByText(/FLAC/)).toBeInTheDocument();
     });
 
     it('shows Save As button in error state when onExport provided', async () => {

@@ -5,8 +5,10 @@
  * Handles Mithril snapshot download (first run) and node sync progress.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import '../i18n'
 import { useNode, type NodeStage, type ProcessInfo } from '../contexts/NodeContext'
 import { useWalletContext } from '../contexts/WalletContext'
 import { useToast, ToastContainer } from '../components/Toast'
@@ -15,8 +17,9 @@ import { formatElapsedTime, formatEta, formatSpeed, getErrorGuidance } from '../
 import { invoke } from '@tauri-apps/api/core'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatBytes } from '../utils/formatBytes'
+import type { TFunction } from 'i18next'
 
-function ProgressBar({ percent }: { percent: number }) {
+function ProgressBar({ percent, label }: { percent: number; label: string }) {
   return (
     <div
       className="w-full h-6 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] overflow-hidden"
@@ -24,7 +27,7 @@ function ProgressBar({ percent }: { percent: number }) {
       aria-valuenow={Math.round(percent)}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label="Sync progress"
+      aria-label={label}
     >
       <div
         className="h-full bg-gradient-to-r from-[var(--accent)] to-[var(--success)] transition-[width] duration-500 ease-out progress-bar-shimmer"
@@ -106,38 +109,49 @@ function ConsoleLog({ logs }: { logs: string[] }) {
   )
 }
 
-const SERVICE_ITEMS = [
-  { name: 'cardano-node', label: 'Cardano Node', startingText: 'Replaying ledger...', description: 'Validates blocks from the Cardano blockchain and maintains a local copy of the ledger.' },
-  { name: 'ogmios', label: 'Ogmios Bridge', startingText: 'Connecting...', description: 'Translates node data into a WebSocket protocol for transaction building and submission.' },
-  { name: 'kupo', label: 'Kupo Indexer', startingText: 'Starting...', description: 'Indexes UTxOs at contract and wallet addresses for fast balance and listing queries.' },
-]
+interface ServiceItem {
+  name: string
+  label: string
+  startingText: string
+  description: string
+}
 
-function getServiceState(name: string, processes: ProcessInfo[]): {
+function getServiceItems(t: TFunction<'nodeSync'>): ServiceItem[] {
+  return [
+    { name: 'cardano-node', label: t('services.cardanoNode.label'), startingText: t('services.cardanoNode.startingText'), description: t('services.cardanoNode.description') },
+    { name: 'ogmios', label: t('services.ogmios.label'), startingText: t('services.ogmios.startingText'), description: t('services.ogmios.description') },
+    { name: 'kupo', label: t('services.kupo.label'), startingText: t('services.kupo.startingText'), description: t('services.kupo.description') },
+  ]
+}
+
+function getServiceState(name: string, processes: ProcessInfo[], items: ServiceItem[], t: TFunction<'nodeSync'>): {
   indicator: 'waiting' | 'active' | 'ready' | 'error'
   text: string
 } {
   const proc = processes.find(p => p.name === name)
-  if (!proc) return { indicator: 'waiting', text: 'Waiting...' }
-  const item = SERVICE_ITEMS.find(s => s.name === name)
+  if (!proc) return { indicator: 'waiting', text: t('services.states.waiting') }
+  const item = items.find(s => s.name === name)
   switch (proc.status.type) {
     case 'Starting':
     case 'Syncing':
-      return { indicator: 'active', text: item?.startingText ?? 'Starting...' }
+      return { indicator: 'active', text: item?.startingText ?? t('services.states.starting') }
     case 'Running':
     case 'Ready':
-      return { indicator: 'ready', text: 'Ready' }
+      return { indicator: 'ready', text: t('services.states.ready') }
     case 'Error':
-      return { indicator: 'error', text: proc.last_error ?? 'Error' }
+      return { indicator: 'error', text: proc.last_error ?? t('services.states.error') }
     default:
-      return { indicator: 'waiting', text: 'Waiting...' }
+      return { indicator: 'waiting', text: t('services.states.waiting') }
   }
 }
 
 function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
+  const { t } = useTranslation('nodeSync')
+  const serviceItems = useMemo(() => getServiceItems(t), [t])
   return (
     <div className="mb-[var(--space-md)] space-y-[var(--space-3)]">
-      {SERVICE_ITEMS.map(({ name, label, description }) => {
-        const state = getServiceState(name, processes)
+      {serviceItems.map(({ name, label, description }) => {
+        const state = getServiceState(name, processes, serviceItems, t)
         return (
           <div key={name} className="flex items-center gap-[var(--space-3)]">
             {state.indicator === 'waiting' && (
@@ -189,16 +203,17 @@ function ServiceChecklist({ processes }: { processes: ProcessInfo[] }) {
   )
 }
 
-const STAGES = [
-  { key: 'bootstrapping', label: 'Bootstrap' },
-  { key: 'starting', label: 'Starting' },
-  { key: 'syncing', label: 'Syncing' },
-  { key: 'synced', label: 'Ready' },
-]
-
 export default function NodeSync() {
   const navigate = useNavigate()
+  const { t } = useTranslation('nodeSync')
   const { address } = useWalletContext()
+
+  const stages = useMemo(() => [
+    { key: 'bootstrapping', label: t('stages.bootstrap') },
+    { key: 'starting', label: t('stages.starting') },
+    { key: 'syncing', label: t('stages.syncing') },
+    { key: 'synced', label: t('stages.ready') },
+  ], [t])
   const {
     stage,
     syncProgress,
@@ -235,19 +250,21 @@ export default function NodeSync() {
         const requiredGb = network === 'mainnet' ? 100 : 5
         if (availableGb < requiredGb) {
           setDiskSpaceWarning(
-            `Low disk space: ${availableGb.toFixed(1)} GB available, ~${requiredGb} GB needed for ${network}. The sync may fail if disk space runs out.`
+            t('diskSpace.low', {
+              available: availableGb.toFixed(1),
+              required: requiredGb,
+              network,
+            })
           )
         } else {
           setDiskSpaceWarning(null)
         }
       } catch {
-        setDiskSpaceWarning(
-          'Could not verify disk space. Ensure you have at least 10 GB free before syncing.'
-        )
+        setDiskSpaceWarning(t('diskSpace.unknown'))
       }
     }
     checkSpace()
-  }, [needsBootstrap, stage, network])
+  }, [needsBootstrap, stage, network, t])
 
   const [showConsole, setShowConsole] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -471,14 +488,14 @@ export default function NodeSync() {
 
   const handleCopyLogs = async () => {
     if (logs.length === 0) {
-      toast.warning('No logs', 'There are no log lines to copy.')
+      toast.warning(t('console.noLogsTitle'), t('console.noLogsBody'))
       return
     }
     const success = await copyToClipboard(logs.join('\n'))
     if (success) {
-      toast.success('Logs copied', 'Console output copied to clipboard.')
+      toast.success(t('console.copiedTitle'), t('console.copiedBody'))
     } else {
-      toast.error('Copy failed', 'Could not copy logs to clipboard.')
+      toast.error(t('console.copyFailedTitle'), t('console.copyFailedBody'))
     }
   }
 
@@ -492,8 +509,8 @@ export default function NodeSync() {
   switch (stage) {
     case 'stopped':
       statusMessage = needsBootstrap
-        ? 'Blockchain data not found. Download a snapshot to get started.'
-        : 'Node infrastructure is stopped.'
+        ? t('status.stoppedNeedsBootstrap')
+        : t('status.stopped')
       break
     case 'bootstrapping':
       progressPercent = mithrilProgress?.progress_percent ?? 0
@@ -502,17 +519,20 @@ export default function NodeSync() {
           // Files phase: bytes_downloaded/total_bytes contain file counts (not bytes)
           const filesDown = mithrilProgress.bytes_downloaded
           const filesTotal = mithrilProgress.total_bytes
-          statusMessage = `Downloading snapshot: ${filesDown.toLocaleString()} / ${filesTotal.toLocaleString()} files`
+          statusMessage = t('status.bootstrapDownloading', {
+            current: filesDown.toLocaleString(),
+            total: filesTotal.toLocaleString(),
+          })
         } else if (mithrilProgress.bytes_downloaded > 0) {
           // Ancillary phase: actual byte counts
           const downloaded = formatBytes(mithrilProgress.bytes_downloaded)
           const total = formatBytes(mithrilProgress.total_bytes)
-          statusMessage = `Downloading ledger state: ${downloaded} / ${total}`
+          statusMessage = t('status.bootstrapLedgerState', { downloaded, total })
         } else {
-          statusMessage = mithrilProgress.message || 'Downloading snapshot...'
+          statusMessage = mithrilProgress.message || t('status.bootstrapGeneric')
         }
       } else {
-        statusMessage = 'Preparing to download blockchain snapshot...'
+        statusMessage = t('status.bootstrapPreparing')
       }
       break
     case 'starting': {
@@ -520,32 +540,33 @@ export default function NodeSync() {
       const nodeProc = processes.find(p => p.name === 'cardano-node')
       const ogmiosProc = processes.find(p => p.name === 'ogmios')
       if (!nodeProc || nodeProc.status.type === 'Starting')
-        statusMessage = 'Starting Cardano node...'
+        statusMessage = t('status.startingNode')
       else if (!ogmiosProc || ogmiosProc.status.type !== 'Running')
-        statusMessage = 'Waiting for chain bridge...'
+        statusMessage = t('status.waitingChainBridge')
       else
-        statusMessage = 'Connecting to network...'
+        statusMessage = t('status.connectingNetwork')
       break
     }
     case 'syncing':
       progressPercent = Math.min(syncProgress, kupoSyncProgress)
       if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9 && !expressReady) {
-        statusMessage = `Fully synced, starting backend services...`
+        statusMessage = t('status.fullySyncedStartingBackend')
       } else if (syncProgress >= 99.9 && kupoSyncProgress >= 99.9) {
-        statusMessage = `Fully synced with ${network} network`
+        statusMessage = t('status.fullySynced', { network })
       } else if (syncProgress >= 99.9) {
-        statusMessage = `Node synced, waiting for Kupo indexer...`
+        statusMessage = t('status.nodeSyncedWaitingKupo')
       } else {
-        statusMessage = `Syncing with ${network} network...`
+        statusMessage = t('status.syncing', { network })
       }
       break
     case 'synced':
       progressPercent = 100
-      statusMessage = `Fully synced with ${network} network`
-      if (tipHeight) statusMessage += ` at block ${tipHeight.toLocaleString()}`
+      statusMessage = tipHeight
+        ? t('status.syncedAtBlock', { network, height: tipHeight.toLocaleString() })
+        : t('status.fullySynced', { network })
       break
     case 'error':
-      statusMessage = error || 'An error occurred'
+      statusMessage = error || t('status.genericError')
       break
   }
 
@@ -572,27 +593,17 @@ export default function NodeSync() {
           <div className="mb-[var(--space-lg)] text-center">
             <div>
               <h1 className="text-xl font-semibold">
-                {stage === 'stopped'
-                  ? 'Node Setup'
-                  : stage === 'bootstrapping'
-                  ? 'Downloading Snapshot'
-                  : stage === 'starting'
-                  ? 'Starting Node'
-                  : stage === 'syncing'
-                  ? 'Syncing Chain'
-                  : stage === 'synced'
-                  ? 'Node Ready'
-                  : 'Node Error'}
+                {t(`title.${stage}`)}
               </h1>
               <p className="text-sm text-[var(--text-muted)]">
-                {network.charAt(0).toUpperCase() + network.slice(1)} Network
+                {network === 'mainnet' ? t('network.mainnet') : t('network.preprod')}
               </p>
             </div>
           </div>
 
           {/* Stage Indicator */}
           <div className="mb-[var(--space-lg)]">
-            <StageIndicator stages={STAGES} currentStage={stage} />
+            <StageIndicator stages={stages} currentStage={stage} />
           </div>
 
           {/* Sync status with block info and checklist */}
@@ -601,7 +612,7 @@ export default function NodeSync() {
               <div className="text-center text-sm text-[var(--text-muted)]">
                 {tipHeight != null && tipHeight > 0 ? (
                   <>
-                    Block {tipHeight.toLocaleString()} — {syncProgress.toFixed(2)}%
+                    {t('syncInfo.block', { height: tipHeight.toLocaleString(), percent: syncProgress.toFixed(2) })}
                     {syncEta && <span className="ml-[var(--space-2)]">— {syncEta}</span>}
                   </>
                 ) : (
@@ -610,29 +621,30 @@ export default function NodeSync() {
               </div>
               {epoch != null && era && (
                 <div className="text-center text-xs text-[var(--text-muted)] mt-[var(--space-1)]">
-                  Epoch {epoch} ({era}){slotInEpoch != null && slotsToEpochEnd != null && (
-                    <> — Slot {slotInEpoch.toLocaleString()} / {(slotInEpoch + slotsToEpochEnd).toLocaleString()}</>
+                  {t('syncInfo.epoch', { epoch, era })}
+                  {slotInEpoch != null && slotsToEpochEnd != null && (
+                    <> — {t('syncInfo.slot', { current: slotInEpoch.toLocaleString(), total: (slotInEpoch + slotsToEpochEnd).toLocaleString() })}</>
                   )}
                 </div>
               )}
 
               <div className="space-y-[var(--space-3)] mt-[var(--space-3)] mb-[var(--space-3)]">
                 {[
-                  { label: 'Cardano Node', synced: syncProgress >= 99.9, activeText: `Syncing ${syncProgress.toFixed(1)}%` },
+                  { label: t('syncChecklist.cardanoNode'), synced: syncProgress >= 99.9, activeText: t('syncChecklist.syncing', { percent: syncProgress.toFixed(1) }) },
                   {
-                    label: 'Kupo Indexer',
+                    label: t('syncChecklist.kupoIndexer'),
                     synced: kupoSyncProgress >= 99.9,
                     activeText: kupoConnected === false
-                      ? 'Disconnected'
+                      ? t('syncChecklist.disconnected')
                       : kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120
-                      ? 'Stalled'
-                      : `Indexing ${kupoSyncProgress.toFixed(1)}%`,
+                      ? t('syncChecklist.stalled')
+                      : t('syncChecklist.indexing', { percent: kupoSyncProgress.toFixed(1) }),
                     warning: kupoConnected === false || (kupoSecondsSinceLastBlock != null && kupoSecondsSinceLastBlock > 120),
                   },
                   {
-                    label: 'Backend Server',
+                    label: t('syncChecklist.backendServer'),
                     synced: expressReady,
-                    activeText: syncProgress >= 99.9 && kupoSyncProgress >= 99.9 ? 'Starting...' : 'Waiting...',
+                    activeText: syncProgress >= 99.9 && kupoSyncProgress >= 99.9 ? t('syncChecklist.starting') : t('syncChecklist.waiting'),
                   },
                 ].map(({ label, synced, activeText, warning }) => (
                   <div key={label} className="flex items-center gap-[var(--space-3)]">
@@ -649,7 +661,7 @@ export default function NodeSync() {
                       : warning ? 'text-[var(--warning)]'
                       : 'text-[var(--text-muted)]'
                     }`}>
-                      {synced ? 'Synced' : activeText}
+                      {synced ? t('syncChecklist.synced') : activeText}
                     </span>
                   </div>
                 ))}
@@ -660,7 +672,7 @@ export default function NodeSync() {
 
               {showStuckMessage && (
                 <div className="mt-[var(--space-3)] p-[var(--space-3)] bg-[var(--info-muted)] border border-[var(--info)]/20 rounded-[var(--radius-md)] text-xs text-[var(--info)]">
-                  The last few blocks take longer as the node validates recent transactions. This is normal. The last few percent may take 5–15 minutes as the node validates recent blocks.
+                  {t('stuckMessage')}
                 </div>
               )}
             </div>
@@ -671,7 +683,7 @@ export default function NodeSync() {
           {/* Mithril bootstrap progress bar with speed/ETA */}
           {stage === 'bootstrapping' && (
             <div className="mb-[var(--space-md)]">
-              <ProgressBar percent={progressPercent} />
+              <ProgressBar percent={progressPercent} label={t('progressLabel')} />
               <div className="flex justify-between mt-[var(--space-2)] text-sm text-[var(--text-muted)]">
                 <span>{statusMessage}</span>
                 <span>{Math.round(progressPercent)}%</span>
@@ -707,7 +719,7 @@ export default function NodeSync() {
           {/* Error state with recovery guidance */}
           {stage === 'error' && (
             <div className="mb-[var(--space-md)] p-[var(--space-md)] rounded-[var(--radius-md)] text-sm bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/20">
-              <div className="font-medium mb-[var(--space-2)]">{errorGuidance?.title ?? 'Error'}</div>
+              <div className="font-medium mb-[var(--space-2)]">{errorGuidance?.title ?? t('errorDetails.errorFallback')}</div>
               <div className="text-xs text-[var(--text-secondary)] mb-[var(--space-2)]">{statusMessage}</div>
               {errorGuidance && (
                 <ul className="text-xs text-[var(--text-muted)] space-y-[var(--space-1)] list-disc list-inside">
@@ -721,7 +733,7 @@ export default function NodeSync() {
                   className="text-xs cursor-pointer"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Details
+                  {t('errorDetails.summary')}
                 </summary>
                 <div className="flex items-start gap-[var(--space-2)] mt-[var(--space-1)]">
                   <code
@@ -734,8 +746,8 @@ export default function NodeSync() {
                     type="button"
                     onClick={handleCopyError}
                     className="shrink-0 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-                    title="Copy error details"
-                    aria-label="Copy error details"
+                    title={t('errorDetails.copyAria')}
+                    aria-label={t('errorDetails.copyAria')}
                   >
                     {copiedError ? (
                       <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -770,10 +782,10 @@ export default function NodeSync() {
                 className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-[var(--space-2)]"
               >
                 {isStarting
-                  ? 'Starting...'
+                  ? t('actions.starting')
                   : needsBootstrap
-                  ? 'Download Snapshot & Start'
-                  : 'Start Node'}
+                  ? t('actions.downloadSnapshot')
+                  : t('actions.startNode')}
               </button>
             )}
 
@@ -782,7 +794,7 @@ export default function NodeSync() {
                 onClick={handleRetry}
                 className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
               >
-                Retry
+                {t('actions.retry')}
               </button>
             )}
 
@@ -791,7 +803,7 @@ export default function NodeSync() {
                 onClick={handleContinue}
                 className="flex-1 py-[var(--space-3)] px-[var(--space-md)] bg-[var(--accent)] text-white font-medium rounded-[var(--radius-md)] hover:bg-[var(--accent)]/90 transition-all cursor-pointer"
               >
-                Continue to Dashboard
+                {t('actions.continueDashboard')}
               </button>
             )}
 
@@ -800,7 +812,7 @@ export default function NodeSync() {
                 onClick={() => navigate('/dashboard')}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-secondary)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
               >
-                Continue in Background
+                {t('actions.continueBackground')}
               </button>
             )}
 
@@ -809,7 +821,7 @@ export default function NodeSync() {
                 onClick={stopNode}
                 className="py-[var(--space-3)] px-[var(--space-md)] border border-[var(--border-subtle)] text-[var(--text-muted)] font-medium rounded-[var(--radius-md)] hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer"
               >
-                Stop
+                {t('actions.stop')}
               </button>
             )}
           </div>
@@ -821,19 +833,19 @@ export default function NodeSync() {
                 onClick={() => setShowConsole(!showConsole)}
                 className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer"
               >
-                {showConsole ? 'Hide' : 'Show'} Console Output ({logs.length} lines)
+                {showConsole ? t('console.hide', { count: logs.length }) : t('console.show', { count: logs.length })}
               </button>
               {showConsole && logs.length > 0 && (
                 <button
                   onClick={handleCopyLogs}
                   className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors cursor-pointer flex items-center gap-[var(--space-1)]"
-                  aria-label="Copy logs to clipboard"
+                  aria-label={t('console.copyLogsAria')}
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                   </svg>
-                  Copy Logs
+                  {t('console.copyLogs')}
                 </button>
               )}
             </div>
@@ -847,12 +859,8 @@ export default function NodeSync() {
           {/* Info Box */}
           {stage === 'stopped' && needsBootstrap && (
             <div className="mt-[var(--space-lg)] p-[var(--space-md)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] text-sm text-[var(--text-muted)]">
-              <p className="font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">First-time setup</p>
-              <p>
-                A Mithril snapshot will be downloaded to bootstrap the Cardano node.
-                This takes approximately 10-20 minutes depending on your connection speed.
-                The snapshot is verified cryptographically before use.
-              </p>
+              <p className="font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">{t('firstTimeSetup.title')}</p>
+              <p>{t('firstTimeSetup.description')}</p>
             </div>
           )}
         </div>

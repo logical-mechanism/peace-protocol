@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useWalletContext } from '../contexts/WalletContext';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
-import { decryptBid, decryptEncryption, getDecryptionExplanation, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
+import { decryptBid, decryptEncryption, getDecryptionExplanationState, isStubMode, type OnDecryptProgress } from '../services/crypto/decrypt';
+import { getCategoryConfig, type FileCategory } from '../config/categories';
 import { saveDecryptedContent, saveContentMetadata } from '../services/contentStorage';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
@@ -34,6 +36,7 @@ export default function DecryptModal({
   onSaveWarning,
   ownerPkh,
 }: DecryptModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const navigate = useNavigate();
   const { wallet } = useWalletContext();
   const [state, setState] = useState<DecryptState>('idle');
@@ -127,7 +130,7 @@ export default function DecryptModal({
           });
         } catch (err) {
           console.warn('Failed to save decrypted content:', err);
-          onSaveWarning?.('Decryption succeeded but file could not be saved to library. Try again from My Purchases.');
+          onSaveWarning?.(t('modals:decrypt.saveWarning'));
         }
 
         setState('success');
@@ -138,19 +141,19 @@ export default function DecryptModal({
         }
       } else {
         setState('error');
-        setError(result.error || 'Unknown error occurred');
+        setError(result.error || t('modals:decrypt.unknownError'));
         if (encryption) {
           onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
         }
       }
     } catch (err) {
       setState('error');
-      setError(err instanceof Error ? err.message : 'Failed to decrypt');
+      setError(err instanceof Error ? err.message : t('modals:decrypt.failedFallback'));
       if (encryption) {
         onDecryptResult?.({ success: false, encryptionToken: encryption.tokenName });
       }
     }
-  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning, ownerPkh]);
+  }, [wallet, bid, encryption, onDecryptResult, onSaveWarning, ownerPkh, t]);
 
   const handleCopy = useCallback(async () => {
     if (!decryptedMessage) return;
@@ -201,13 +204,13 @@ export default function DecryptModal({
             <h2 id="decrypt-modal-title" className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success'
                 ? (!encryption?.category || encryption.category === 'text'
-                    ? 'Decrypted Message'
-                    : 'Decrypted Content')
-                : 'Decrypt Content'}
+                    ? t('modals:decrypt.titleSuccessText')
+                    : t('modals:decrypt.titleSuccessFile'))
+                : t('modals:decrypt.title')}
             </h2>
             {(bid || encryption) && (
               <p className="text-sm text-[var(--text-muted)] mt-1" title={bid ? bid.encryptionToken : encryption!.tokenName}>
-                Token: {truncateHex(bid ? bid.encryptionToken : encryption!.tokenName, 12, 8)}
+                {t('modals:decrypt.tokenLabel', { token: truncateHex(bid ? bid.encryptionToken : encryption!.tokenName, 12, 8) })}
               </p>
             )}
           </div>
@@ -218,7 +221,7 @@ export default function DecryptModal({
             // (Decrypt Now) receive initial focus without timing tricks.
             <button
               onClick={handleClose}
-              aria-label="Close dialog"
+              aria-label={t('modals:common.closeDialog')}
               tabIndex={-1}
               className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
             >
@@ -247,7 +250,7 @@ export default function DecryptModal({
                   )}
                   {bid && (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-[var(--text-muted)]">Your winning bid:</span>
+                      <span className="text-[var(--text-muted)]">{t('modals:decrypt.winningBid')}</span>
                       <span className="font-semibold text-[var(--success)]">
                         {formatAda(bid.amount)} ADA
                       </span>
@@ -263,9 +266,9 @@ export default function DecryptModal({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                   </svg>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-[var(--warning)]">Iagon Connection Required</p>
+                    <p className="text-sm font-medium text-[var(--warning)]">{t('modals:decrypt.iagonRequiredTitle')}</p>
                     <p className="text-xs text-[var(--text-muted)] mt-1">
-                      This content is stored on Iagon. Connect your Iagon account to download and decrypt it.
+                      {t('modals:decrypt.iagonRequiredBody')}
                     </p>
                     <button
                       type="button"
@@ -275,16 +278,38 @@ export default function DecryptModal({
                       }}
                       className="mt-2 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-secondary"
                     >
-                      Go to Settings
+                      {t('modals:decrypt.goToSettings')}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* How it works */}
+              {/* How it works — state-driven, localized copy. */}
               <div className="space-y-3">
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">How decryption works</h3>
-                <p className="text-sm text-[var(--text-muted)]">{getDecryptionExplanation()}</p>
+                <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:decrypt.howItWorks')}</h3>
+                {(() => {
+                  const explanation = getDecryptionExplanationState();
+                  if (explanation.mode === 'stub') {
+                    return (
+                      <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                    );
+                  }
+                  const wasmStatusKey = explanation.wasmReady
+                    ? 'modals:decrypt.explanationWasmReady'
+                    : 'modals:decrypt.explanationWasmMissing';
+                  return (
+                    <div className="text-sm text-[var(--text-muted)] space-y-2">
+                      <p>{t('modals:decrypt.explanationIntro')}</p>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        <li>{t('modals:decrypt.explanationStep1')}</li>
+                        <li>{t('modals:decrypt.explanationStep2')}</li>
+                        <li>{t('modals:decrypt.explanationStep3')}</li>
+                        <li>{t('modals:decrypt.explanationStep4')}</li>
+                      </ol>
+                      <p>{t(wasmStatusKey)}</p>
+                    </div>
+                  );
+                })()}
 
                 {isStubMode() && (
                   <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
@@ -302,9 +327,9 @@ export default function DecryptModal({
                       />
                     </svg>
                     <div className="text-sm">
-                      <span className="font-medium text-[var(--warning)]">Development Mode</span>
+                      <span className="font-medium text-[var(--warning)]">{t('modals:decrypt.devModeTitle')}</span>
                       <p className="text-[var(--text-secondary)] mt-0.5">
-                        Using simulated data. Real decryption will be available when contracts are deployed on preprod.
+                        {t('modals:decrypt.devModeBody')}
                       </p>
                     </div>
                   </div>
@@ -327,9 +352,9 @@ export default function DecryptModal({
                   />
                 </svg>
                 <div className="text-sm text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text-secondary)]">Secure Process</span>
+                  <span className="font-medium text-[var(--text-secondary)]">{t('modals:decrypt.secureTitle')}</span>
                   <p className="mt-0.5">
-                    Decryption happens locally in your browser. Your keys never leave your device.
+                    {t('modals:decrypt.secureBody')}
                   </p>
                 </div>
               </div>
@@ -344,10 +369,10 @@ export default function DecryptModal({
               {phase === 'downloading' ? (
                 <>
                   <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                    Downloading...
+                    {t('modals:decrypt.downloadingTitle')}
                   </h3>
                   <p className="text-sm text-[var(--text-muted)] mb-6">
-                    Downloading file from storage
+                    {t('modals:decrypt.downloadingBody')}
                   </p>
 
                   {/* Indeterminate progress bar */}
@@ -360,10 +385,10 @@ export default function DecryptModal({
               ) : (
                 <>
                   <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                    Decrypting...
+                    {t('modals:decrypt.decryptingTitle')}
                   </h3>
                   <p className="text-sm text-[var(--text-muted)] mb-6">
-                    Processing encryption layers and deriving keys
+                    {t('modals:decrypt.decryptingBody')}
                   </p>
 
                   {/* Progress bar */}
@@ -381,7 +406,7 @@ export default function DecryptModal({
                       </div>
                       <div className="flex justify-between text-xs text-[var(--text-muted)]">
                         <span>
-                          Layer {progress.current} of {progress.total}
+                          {t('modals:decrypt.layerProgress', { current: progress.current, total: progress.total })}
                         </span>
                         <span>{Math.round((progress.current / progress.total) * 100)}%</span>
                       </div>
@@ -391,7 +416,7 @@ export default function DecryptModal({
               )}
 
               <p className="text-xs text-[var(--text-muted)] mt-4">
-                Do not close this window
+                {t('modals:decrypt.doNotClose')}
               </p>
             </div>
           )}
@@ -416,7 +441,7 @@ export default function DecryptModal({
                     />
                   </svg>
                   <span className="text-sm text-[var(--warning)]">
-                    Showing simulated content (development mode)
+                    {t('modals:decrypt.stubWarning')}
                   </span>
                 </div>
               )}
@@ -427,7 +452,7 @@ export default function DecryptModal({
                   <div className="absolute top-3 right-3">
                     <button
                       onClick={handleCopy}
-                      aria-label="Copy decrypted content to clipboard"
+                      aria-label={t('modals:decrypt.copyAriaLabel')}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--bg-secondary)] rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
                       {copied ? (
@@ -435,7 +460,7 @@ export default function DecryptModal({
                           <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          Copied!
+                          {t('modals:decrypt.copied')}
                         </>
                       ) : (
                         <>
@@ -447,7 +472,7 @@ export default function DecryptModal({
                               d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                             />
                           </svg>
-                          Copy
+                          {t('modals:decrypt.copy')}
                         </>
                       )}
                     </button>
@@ -469,7 +494,11 @@ export default function DecryptModal({
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {encryption.category.charAt(0).toUpperCase() + encryption.category.slice(1)} file decrypted
+                    {t('modals:decrypt.fileDecrypted', {
+                      category: getCategoryConfig(encryption.category as FileCategory)
+                        ? t(`common:categories.${encryption.category}`)
+                        : encryption.category,
+                    })}
                   </p>
                   {encryption.description && (
                     <p className="text-xs text-[var(--text-muted)]">{encryption.description}</p>
@@ -494,8 +523,8 @@ export default function DecryptModal({
                 </svg>
                 <span className="text-sm text-[var(--success)]">
                   {!encryption?.category || encryption.category === 'text'
-                    ? 'Decryption successful! The message content is shown above.'
-                    : 'Decryption successful! Content has been saved to your library.'}
+                    ? t('modals:decrypt.successText')
+                    : t('modals:decrypt.successFile')}
                 </span>
               </div>
 
@@ -516,7 +545,7 @@ export default function DecryptModal({
                     />
                   </svg>
                   <span className="text-sm text-[var(--text-muted)]">
-                    Saved to library
+                    {t('modals:decrypt.savedToLibrary')}
                   </span>
                 </div>
               )}
@@ -542,7 +571,7 @@ export default function DecryptModal({
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-[var(--text-primary)] mb-2">
-                Decryption Failed
+                {t('modals:decrypt.failedTitle')}
               </h3>
               <p className="text-sm text-[var(--error)] mb-6 max-w-md mx-auto">
                 {error}
@@ -551,7 +580,7 @@ export default function DecryptModal({
                 onClick={() => setState('idle')}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Try Again
+                {t('modals:decrypt.tryAgain')}
               </button>
             </div>
           )}
@@ -564,6 +593,7 @@ export default function DecryptModal({
             // initial focus; Cancel stays visually on the left.
             <div className="flex flex-row-reverse gap-3">
               <button
+                data-tutorial="decrypt-now-button"
                 onClick={handleDecrypt}
                 disabled={encryption?.storageLayer === 'iagon' && !isIagonConnected}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
@@ -576,13 +606,13 @@ export default function DecryptModal({
                     d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
                   />
                 </svg>
-                Decrypt Now
+                {t('modals:decrypt.decryptNow')}
               </button>
               <button
                 onClick={handleClose}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
             </div>
           )}
@@ -592,7 +622,7 @@ export default function DecryptModal({
               onClick={handleClose}
               className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Done
+              {t('modals:decrypt.done')}
             </button>
           )}
 
@@ -604,13 +634,13 @@ export default function DecryptModal({
                 onClick={() => setState('idle')}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                Try Again
+                {t('modals:decrypt.tryAgain')}
               </button>
               <button
                 onClick={handleClose}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Close
+                {t('common:actions.close')}
               </button>
             </div>
           )}

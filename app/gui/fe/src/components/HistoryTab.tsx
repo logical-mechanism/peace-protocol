@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNode } from '../contexts/NodeContext';
 import Select from './Select';
@@ -12,7 +14,7 @@ import ConfirmModal from './ConfirmModal';
 import InfoTooltip from './InfoTooltip';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
-  getTypeLabel,
+  getTypeLabelKey,
   clearHistory,
   getTransactions,
   reconcileWithOnChain,
@@ -60,6 +62,7 @@ function HistoryTab({
   filters,
   dispatch,
 }: HistoryTabProps) {
+  const { t } = useTranslation('dashboard');
   const { expressReady, tipHeight } = useNode();
   // Destructure filter state from Dashboard-level reducer
   const { statusFilter, typeFilter, dateRange, searchQuery } = filters;
@@ -130,7 +133,7 @@ function HistoryTab({
             tokenName: e.tokenName,
             timestamp: new Date(e.createdAt).getTime(),
             status: 'confirmed',
-            description: e.description || `Listing ${e.tokenName}`,
+            description: e.description || t('history.listingDescription', { tokenName: e.tokenName }),
           });
         }
       }
@@ -142,7 +145,7 @@ function HistoryTab({
             tokenName: b.tokenName,
             timestamp: new Date(b.createdAt).getTime(),
             status: 'confirmed',
-            description: `Bid ${(b.amount / 1_000_000).toLocaleString()} ADA`,
+            description: t('history.bidDescription', { amount: (b.amount / 1_000_000).toLocaleString() }),
           });
         }
       }
@@ -174,7 +177,7 @@ function HistoryTab({
     } finally {
       setLoading(false);
     }
-  }, [userPkh, onHistoryUpdated]);
+  }, [userPkh, onHistoryUpdated, t]);
 
   // Fetch on mount and re-fetch when historySignal changes (waits for Express backend)
   useEffect(() => {
@@ -308,12 +311,12 @@ function HistoryTab({
       const filename = `veiled-tx-history-${new Date().toISOString().slice(0, 10)}.csv`;
       const result = await exportTextFile(csv, filename);
       if (result) {
-        setExportMessage(`Exported to ${result}`);
+        setExportMessage(t('history.exportedTo', { path: result }));
         setTimeout(() => setExportMessage(null), 3000);
       }
     } catch (err) {
       console.error('Failed to export CSV:', err);
-      setExportMessage('Export failed');
+      setExportMessage(t('history.exportFailed'));
       setTimeout(() => setExportMessage(null), 3000);
     }
   };
@@ -343,7 +346,7 @@ function HistoryTab({
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
         />
       </svg>
-      <span>Showing cached transaction history. Data may be outdated.</span>
+      <span>{t('history.staleBannerMessage')}</span>
       <button
         onClick={() => { refresh(); onLocalRefresh?.(); }}
         className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
@@ -351,15 +354,15 @@ function HistoryTab({
           background: 'var(--warning)',
           color: 'var(--bg-primary)',
         }}
-        aria-label="Retry loading transaction history"
+        aria-label={t('history.staleRetryAria')}
       >
-        Retry
+        {t('history.staleRetry')}
       </button>
       <button
         onClick={() => setIsStale(false)}
         className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
         style={{ color: 'var(--warning)' }}
-        aria-label="Dismiss stale data warning"
+        aria-label={t('history.staleDismissAria')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -369,8 +372,8 @@ function HistoryTab({
   ) : null;
 
   const screenReaderMessage = loading
-    ? 'Loading transaction history…'
-    : `${allRecords.length} ${allRecords.length === 1 ? 'transaction' : 'transactions'} loaded`;
+    ? t('history.loading')
+    : t('history.loadedCount', { count: allRecords.length });
 
   if (loading) {
     return (
@@ -388,8 +391,8 @@ function HistoryTab({
         {staleBanner}
         <EmptyState
           illustration={<HistoryEmptyIllustration />}
-          title="No transaction history"
-          description="Create a listing or place a bid to see your transactions here"
+          title={t('history.emptyTitle')}
+          description={t('history.emptyDesc')}
         />
       </>
     );
@@ -419,10 +422,10 @@ function HistoryTab({
           </svg>
           <input
             type="text"
-            placeholder="Search by tx hash, description, or token..."
+            placeholder={t('history.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label="Search transaction history"
+            aria-label={t('history.searchAria')}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
           />
         </div>
@@ -434,13 +437,13 @@ function HistoryTab({
             <Select
               value={statusFilter}
               options={[
-                { value: 'all', label: `All Status (${allRecords.length})` },
-                { value: 'pending', label: `Pending (${pendingCount})` },
-                { value: 'confirmed', label: `Confirmed (${allRecords.filter(tx => tx.status === 'confirmed').length})` },
-                { value: 'failed', label: `Failed (${allRecords.filter(tx => tx.status === 'failed').length})` },
+                { value: 'all', label: t('history.allStatusCount', { count: allRecords.length }) },
+                { value: 'pending', label: t('history.pendingCount', { count: pendingCount }) },
+                { value: 'confirmed', label: t('history.confirmedCount', { count: allRecords.filter(tx => tx.status === 'confirmed').length }) },
+                { value: 'failed', label: t('history.failedCount', { count: allRecords.filter(tx => tx.status === 'failed').length }) },
               ]}
               onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as HistoryFilters['statusFilter'] })}
-              ariaLabel="Filter by status"
+              ariaLabel={t('filters.filterByStatus')}
             />
           </div>
 
@@ -449,11 +452,11 @@ function HistoryTab({
             <Select
               value={typeFilter}
               options={[
-                { value: 'all', label: 'All Types' },
-                ...ALL_TX_TYPES.map((t) => ({ value: t, label: getTypeLabel(t) })),
+                { value: 'all', label: t('history.allTypes') },
+                ...ALL_TX_TYPES.map((txType) => ({ value: txType, label: t(getTypeLabelKey(txType)) })),
               ]}
               onChange={(v) => dispatch({ type: 'SET_TYPE', payload: v as HistoryFilters['typeFilter'] })}
-              ariaLabel="Filter by type"
+              ariaLabel={t('history.filterByTypeAria')}
             />
           </div>
 
@@ -462,13 +465,13 @@ function HistoryTab({
             <Select
               value={dateRange}
               options={[
-                { value: 'all', label: 'All Time' },
-                { value: '24h', label: 'Last 24 Hours' },
-                { value: '7d', label: 'Last 7 Days' },
-                { value: '30d', label: 'Last 30 Days' },
+                { value: 'all', label: t('history.dateAllTime') },
+                { value: '24h', label: t('history.dateLast24h') },
+                { value: '7d', label: t('history.dateLast7d') },
+                { value: '30d', label: t('history.dateLast30d') },
               ]}
               onChange={(v) => dispatch({ type: 'SET_DATE_RANGE', payload: v as HistoryFilters['dateRange'] })}
-              ariaLabel="Filter by date range"
+              ariaLabel={t('history.filterByDateAria')}
             />
           </div>
 
@@ -479,8 +482,8 @@ function HistoryTab({
             onClick={recoverHistory}
             disabled={recovering}
             className="px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Recover missing transactions from chain history"
-            aria-label="Recover history from chain"
+            title={t('history.recoverTitle')}
+            aria-label={t('history.recoverAria')}
           >
             {recovering ? (
               <LoadingSpinner size="sm" />
@@ -493,8 +496,8 @@ function HistoryTab({
           <button
             onClick={() => { refresh(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Refresh history"
-            aria-label="Refresh history"
+            title={t('history.refreshTitle')}
+            aria-label={t('history.refreshAria')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -509,8 +512,8 @@ function HistoryTab({
             onClick={handleExportCsv}
             disabled={filtered.length === 0}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Export as CSV"
-            aria-label="Export as CSV"
+            title={t('history.exportTitle')}
+            aria-label={t('history.exportAria')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -523,10 +526,10 @@ function HistoryTab({
           </button>
           <button
             onClick={handleClear}
-            aria-label="Clear transaction history"
+            aria-label={t('history.clearAria')}
             className="px-3 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
           >
-            Clear History
+            {t('history.clearButton')}
           </button>
         </div>
       </div>
@@ -545,15 +548,15 @@ function HistoryTab({
       {filtered.length === 0 ? (
         <EmptyState
           illustration={<NoResultsIllustration />}
-          title="No matching transactions"
-          description="Try adjusting your filters or search query"
+          title={t('history.noMatchingTitle')}
+          description={t('history.noMatchingDesc')}
           action={
             <button
               onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-              aria-label="Clear all filters"
+              aria-label={t('filters.clearAllFilters')}
               className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
-              Clear Filters
+              {t('filters.clearFilters')}
             </button>
           }
         />
@@ -570,9 +573,9 @@ function HistoryTab({
       isOpen={showClearConfirm}
       onClose={() => setShowClearConfirm(false)}
       onConfirm={handleClearConfirm}
-      title="Clear Transaction History"
-      message="This will permanently remove all locally recorded transaction history. This action cannot be undone."
-      confirmLabel="Clear"
+      title={t('history.clearConfirmTitle')}
+      message={t('history.clearConfirmMessage')}
+      confirmLabel={t('history.clearConfirmButton')}
       confirmVariant="danger"
     />
     </>
@@ -590,6 +593,7 @@ function VirtualizedHistoryList({
   confirmations: Map<string, number>;
   onRetryListing?: (draftId: string) => void;
 }) {
+  const { t } = useTranslation('dashboard');
   const parentRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
@@ -642,7 +646,7 @@ function VirtualizedHistoryList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {getTypeLabel(tx.type)}
+                      {t(getTypeLabelKey(tx.type))}
                     </span>
                     {tx.amountLovelace !== undefined && (
                       <span className="text-sm text-[var(--text-secondary)] font-mono">
@@ -660,11 +664,15 @@ function VirtualizedHistoryList({
                         : 'bg-[var(--error)]/20 text-[var(--error)]'
                     }`}>
                       {tx.status === 'pending' && confirmations.has(tx.txHash)
-                        ? `pending (${confirmations.get(tx.txHash)} conf.)`
-                        : tx.status}
+                        ? t('history.pendingConfirmations', { count: confirmations.get(tx.txHash) ?? 0 })
+                        : tx.status === 'pending'
+                        ? t('history.statusPending')
+                        : tx.status === 'confirmed'
+                        ? t('history.statusConfirmed')
+                        : t('history.statusFailed')}
                     </span>
                     {tx.status === 'pending' && confirmations.has(tx.txHash) && (
-                      <InfoTooltip text="Number of blocks added after your transaction. 15+ confirmations means the transaction is final." />
+                      <InfoTooltip text={t('history.confirmationsTooltip')} />
                     )}
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">
@@ -689,15 +697,15 @@ function VirtualizedHistoryList({
                   <button
                     onClick={() => onRetryListing(tx.draftId!)}
                     className="flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-                    title="Retry listing without re-uploading the file"
-                    aria-label="Retry failed listing"
+                    title={t('history.retryTitle')}
+                    aria-label={t('history.retryAria')}
                   >
-                    Retry
+                    {t('history.retry')}
                   </button>
                 )}
                 {/* Timestamp */}
                 <div className="flex-shrink-0 text-xs text-[var(--text-muted)]">
-                  {formatTimestamp(tx.timestamp)}
+                  {formatTimestamp(tx.timestamp, t)}
                 </div>
               </div>
             </div>
@@ -708,17 +716,17 @@ function VirtualizedHistoryList({
   );
 }
 
-function formatTimestamp(ts: number): string {
+function formatTimestamp(ts: number, t: (key: string, options?: Record<string, unknown>) => string): string {
   const date = new Date(ts);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
 
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) return t('history.timeJustNow');
+  if (diffMin < 60) return t('history.timeMinutesAgo', { count: diffMin });
 
   const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `${diffHrs}h ago`;
+  if (diffHrs < 24) return t('history.timeHoursAgo', { count: diffHrs });
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

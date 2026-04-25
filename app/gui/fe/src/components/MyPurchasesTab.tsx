@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
 import Select from './Select';
@@ -19,6 +21,13 @@ import LayoutPopover from './LayoutPopover';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
+import { getOnboardingState } from '../services/onboardingStorage';
+
+export interface DecryptTutorialTarget {
+  bid?: BidDisplay;
+  encryption: EncryptionDisplay;
+  ownerPkh?: string;
+}
 
 interface MyPurchasesTabProps {
   userPkh?: string;
@@ -28,6 +37,13 @@ interface MyPurchasesTabProps {
   onDecryptEncryption?: (encryption: EncryptionDisplay, ownerPkh?: string) => void;
   onSwitchTab?: (tab: 'marketplace' | 'my-sales' | 'my-purchases' | 'history' | 'library') => void;
   onLocalRefresh?: () => void;
+  onStartDecryptTutorial?: (target: DecryptTutorialTarget) => void;
+  /** When true, auto-invoke onStartDecryptTutorial as soon as data loads and a
+   * target exists. Used by Settings "Replay" to re-trigger the flow without the
+   * user having to find the banner. Parent should flip this back to false after
+   * the start fires to avoid re-triggering on refresh. */
+  autoStartDecryptTutorial?: boolean;
+  onAutoStartConsumed?: () => void;
   refreshSignal?: number;
   filters: MyPurchasesFilters;
   dispatch: React.Dispatch<MyPurchasesAction>;
@@ -42,11 +58,15 @@ function MyPurchasesTab({
   onDecryptEncryption,
   onSwitchTab,
   onLocalRefresh,
+  onStartDecryptTutorial,
+  autoStartDecryptTutorial,
+  onAutoStartConsumed,
   refreshSignal,
   filters,
   dispatch,
   failedDecryptTokens,
 }: MyPurchasesTabProps) {
+  const { t } = useTranslation('dashboard');
   const { expressReady } = useNode();
   const [bids, setBids] = useState<BidDisplay[]>([]);
   const [encryptionsMap, setEncryptionsMap] = useState<Map<string, EncryptionDisplay>>(new Map());
@@ -59,6 +79,7 @@ function MyPurchasesTab({
   const [descModalOpen, setDescModalOpen] = useState(false);
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
+  const [decryptBannerDismissed, setDecryptBannerDismissed] = useState(false);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -136,11 +157,11 @@ function MyPurchasesTab({
         // Library lookup failure is non-critical
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch your bids');
+      setError(err instanceof Error ? err.message : t('myPurchases.failedTitle'));
     } finally {
       setLoading(false);
     }
-  }, [userPkh]);
+  }, [userPkh, t]);
 
   // Fetch on mount and re-fetch when refreshSignal changes (waits for Express backend)
   useEffect(() => {
@@ -192,6 +213,51 @@ function MyPurchasesTab({
     }
     return counts;
   }, [bids, isCompletedAfterBid]);
+
+  // Tutorial target. Prefer an accepted-but-not-yet-decrypted bid (the happy
+  // path: spotlight → Decrypt → SNARK → Library). Fall back to the first
+  // already-purchased encryption so users who already decrypted everything
+  // can still replay the tour — re-decrypting an owned encryption exercises
+  // the same DecryptModal path.
+  const decryptTutorialTarget = useMemo<DecryptTutorialTarget | null>(() => {
+    const readyBid = bids
+      .filter((b) => b.status === 'accepted' && !isCompletedAfterBid(b))
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+    if (readyBid) {
+      const enc = encryptionsMap.get(readyBid.encryptionToken);
+      if (enc) return { bid: readyBid, encryption: enc };
+    }
+    const ownedEnc = purchasedEncryptions[0];
+    if (ownedEnc) {
+      return { encryption: ownedEnc, ownerPkh: ownedEnc.resold ? userPkh : undefined };
+    }
+    return null;
+  }, [bids, purchasedEncryptions, encryptionsMap, isCompletedAfterBid, userPkh]);
+
+  // Show banner when onboarding is complete, first-decrypt tutorial hasn't
+  // run, and the buyer has at least one decryptable target (accepted bid or
+  // already-purchased encryption).
+  const showDecryptBanner = useMemo(() => {
+    if (decryptBannerDismissed) return false;
+    if (!decryptTutorialTarget) return false;
+    const state = getOnboardingState();
+    return state.completed && !state.firstDecryptCompleted;
+  }, [decryptBannerDismissed, decryptTutorialTarget]);
+
+  // Auto-start when parent requests (Settings "Replay"). Only fires once per
+  // mount of a requested start so it doesn't re-trigger on every re-render.
+  const autoStartFiredRef = useRef(false);
+  useEffect(() => {
+    if (!autoStartDecryptTutorial) {
+      autoStartFiredRef.current = false;
+      return;
+    }
+    if (autoStartFiredRef.current) return;
+    if (!decryptTutorialTarget || !onStartDecryptTutorial) return;
+    autoStartFiredRef.current = true;
+    onStartDecryptTutorial(decryptTutorialTarget);
+    onAutoStartConsumed?.();
+  }, [autoStartDecryptTutorial, decryptTutorialTarget, onStartDecryptTutorial, onAutoStartConsumed]);
 
   // Filter and sort bids
   const filteredAndSorted = useMemo(() => {
@@ -282,10 +348,10 @@ function MyPurchasesTab({
   );
 
   const screenReaderMessage = loading
-    ? 'Loading your purchases…'
+    ? t('myPurchases.loading')
     : error
-    ? 'Error loading your purchases'
-    : `${bids.length} ${bids.length === 1 ? 'bid' : 'bids'} loaded`;
+    ? t('myPurchases.loadError')
+    : t('myPurchases.loadedCount', { count: bids.length });
 
   if (loading) {
     return (
@@ -302,14 +368,14 @@ function MyPurchasesTab({
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           icon={<PackageIcon />}
-          title="Failed to load your bids"
+          title={t('myPurchases.failedTitle')}
           description={error}
           action={
             <button
               onClick={() => { fetchData(); onLocalRefresh?.(); }}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Try Again
+              {t('myPurchases.tryAgain')}
             </button>
           }
         />
@@ -324,14 +390,14 @@ function MyPurchasesTab({
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
         <EmptyState
           illustration={<NoPurchasesIllustration />}
-          title="No purchases yet"
-          description="Bids you place and encryptions you purchase will appear here"
+          title={t('myPurchases.emptyTitle')}
+          description={t('myPurchases.emptyDesc')}
           action={
             <button
               onClick={() => onSwitchTab?.('marketplace')}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Browse Marketplace
+              {t('myPurchases.browseMarketplace')}
             </button>
           }
         />
@@ -343,18 +409,73 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      {showDecryptBanner && decryptTutorialTarget && (
+        <div
+          className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
+          style={{
+            background: 'var(--accent-muted)',
+            border: '1px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+          role="status"
+        >
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <div className="flex-1">
+            <span className="font-medium">{t('myPurchases.decryptBannerTitle')}</span>{' '}
+            <span className="text-[var(--text-secondary)]">{t('myPurchases.decryptBannerDesc')}</span>
+          </div>
+          {onStartDecryptTutorial && (
+            <button
+              onClick={() => {
+                setDecryptBannerDismissed(true);
+                onStartDecryptTutorial(decryptTutorialTarget);
+              }}
+              className="ml-auto px-3 py-1 text-xs font-medium rounded-[var(--radius-sm)] cursor-pointer"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg-primary)',
+              }}
+            >
+              {t('myPurchases.decryptBannerStart')}
+            </button>
+          )}
+          <button
+            onClick={() => setDecryptBannerDismissed(true)}
+            className="p-1 rounded-[var(--radius-sm)] cursor-pointer"
+            style={{ color: 'var(--accent)' }}
+            aria-label={t('myPurchases.decryptBannerDismiss')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Purchased Encryptions Section */}
       {purchasedEncryptions.length > 0 && (
         <div className="mb-8">
           <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-            Purchased Encryptions
+            {t('myPurchases.purchasedHeading')}
           </h3>
           {secretsLoadErrors.size > 0 && (
             <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-[var(--warning-muted)] border border-[var(--warning)]/30 rounded-[var(--radius-md)] text-sm text-[var(--warning)]">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
-              Some bid data could not be loaded. Decryption may not be available for affected items.
+              {t('myPurchases.secretsLoadError')}
             </div>
           )}
           <div className={getGridClasses(columnCount)}>
@@ -368,11 +489,11 @@ function MyPurchasesTab({
                 <div className="flex items-center justify-between mb-3">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--success-muted)] text-[var(--success)] rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                    Purchased
+                    {t('myPurchases.purchasedBadge')}
                   </span>
                   <div className="flex items-center gap-2">
                     {hasSecretError && (
-                      <span title="Bid secrets could not be loaded. Decryption may not be available.">
+                      <span title={t('myPurchases.secretsErrorTooltip')}>
                         <svg className="w-4 h-4 text-[var(--warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                         </svg>
@@ -380,7 +501,7 @@ function MyPurchasesTab({
                     )}
                     {enc.resold && (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-[var(--warning-muted)] text-[var(--warning)] rounded-full">
-                        Re-sold
+                        {t('myPurchases.resoldBadge')}
                       </span>
                     )}
                   </div>
@@ -408,6 +529,7 @@ function MyPurchasesTab({
                 )}
 
                 <button
+                  data-tutorial="decrypt-button"
                   onClick={() => onDecryptEncryption?.(enc, enc.resold ? userPkh : undefined)}
                   className="w-full mt-2 px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
                 >
@@ -419,7 +541,7 @@ function MyPurchasesTab({
                       d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
                     />
                   </svg>
-                  Decrypt
+                  {t('myPurchases.decrypt')}
                 </button>
               </div>
               );
@@ -431,7 +553,7 @@ function MyPurchasesTab({
       {/* Bids Section */}
       {bids.length > 0 && purchasedEncryptions.length > 0 && (
         <h3 className="text-lg font-medium text-[var(--text-primary)] mb-4">
-          Active Bids
+          {t('myPurchases.activeBidsHeading')}
         </h3>
       )}
 
@@ -455,7 +577,7 @@ function MyPurchasesTab({
           </svg>
           <input
             type="text"
-            placeholder="Search by token or description..."
+            placeholder={t('myPurchases.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
             className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
@@ -468,7 +590,13 @@ function MyPurchasesTab({
           <div className="flex gap-1.5 items-center">
             {(['all', 'pending', 'accepted', 'complete'] as const).map((status) => {
               const isActive = statusFilter === status;
-              const label = status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1);
+              const labelMap: Record<typeof status, string> = {
+                all: t('myPurchases.statusAll'),
+                pending: t('myPurchases.statusPending'),
+                accepted: t('myPurchases.statusAccepted'),
+                complete: t('myPurchases.statusComplete'),
+              };
+              const label = labelMap[status];
               const count = statusCounts[status];
               return (
                 <button
@@ -480,7 +608,7 @@ function MyPurchasesTab({
                       : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card)] hover:text-[var(--text-secondary)]'
                   }`}
                 >
-                  {label}{count > 0 && ` (${count})`}
+                  {count > 0 ? t('myPurchases.statusChipWithCount', { label, count }) : label}
                 </button>
               );
             })}
@@ -491,13 +619,13 @@ function MyPurchasesTab({
             <Select
               value={sortBy}
               options={[
-                { value: 'newest', label: 'Newest First' },
-                { value: 'oldest', label: 'Oldest First' },
-                { value: 'amount-high', label: 'Amount: High to Low' },
-                { value: 'amount-low', label: 'Amount: Low to High' },
+                { value: 'newest', label: t('filters.sortNewest') },
+                { value: 'oldest', label: t('filters.sortOldest') },
+                { value: 'amount-high', label: t('filters.sortAmountHigh') },
+                { value: 'amount-low', label: t('filters.sortAmountLow') },
               ]}
               onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MyPurchasesFilters['sortBy'] })}
-              ariaLabel="Sort purchases"
+              ariaLabel={t('myPurchases.sortAria')}
             />
           </div>
 
@@ -515,7 +643,7 @@ function MyPurchasesTab({
           <button
             onClick={() => { fetchData(); onLocalRefresh?.(); }}
             className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Refresh bids"
+            title={t('myPurchases.refreshTitle')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -532,9 +660,9 @@ function MyPurchasesTab({
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
         {hasMore
-          ? `Showing ${paginatedResults.length} of ${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`
-          : `${filteredAndSorted.length} ${filteredAndSorted.length === 1 ? 'bid' : 'bids'}`}
-        {statusFilter !== 'all' && ` (${statusFilter})`}
+          ? t('myPurchases.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })
+          : t('myPurchases.totalCount', { count: filteredAndSorted.length })}
+        {statusFilter !== 'all' && ` ${t('myPurchases.statusSuffix', { status: statusFilter })}`}
       </div>
 
       {/* Content */}
@@ -542,8 +670,8 @@ function MyPurchasesTab({
         searchQuery || statusFilter !== 'all' ? (
           <EmptyState
             illustration={<NoResultsIllustration />}
-            title="No matching bids"
-            description="Try adjusting your search or filters"
+            title={t('myPurchases.noMatchingTitle')}
+            description={t('myPurchases.noMatchingDesc')}
             action={
               <button
                 onClick={() => {
@@ -552,15 +680,15 @@ function MyPurchasesTab({
                 }}
                 className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Clear Filters
+                {t('filters.clearFilters')}
               </button>
             }
           />
         ) : (
           <EmptyState
             illustration={<NoPurchasesIllustration />}
-            title="No bids found"
-            description="Your bids will appear here"
+            title={t('myPurchases.noBidsTitle')}
+            description={t('myPurchases.noBidsDesc')}
           />
         )
       ) : viewMode === 'grid' ? (
@@ -605,13 +733,13 @@ function MyPurchasesTab({
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
           <p className="text-xs text-[var(--text-muted)]">
-            Showing {paginatedResults.length} of {filteredAndSorted.length}
+            {t('myPurchases.showingOf', { shown: paginatedResults.length, count: filteredAndSorted.length })}
           </p>
           <button
             onClick={() => dispatch({ type: 'SET_PAGE', payload: currentPage + 1 })}
             className="px-6 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Load More
+            {t('filters.loadMore')}
           </button>
           <div ref={sentinelRef} className="h-1" />
         </div>

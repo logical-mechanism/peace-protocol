@@ -1,0 +1,156 @@
+{
+  "fallback": {
+    "title": "Er ging iets mis",
+    "action": "Probeer het opnieuw. Als het probleem aanhoudt, herstart de app."
+  },
+  "kupoUnavailableCoded": {
+    "title": "Kupo niet beschikbaar",
+    "message": "De UTxO-indexer is aan het opstarten of onbereikbaar.",
+    "action": "Wacht tot de node klaar is met synchroniseren en probeer het opnieuw."
+  },
+  "kupoUnavailable": {
+    "title": "Kupo niet beschikbaar",
+    "message": "De UTxO-indexer reageert niet.",
+    "action": "Wacht tot de node klaar is met synchroniseren, of controleer de processtatus in Instellingen."
+  },
+  "ogmiosPostTimeout": {
+    "title": "Ogmios-verzoek verlopen",
+    "message": "De transactieservice reageerde niet op tijd. De nodeverbinding kan verstoord zijn.",
+    "action": "Probeer de node te herstarten vanuit Instellingen, of wacht tot de node volledig gesynchroniseerd is."
+  },
+  "ogmiosConnectFailed": {
+    "title": "Kan Ogmios niet bereiken",
+    "message": "De transactieservice is niet bereikbaar op de verwachte poort.",
+    "action": "Zorg ervoor dat de node draait, of herstart vanuit Instellingen."
+  },
+  "ogmiosUnavailable": {
+    "title": "Ogmios niet beschikbaar",
+    "message": "De transactie-indieningsservice reageert niet.",
+    "action": "Wacht tot de node klaar is met synchroniseren, of controleer de processtatus in Instellingen."
+  },
+  "network": {
+    "title": "Netwerkfout",
+    "message": "Kon geen verbinding maken met de vereiste service.",
+    "action": "Controleer je internetverbinding en zorg dat de node draait."
+  },
+  "noCollateral": {
+    "title": "Geen onderpand",
+    "message": "Je wallet heeft een speciaal 5 ADA onderpand-UTxO nodig voor smart contract-transacties.",
+    "action": "Ga naar Instellingen > Wallet en klik op \"Onderpand instellen\"."
+  },
+  "collateralFundsInsufficient": {
+    "title": "Onvoldoende fondsen voor onderpand",
+    "message": "Je wallet heeft niet genoeg ADA om een onderpand-UTxO aan te maken.",
+    "action": "Stuur minstens 10 ADA naar je walletadres."
+  },
+  "collateralInsufficient": {
+    "title": "Onvoldoende onderpand",
+    "message": "De transactie vereist meer onderpand dan beschikbaar is.",
+    "action": "Zorg dat je wallet een UTxO als onderpand heeft ingesteld. Probeer je walletsaldo te vernieuwen."
+  },
+  "insufficientBalance": {
+    "title": "Onvoldoende saldo",
+    "message": "Je wallet heeft niet genoeg ADA voor deze transactie.",
+    "action": "Voeg meer ADA toe aan je wallet en probeer het opnieuw."
+  },
+  "iagonAuth": {
+    "title": "Iagon-authenticatie mislukt",
+    "message": "Je Iagon API-sleutel is ongeldig of verlopen.",
+    "action": "Ga naar Instellingen → Datalaag en authenticeer opnieuw."
+  },
+  "iagonFileTooLarge": {
+    "title": "Bestand te groot voor Iagon",
+    "message": "Iagon ondersteunt het uploaden van bestanden van deze grootte niet.",
+    "action": "Kies een bestand kleiner dan 200 MB."
+  },
+  "iagonQuota": {
+    "title": "Iagon-opslag vol",
+    "message": "Het opslagquotum van je Iagon-account is vol.",
+    "action": "Controleer het opslaggebruik van je Iagon-account."
+  },
+  "iagonGeneric": {
+    "title": "Opslagservicefout",
+    "message": "Kon de Iagon gedecentraliseerde opslagservice niet bereiken.",
+    "action": "Controleer je internetverbinding. Iagon kan tijdelijk niet beschikbaar zijn."
+  },
+  "timeout": {
+    "title": "Verzoek verlopen",
+    "message": "De bewerking duurde te lang.",
+    "action": "Probeer het opnieuw. Als het probleem aanhoudt, kan de service overbelast zijn."
+  },
+  "mnemonicChecksum": {
+    "title": "Ongeldige herstelzin",
+    "message": "De herstelzin heeft een ongeldige checksum. Een of meer woorden kunnen onjuist zijn.",
+    "action": "Controleer elk woord aan de hand van je geschreven back-up en probeer het opnieuw."
+  },
+  "passwordTooShort": {
+    "title": "Wachtwoord te kort",
+    "message": "Het wachtwoord moet minstens 12 tekens lang zijn.",
+    "action": "Kies een langer wachtwoord dat aan alle getoonde vereisten voldoet."
+  },
+  "walletGeneric": {
+    "title": "Walletfout",
+    "message": "Er was een probleem met de walletbewerking.",
+    "action": "Probeer je wallet opnieuw te ontgrendelen. Als het probleem aanhoudt, herstart de app."
+  },
+  "incorrectPassword": {
+    "title": "Onjuist wachtwoord",
+    "message": "Het ingevoerde wachtwoord is onjuist.",
+    "action": "Controleer je wachtwoord en probeer het opnieuw."
+  },
+  "snarkOom": {
+    "title": "Onvoldoende geheugen",
+    "message": "Het genereren van het bewijs had onvoldoende geheugen.",
+    "action": "Sluit andere applicaties om geheugen vrij te maken en probeer het opnieuw."
+  },
+  "snarkSetupMissing": {
+    "title": "SNARK-installatiebestanden ontbreken",
+    "message": "Vereiste SNARK-installatiebestanden konden niet worden gevonden.",
+    "action": "Ga naar Instellingen om de SNARK-installatiebestanden opnieuw te downloaden."
+  },
+  "snarkInProgress": {
+    "title": "Bewijs al bezig",
+    "message": "Er wordt al een zero-knowledge-bewijs gegenereerd.",
+    "action": "Wacht tot het huidige bewijs klaar is voordat je een nieuw bewijs start."
+  },
+  "snarkGeneric": {
+    "title": "Bewijs genereren fout",
+    "message": "De SNARK-bewijzer heeft een fout ondervonden.",
+    "action": "Probeer het opnieuw. Als het probleem aanhoudt, controleer of de installatiebestanden correct zijn geïnstalleerd."
+  },
+  "scriptValidation": {
+    "title": "Scriptvalidatie mislukt",
+    "message": "Een smart contract-script is mislukt tijdens validatie.",
+    "action": "De on-chain status kan gewijzigd zijn. Vernieuw en probeer het opnieuw."
+  },
+  "txConflict": {
+    "title": "Transactieconflict",
+    "message": "Een of meer invoeren zijn al besteed door een andere transactie.",
+    "action": "Iemand anders kan actie hebben ondernomen op deze vermelding. Vernieuw de pagina en probeer het opnieuw."
+  },
+  "feeError": {
+    "title": "Transactiekostenfout",
+    "message": "De transactiekosten zijn te laag berekend.",
+    "action": "Probeer het opnieuw. Als het probleem aanhoudt, herstart de app om de kostenparameters te vernieuwen."
+  },
+  "txFailed": {
+    "title": "Transactie mislukt",
+    "message": "De transactie kon niet naar de blockchain worden ingediend.",
+    "action": "De on-chain status kan gewijzigd zijn. Vernieuw en probeer het opnieuw."
+  },
+  "accessDenied": {
+    "title": "Toegang geweigerd",
+    "message": "Het verzoek is geblokkeerd door de server.",
+    "action": "Dit kan een configuratieprobleem zijn. Probeer de app te herstarten."
+  },
+  "diskFull": {
+    "title": "Schijf vol",
+    "message": "Er is onvoldoende schijfruimte om deze bewerking te voltooien.",
+    "action": "Maak schijfruimte vrij en probeer het opnieuw. Controleer Instellingen > Opslag voor opruimopties."
+  },
+  "portConflict": {
+    "title": "Poortconflict",
+    "message": "Een vereiste poort wordt al gebruikt door een ander proces.",
+    "action": "Sluit andere applicaties die mogelijk de poort gebruiken, of herstart de app."
+  }
+}

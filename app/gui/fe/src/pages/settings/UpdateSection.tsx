@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import '../../i18n'
 import { invoke } from '@tauri-apps/api/core'
 import { useUpdateCheck, type UpdateInfo } from '../../hooks/useUpdateCheck'
 import { useToast } from '../../components/Toast'
@@ -11,6 +13,7 @@ function formatBytes(bytes: number): string {
 }
 
 export default function UpdateSection() {
+  const { t } = useTranslation('settings')
   const [currentVersion, setCurrentVersion] = useState<string>('')
   const { state, checkForUpdate, downloadUpdate, reset } = useUpdateCheck()
   const toast = useToast()
@@ -23,8 +26,8 @@ export default function UpdateSection() {
     const path = await downloadUpdate(info.download_url)
     if (path) {
       toast.success(
-        'Update downloaded',
-        `Saved to: ${path}. Close and reopen the app to use the new version.`,
+        t('update.downloadSuccessTitle'),
+        t('update.downloadSuccessBody', { path }),
         0
       )
     }
@@ -34,11 +37,11 @@ export default function UpdateSection() {
     <div className="space-y-6">
       {/* Version Info */}
       <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-        <h2 className="text-lg font-medium mb-4">App Updates</h2>
+        <h2 className="text-lg font-medium mb-4">{t('update.title')}</h2>
 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--text-muted)]">Current version</span>
+            <span className="text-sm text-[var(--text-muted)]">{t('update.currentVersion')}</span>
             <span className="px-2.5 py-1 text-sm font-mono font-medium bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
               v{currentVersion}
             </span>
@@ -51,14 +54,14 @@ export default function UpdateSection() {
             {state.status === 'checking' ? (
               <>
                 <LoadingSpinner size="sm" />
-                Checking...
+                {t('update.checking')}
               </>
             ) : (
               <>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
                 </svg>
-                Check for Updates
+                {t('update.checkForUpdates')}
               </>
             )}
           </button>
@@ -70,7 +73,7 @@ export default function UpdateSection() {
             <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-sm text-[var(--text-secondary)]">You&apos;re on the latest version</span>
+            <span className="text-sm text-[var(--text-secondary)]">{t('update.upToDate')}</span>
           </div>
         )}
 
@@ -83,7 +86,7 @@ export default function UpdateSection() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                   </svg>
                   <span className="text-sm font-medium text-[var(--text-primary)]">
-                    Update available: v{state.info.latest_version}
+                    {t('update.availableBadge', { version: state.info.latest_version })}
                   </span>
                 </div>
                 {state.info.download_size && (
@@ -95,7 +98,7 @@ export default function UpdateSection() {
 
               {state.info.release_notes && (
                 <div className="mb-4 max-h-40 overflow-y-auto">
-                  <p className="text-xs text-[var(--text-muted)] mb-1">Release notes:</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-1">{t('update.releaseNotes')}</p>
                   <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap font-sans leading-relaxed">
                     {state.info.release_notes}
                   </pre>
@@ -109,7 +112,7 @@ export default function UpdateSection() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download Update
+                {t('update.downloadUpdate')}
               </button>
             </div>
           </div>
@@ -118,7 +121,7 @@ export default function UpdateSection() {
         {state.status === 'downloading' && (
           <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[var(--text-secondary)]">Downloading update...</span>
+              <span className="text-[var(--text-secondary)]">{t('update.downloading')}</span>
               <span className="text-[var(--text-muted)] font-mono">
                 {state.progress.percent.toFixed(1)}%
               </span>
@@ -144,13 +147,13 @@ export default function UpdateSection() {
               <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm font-medium text-[var(--text-primary)]">Update downloaded</span>
+              <span className="text-sm font-medium text-[var(--text-primary)]">{t('update.downloadedTitle')}</span>
             </div>
             <p className="text-sm text-[var(--text-muted)] break-all">
-              Saved to: {state.filePath}
+              {t('update.savedTo', { path: state.filePath })}
             </p>
             <p className="text-sm text-[var(--text-secondary)]">
-              Close and reopen the app to use the new version.
+              {t('update.restartHint')}
             </p>
           </div>
         )}
@@ -168,7 +171,7 @@ export default function UpdateSection() {
                 onClick={() => { reset(); checkForUpdate() }}
                 className="btn-base btn-tertiary px-3 py-1.5 text-xs"
               >
-                Retry
+                {t('update.retry')}
               </button>
             </div>
           </div>

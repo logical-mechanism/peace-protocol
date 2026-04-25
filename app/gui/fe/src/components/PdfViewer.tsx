@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Document, Page, pdfjs } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -28,6 +29,7 @@ function LazyThumbnail({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation('common');
   const containerRef = useRef<HTMLButtonElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -50,8 +52,8 @@ function LazyThumbnail({
         isActive ? 'border-[var(--accent)]' : 'border-transparent hover:border-[var(--border-subtle)]'
       }`}
       style={{ width: THUMBNAIL_WIDTH, minHeight: THUMBNAIL_WIDTH * 1.4 }}
-      title={`Page ${pageNumber}`}
-      aria-label={`Go to page ${pageNumber}`}
+      title={t('pdfViewer.pageAria', { number: pageNumber })}
+      aria-label={t('pdfViewer.pageAria', { number: pageNumber })}
     >
       {isVisible ? (
         <Page
@@ -79,6 +81,7 @@ interface PdfViewerProps {
 }
 
 export default function PdfViewer({ data, onExport }: PdfViewerProps) {
+  const { t } = useTranslation('common');
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInputValue, setPageInputValue] = useState('1');
@@ -117,8 +120,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   }, []);
 
   const onDocumentLoadError = useCallback((err: Error) => {
-    setError(err.message || 'Failed to load PDF');
-  }, []);
+    setError(err.message || t('pdfViewer.failedToLoad'));
+  }, [t]);
 
   const zoomIn = useCallback(() => setScale(s => Math.min(ZOOM_MAX, s + ZOOM_STEP)), []);
   const zoomOut = useCallback(() => setScale(s => Math.max(ZOOM_MIN, s - ZOOM_STEP)), []);
@@ -253,7 +256,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   if (error) {
     return (
       <div className="p-4 bg-[var(--error-muted)] rounded-[var(--radius-md)] text-center">
-        <p className="text-sm text-[var(--error)]">Failed to load PDF: {error}</p>
+        <p className="text-sm text-[var(--error)]">{t('pdfViewer.failedToLoad')}: {error}</p>
       </div>
     );
   }
@@ -270,7 +273,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
               className={btnClass}
-              aria-label="Previous page"
+              aria-label={t('pdfViewer.previousPage')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -292,7 +295,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
                   }
                 }}
                 className={`w-12 text-center text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-sm)] text-[var(--text-primary)] py-0.5 outline-none transition-colors duration-[var(--transition-base)] ${pageInputInvalid ? 'border-[var(--error)] ring-1 ring-[var(--error)]' : 'border-[var(--border-subtle)] focus:border-[var(--accent)]'}`}
-                aria-label="Page number"
+                aria-label={t('pdfViewer.pageNumberAria')}
                 aria-invalid={pageInputInvalid || undefined}
               />
               <span>/ {numPages}</span>
@@ -301,7 +304,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
               onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))}
               disabled={currentPage >= numPages}
               className={btnClass}
-              aria-label="Next page"
+              aria-label={t('pdfViewer.nextPage')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -309,7 +312,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             </button>
           </>
         ) : (
-          <span className="text-xs text-[var(--text-muted)]">1 page</span>
+          <span className="text-xs text-[var(--text-muted)]">{t('pdfViewer.pageCount', { count: numPages })}</span>
         )}
       </div>
 
@@ -319,8 +322,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           onClick={zoomOut}
           disabled={scale <= ZOOM_MIN}
           className={btnClass}
-          title="Zoom out"
-          aria-label="Zoom out"
+          title={t('pdfViewer.zoomOut')}
+          aria-label={t('pdfViewer.zoomOut')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -329,8 +332,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         <button
           onClick={zoomReset}
           className={`${btnClass} min-w-[52px] text-center`}
-          title="Reset zoom"
-          aria-label="Reset zoom"
+          title={t('pdfViewer.resetZoom')}
+          aria-label={t('pdfViewer.resetZoom')}
         >
           {Math.round(scale * 100)}%
         </button>
@@ -338,8 +341,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
           onClick={zoomIn}
           disabled={scale >= ZOOM_MAX}
           className={btnClass}
-          title="Zoom in"
-          aria-label="Zoom in"
+          title={t('pdfViewer.zoomIn')}
+          aria-label={t('pdfViewer.zoomIn')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -353,8 +356,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             <button
               onClick={() => setShowThumbnails(t => !t)}
               className={`${btnClass} ${showThumbnails ? 'text-[var(--accent)]' : ''}`}
-              title={showThumbnails ? 'Hide page thumbnails' : 'Show page thumbnails'}
-              aria-label={showThumbnails ? 'Hide page thumbnails' : 'Show page thumbnails'}
+              title={showThumbnails ? t('pdfViewer.hideThumbnails') : t('pdfViewer.showThumbnails')}
+              aria-label={showThumbnails ? t('pdfViewer.hideThumbnails') : t('pdfViewer.showThumbnails')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -368,8 +371,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         <button
           onClick={() => isSearchOpen ? closeSearch() : setIsSearchOpen(true)}
           className={`${btnClass} ${isSearchOpen ? 'text-[var(--accent)]' : ''}`}
-          title="Find in PDF (Ctrl+F)"
-          aria-label="Find in PDF"
+          title={t('pdfViewer.findInPdf')}
+          aria-label={t('pdfViewer.findInPdf')}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -383,8 +386,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             <button
               onClick={onExport}
               className={btnClass}
-              title="Save As"
-              aria-label="Save PDF to file"
+              title={t('pdfViewer.saveAs')}
+              aria-label={t('pdfViewer.savePdfAria')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -398,8 +401,8 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         <button
           onClick={() => setIsFullscreen(fs => !fs)}
           className={btnClass}
-          title={isFullscreen ? 'Exit fullscreen' : 'Expand'}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          title={isFullscreen ? t('pdfViewer.exitFullscreen') : t('pdfViewer.expand')}
+          aria-label={isFullscreen ? t('pdfViewer.exitFullscreen') : t('pdfViewer.expand')}
         >
           {isFullscreen ? (
             // Collapse icon (arrows inward)
@@ -436,16 +439,16 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
             }
           }
         }}
-        placeholder="Find in PDF..."
+        placeholder={t('pdfViewer.findPlaceholder')}
         className="flex-1 min-w-0 px-3 py-1.5 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--text-muted)]"
-        aria-label="Search text in PDF"
+        aria-label={t('pdfViewer.searchTextAria')}
       />
       <button
         onClick={goToPrevMatch}
         disabled={searchResults.length === 0}
         className={btnClass}
-        title="Previous match (Shift+Enter)"
-        aria-label="Previous match"
+        title={t('pdfViewer.previousMatch')}
+        aria-label={t('pdfViewer.previousMatch')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -455,23 +458,23 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
         onClick={goToNextMatch}
         disabled={searchResults.length === 0}
         className={btnClass}
-        title="Next match (Enter)"
-        aria-label="Next match"
+        title={t('pdfViewer.nextMatch')}
+        aria-label={t('pdfViewer.nextMatch')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       <span className="text-xs text-[var(--text-muted)] whitespace-nowrap min-w-[70px] text-center">
-        {isSearching ? 'Searching...' : searchResults.length > 0
+        {isSearching ? t('pdfViewer.searching') : searchResults.length > 0
           ? `${currentMatchIndex + 1} of ${searchResults.length}`
-          : searchQuery.trim() ? 'No matches' : ''}
+          : searchQuery.trim() ? t('pdfViewer.noMatches') : ''}
       </span>
       <button
         onClick={closeSearch}
         className={btnClass}
-        title="Close search (Escape)"
-        aria-label="Close search"
+        title={t('pdfViewer.closeSearch')}
+        aria-label={t('pdfViewer.closeSearchAria')}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -500,7 +503,7 @@ export default function PdfViewer({ data, onExport }: PdfViewerProps) {
   const pdfLoading = (
     <div className="py-12 text-center">
       <DelayedSpinner size="lg" className="mx-auto mb-4" />
-      <p className="text-sm text-[var(--text-muted)]">Loading PDF...</p>
+      <p className="text-sm text-[var(--text-muted)]">{t('pdfViewer.loadingPdf')}</p>
     </div>
   );
 

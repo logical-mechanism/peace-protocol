@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Pasar data terenkripsi di Cardano",
+    "chooseCreateTitle": "Buat Dompet Baru",
+    "chooseCreateSubtitle": "Buat frasa pemulihan 24 kata baru",
+    "chooseImportTitle": "Impor Dompet yang Ada",
+    "chooseImportSubtitle": "Pulihkan dari frasa pemulihan 24 kata",
+    "back": "Kembali",
+    "steps": {
+      "backup": "Cadangan",
+      "verify": "Verifikasi",
+      "password": "Kata Sandi",
+      "recoveryPhrase": "Frasa Pemulihan"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Frasa Pemulihan",
+      "verifyTitle": "Verifikasi Frasa",
+      "passwordTitle": "Atur Kata Sandi",
+      "warning": "Tuliskan 24 kata ini secara berurutan. Ini adalah satu-satunya cara untuk memulihkan dompet Anda. Jangan pernah membagikannya kepada siapa pun.",
+      "copyToClipboard": "Salin ke Papan Klip",
+      "copied": "Disalin!",
+      "wroteItDown": "Saya sudah menuliskannya",
+      "verifyInstructions": "Verifikasi frasa pemulihan Anda dengan memasukkan kata-kata berikut. Mulai mengetik dan pilih kata yang cocok.",
+      "continue": "Lanjutkan"
+    },
+    "import": {
+      "enterTitle": "Masukkan Frasa Pemulihan",
+      "passwordTitle": "Atur Kata Sandi",
+      "instructions": "Masukkan frasa pemulihan 24 kata Anda. Mulai mengetik setiap kata dan pilih dari saran.",
+      "pasteAll": "Tempel semua 24 kata",
+      "wordCount": "{{count}} / 24 kata",
+      "continue": "Lanjutkan"
+    },
+    "password": {
+      "description": "Atur kata sandi dompet untuk mengenkripsi frasa pemulihan Anda. Anda akan memerlukan kata sandi ini setiap kali membuka aplikasi.",
+      "label": "Kata Sandi",
+      "confirmLabel": "Konfirmasi Kata Sandi",
+      "placeholder": "Masukkan kata sandi",
+      "confirmPlaceholder": "Konfirmasi kata sandi",
+      "show": "Tampilkan",
+      "hide": "Sembunyikan",
+      "capsLockOn": "Caps Lock aktif",
+      "creating": "Membuat Dompet...",
+      "submit": "Buat Dompet"
+    },
+    "errors": {
+      "allWordsRequired": "Semua 24 kata diperlukan",
+      "passwordRequirements": "Kata sandi tidak memenuhi semua persyaratan",
+      "passwordMismatch": "Kata sandi tidak cocok",
+      "createFailed": "Gagal membuat dompet",
+      "copyFailedTitle": "Gagal menyalin",
+      "copyFailedBody": "Tidak dapat menyalin mnemonic ke papan klip.",
+      "clipboardUnavailableTitle": "Papan klip tidak tersedia",
+      "clipboardUnavailableBody": "Tidak dapat mengakses papan klip. Coba tempel langsung ke kolom kata dengan Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Kata Sandi",
+    "togglePasswordVisibility": "Alihkan visibilitas kata sandi",
+    "capsLockOn": "Caps Lock aktif",
+    "unlock": "Buka Kunci",
+    "unlocking": "Membuka kunci...",
+    "forgotPassword": "Lupa kata sandi?",
+    "details": "Detail",
+    "copyErrorTitle": "Salin detail kesalahan",
+    "delete": {
+      "title": "Hapus Dompet?",
+      "description": "Ini akan menghapus dompet terenkripsi dari perangkat ini. Dana Anda aman jika Anda memiliki cadangan frasa pemulihan 24 kata. Anda dapat mengimpornya kembali setelah menghapus.",
+      "warning": "Tanpa frasa pemulihan, dana Anda akan hilang secara permanen.",
+      "acknowledge": "Saya telah mencadangkan frasa pemulihan 24 kata saya",
+      "cancel": "Batal",
+      "confirm": "Hapus Dompet",
+      "deleting": "Menghapus..."
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   placeBid, cancelBid, updateBid,
   getTransactionStubWarning,
@@ -6,6 +7,7 @@ import {
 import { encryptionsApi } from '../../services/api'
 import { optimisticStore } from '../../services/optimisticStore'
 import { playSound } from '../../services/notificationSound'
+import { markFirstBidCompleted, markFirstDecryptCompleted } from '../../services/onboardingStorage'
 import type { DashboardActions } from './dashboardTypes'
 import type { EncryptionDisplay, BidDisplay } from '../../services/api'
 
@@ -15,6 +17,7 @@ interface UseBuyerActionsParams {
 }
 
 export function useBuyerActions({ actions }: UseBuyerActionsParams) {
+  const { t } = useTranslation('notifications')
   const { wallet, address, userPkh, toast, recordTransaction, triggerTransactionRefresh, triggerRefresh, setConfirmAction, setActiveTab } = actions
 
   // Place bid modal state
@@ -34,13 +37,13 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
 
   const handlePlaceBid = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
     if (!navigator.onLine) {
-      toast.warning('You\'re offline', 'Bids require a network connection. Please reconnect and try again.')
+      toast.warning(t('toast.offlineTitle'), t('toast.offlineBidBody'))
       return
     }
     setSelectedEncryption(encryption)
     setSelectedBidCount(bidCount)
     setShowPlaceBid(true)
-  }, [toast])
+  }, [toast, t])
 
   const handlePlaceBidSubmit = useCallback(async (
     encryptionTokenName: string,
@@ -81,14 +84,14 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     // Show success message
     if (result.isStub) {
       toast.warning(
-        'Bid Placed (Stub Mode)',
-        `Bid placed in stub mode. No real transaction submitted. Amount: ${bidAmountAda} ADA`,
+        t('toast.bidPlacedStubTitle'),
+        t('toast.bidPlacedStubBody', { amount: bidAmountAda }),
         8000
       )
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Placed!', result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) }, { label: 'View History', onClick: () => setActiveTab('history') })
+      toast.transactionSuccess(t('toast.bidPlacedTitle'), result.txHash, { type: 'place-bid', amountLovelace: Math.round(bidAmountAda * 1_000_000) }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
     } else {
-      toast.success('Bid Placed!', 'Transaction submitted successfully')
+      toast.success(t('toast.bidPlacedTitle'), t('toast.bidPlacedBody'))
     }
 
     // Record stub in history (real txs are recorded via onSubmitted callback)
@@ -104,6 +107,9 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         counterparty: selectedEncryption?.sellerPkh,
       })
     }
+
+    // Mark first-bid tutorial as completed on successful bid
+    markFirstBidCompleted()
 
     // Optimistic update — bid appears immediately in tabs
     if (result.txHash && result.tokenName && userPkh && address) {
@@ -124,19 +130,19 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     }
 
     triggerTransactionRefresh()
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, selectedEncryption, userPkh, address])
 
   const handleCancelBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
 
     const amountAda = (bid.amount / 1_000_000).toLocaleString()
     setConfirmAction({
-      title: 'Cancel Bid?',
-      message: `This will cancel your bid of ${amountAda} ADA and return the funds to your wallet. This submits an on-chain transaction.`,
-      confirmLabel: 'Cancel Bid',
+      title: t('toast.cancelBidConfirmTitle'),
+      message: t('toast.cancelBidConfirmBody', { amount: amountAda }),
+      confirmLabel: t('toast.cancelBidConfirmLabel'),
       onConfirm: async () => {
         const stubWarning = getTransactionStubWarning()
         if (stubWarning) {
@@ -167,8 +173,8 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
 
           if (result.isStub) {
             toast.warning(
-              'Bid Cancelled (Stub Mode)',
-              `Bid cancelled in stub mode. No real transaction submitted. Amount: ${amountAda} ADA`,
+              t('toast.bidCancelledStubTitle'),
+              t('toast.bidCancelledStubBody', { amount: amountAda }),
               8000
             )
             if (result.txHash) {
@@ -183,9 +189,9 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
               })
             }
           } else if (result.txHash) {
-            toast.transactionSuccess('Bid Cancelled!', result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount }, { label: 'View History', onClick: () => setActiveTab('history') })
+            toast.transactionSuccess(t('toast.bidCancelledTitle'), result.txHash, { type: 'cancel-bid', amountLovelace: bid.amount }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
           } else {
-            toast.success('Bid Cancelled!', 'Transaction submitted successfully')
+            toast.success(t('toast.bidCancelledTitle'), t('toast.bidCancelledBody'))
           }
 
           // Optimistic update — bid disappears immediately
@@ -197,15 +203,15 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         } catch (error) {
           console.error('Failed to cancel bid:', error)
           toast.error(
-            'Failed to Cancel Bid',
-            error instanceof Error ? error.message : 'Unknown error occurred',
+            t('toast.failedToCancelBidTitle'),
+            error instanceof Error ? error.message : t('toast.unknownErrorOccurred'),
             0,
-            { label: 'Retry', onClick: () => handleCancelBid(bid) }
+            { label: t('toast.actionRetry'), onClick: () => handleCancelBid(bid) }
           )
         }
       },
     })
-  }, [wallet, toast, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
+  }, [wallet, toast, t, recordTransaction, setActiveTab, triggerTransactionRefresh, setConfirmAction])
 
   const handleDecrypt = useCallback(async (bid: BidDisplay) => {
     // Find the encryption associated with this bid
@@ -218,9 +224,9 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
       setShowDecrypt(true)
     } catch (error) {
       console.error('Failed to fetch encryption details:', error)
-      toast.error('Error', 'Failed to load encryption details')
+      toast.error(t('toast.errorTitle'), t('toast.loadEncryptionFailedBody'))
     }
-  }, [toast])
+  }, [toast, t])
 
   const handleDecryptEncryption = useCallback((encryption: EncryptionDisplay, ownerPkh?: string) => {
     setSelectedBid(null)
@@ -236,6 +242,8 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         next.delete(result.encryptionToken)
         return next
       })
+      // Mark the first-decrypt tutorial completed on any successful library save.
+      markFirstDecryptCompleted()
       triggerRefresh()
     } else {
       setFailedDecryptTokens((prev) => new Set(prev).add(result.encryptionToken))
@@ -246,12 +254,12 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
 
   const handleOpenUpdateBid = useCallback((bid: BidDisplay) => {
     if (!wallet) {
-      toast.error('Error', 'Wallet not connected')
+      toast.error(t('toast.errorTitle'), t('toast.walletNotConnected'))
       return
     }
     setUpdateBidTarget(bid)
     setShowUpdateBid(true)
-  }, [wallet, toast])
+  }, [wallet, toast, t])
 
   const handleSubmitUpdateBid = useCallback(async (bid: BidDisplay, newAmountLovelace: number, newFuturePriceLovelace: number) => {
     if (!wallet) throw new Error('Wallet not connected')
@@ -275,7 +283,7 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
     }
 
     if (result.isStub) {
-      toast.warning('Bid Updated (Stub Mode)', 'Bid updated in stub mode.', 8000)
+      toast.warning(t('toast.bidUpdatedStubTitle'), t('toast.bidUpdatedStubBody'), 8000)
       if (result.txHash) {
         recordTransaction({
           txHash: result.txHash,
@@ -288,13 +296,13 @@ export function useBuyerActions({ actions }: UseBuyerActionsParams) {
         })
       }
     } else if (result.txHash) {
-      toast.transactionSuccess('Bid Updated!', result.txHash, { type: 'update-bid', amountLovelace: newAmountLovelace }, { label: 'View History', onClick: () => setActiveTab('history') })
+      toast.transactionSuccess(t('toast.bidUpdatedTitle'), result.txHash, { type: 'update-bid', amountLovelace: newAmountLovelace }, { label: t('toast.actionViewHistory'), onClick: () => setActiveTab('history') })
     }
 
     triggerTransactionRefresh()
     setShowUpdateBid(false)
     setUpdateBidTarget(null)
-  }, [wallet, toast, recordTransaction, triggerTransactionRefresh, setActiveTab])
+  }, [wallet, toast, t, recordTransaction, triggerTransactionRefresh, setActiveTab])
 
   const closePlaceBidModal = useCallback(() => {
     setShowPlaceBid(false)

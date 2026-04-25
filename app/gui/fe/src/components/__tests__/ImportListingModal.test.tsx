@@ -191,7 +191,9 @@ describe('ImportListingModal', () => {
     renderModal();
     const input = getInput('fileExtension');
     fireEvent.change(input, { target: { name: 'fileExtension', value: '.pdf' } });
-    expect(screen.getByText(/document/)).toBeInTheDocument();
+    // Category label now comes from i18n (capitalized "Document"); the
+    // case-insensitive match keeps the spirit of the original assertion.
+    expect(screen.getByText(/document/i)).toBeInTheDocument();
   });
 
   // --- Paste All ---

@@ -78,4 +78,43 @@ describe('useTutorial', () => {
     expect(result.current.totalSteps).toBe(1)
     expect(result.current.currentStepIndex).toBe(0)
   })
+
+  it('startTutorial honors the startStep option for mid-flow joins', () => {
+    const { result } = renderHook(() => useTutorial())
+    act(() => result.current.startTutorial(STEPS, { startStep: 1 }))
+    expect(result.current.currentStepIndex).toBe(1)
+    expect(result.current.currentStep).toEqual(STEPS[1])
+  })
+
+  it('startTutorial clamps startStep to the valid range', () => {
+    const { result } = renderHook(() => useTutorial())
+    act(() => result.current.startTutorial(STEPS, { startStep: 99 }))
+    expect(result.current.currentStepIndex).toBe(2)
+    act(() => result.current.startTutorial(STEPS, { startStep: -5 }))
+    expect(result.current.currentStepIndex).toBe(0)
+  })
+
+  it('goToStep jumps to the requested index when active', () => {
+    const { result } = renderHook(() => useTutorial())
+    act(() => result.current.startTutorial(STEPS))
+    act(() => result.current.goToStep(2))
+    expect(result.current.currentStepIndex).toBe(2)
+    expect(result.current.currentStep).toEqual(STEPS[2])
+  })
+
+  it('goToStep clamps out-of-range indices', () => {
+    const { result } = renderHook(() => useTutorial())
+    act(() => result.current.startTutorial(STEPS))
+    act(() => result.current.goToStep(99))
+    expect(result.current.currentStepIndex).toBe(2)
+    act(() => result.current.goToStep(-1))
+    expect(result.current.currentStepIndex).toBe(0)
+  })
+
+  it('goToStep is a no-op before startTutorial', () => {
+    const { result } = renderHook(() => useTutorial())
+    act(() => result.current.goToStep(1))
+    expect(result.current.currentStepIndex).toBe(0)
+    expect(result.current.status).toBe('idle')
+  })
 })

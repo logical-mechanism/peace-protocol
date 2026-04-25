@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DelayedSpinner } from '../LoadingSpinner';
 import { useAudioPlayback } from './useAudioPlayback';
 import { formatTime, getConversionHint, computeSeekRatio, computeTooltipLeft } from './audioUtils';
@@ -64,6 +65,7 @@ function AlbumArtPlaceholder() {
 }
 
 function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: string } }) {
+  const { t } = useTranslation('common');
   // Cap at 5MB to prevent memory bloat from large embedded art
   const url = useMemo(() => {
     if (picture.data.length > 5_000_000) return null;
@@ -80,13 +82,14 @@ function MetadataAlbumArt({ picture }: { picture: { data: Uint8Array; format: st
   return (
     <img
       src={url}
-      alt="Album art"
+      alt={t('mediaPlayer.albumArt')}
       className="w-14 h-14 rounded-[var(--radius-md)] object-cover flex-shrink-0 shadow-md"
     />
   );
 }
 
 export default function AudioPlayer({ fileExtension, tokenName, category, onExport }: AudioPlayerProps) {
+  const { t } = useTranslation('common');
   const { waveformCanvasRef, metadata, vizFailed, waveformDuration, drawWaveform, updateProgress, forceRedraw } =
     useAudioWaveform(tokenName, category);
 
@@ -333,7 +336,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           </svg>
           <p className="text-sm text-[var(--error)]">{error}</p>
           <p className="text-xs text-[var(--text-muted)]">
-            Detected format: <span className="font-mono">{ext}</span> ({mimeType})
+            {t('audioPlayer.detectedFormat', { format: ext, mime: mimeType })}
           </p>
           {conversionHint && (
             <p className="text-xs text-[var(--text-secondary)] font-mono">{conversionHint}</p>
@@ -343,7 +346,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               onClick={onExport}
               className="mt-2 px-4 py-2 text-sm bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
             >
-              Save As to open with an external player
+              {t('audioPlayer.saveAsExternal')}
             </button>
           )}
         </div>
@@ -383,7 +386,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               )}
             </div>
           ) : (
-            <span className="text-xs text-[var(--text-secondary)] truncate">Audio</span>
+            <span className="text-xs text-[var(--text-secondary)] truncate">{t('audioPlayer.audio')}</span>
           )}
         </div>
         <div className="flex items-center gap-2 ml-2 shrink-0">
@@ -392,7 +395,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               {metadata?.bitrate != null && metadata.bitrate > 0 && <span>{Math.round(metadata.bitrate / 1000)}kbps</span>}
               {metadata?.sampleRate != null && <span>{Math.round(metadata.sampleRate / 1000)}kHz</span>}
               {metadata?.channels != null && (
-                <span>{metadata.channels === 1 ? 'Mono' : metadata.channels === 2 ? 'Stereo' : `${metadata.channels}ch`}</span>
+                <span>{metadata.channels === 1 ? t('audioPlayer.mono') : metadata.channels === 2 ? t('audioPlayer.stereo') : t('audioPlayer.channelsCount', { count: metadata.channels })}</span>
               )}
             </div>
           )}
@@ -414,7 +417,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         onKeyDown={handleSeekKeyDown}
         tabIndex={0}
         role="group"
-        aria-label="Audio waveform visualization, click or use arrow keys to seek"
+        aria-label={t('audioPlayer.waveformAria')}
       >
         <canvas
           ref={waveformCanvasRef}
@@ -425,7 +428,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         {!isReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-primary)]/80">
             <DelayedSpinner size="sm" className="mr-2" />
-            <span className="text-xs text-[var(--text-muted)]">Loading audio...</span>
+            <span className="text-xs text-[var(--text-muted)]">{t('audioPlayer.loadingAudio')}</span>
           </div>
         )}
 {/* Keyboard hints panel removed — now toggled via ? button in transport controls */}
@@ -437,7 +440,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
         />
         {vizFailed && isReady && (
           <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-muted)] pointer-events-none select-none">
-            Visualization unavailable for this format
+            {t('audioPlayer.vizUnavailable')}
           </div>
         )}
       </div>
@@ -449,10 +452,10 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           type="button"
           className="font-mono text-xs text-[var(--text-secondary)] cursor-pointer select-none hover:text-[var(--text-primary)] transition-colors shrink-0"
           onClick={() => setShowRemaining(r => !r)}
-          title="Click to toggle remaining time"
+          title={t('mediaPlayer.clickToggleRemainingTime')}
           role="switch"
           aria-checked={showRemaining}
-          aria-label="Toggle remaining time"
+          aria-label={t('mediaPlayer.toggleRemainingTime')}
         >
           <span className="text-[var(--text-primary)]">{formatTime(currentTime)}</span>
           <span className="text-[var(--text-muted)] mx-0.5">/</span>
@@ -472,7 +475,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             onKeyDown={handleSeekKeyDown}
             role="slider"
             tabIndex={0}
-            aria-label="Seek position"
+            aria-label={t('mediaPlayer.seekPosition')}
             aria-valuemin={0}
             aria-valuemax={Math.round(duration)}
             aria-valuenow={Math.round(currentTime)}
@@ -502,14 +505,14 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
 
         {/* Status */}
         <span className="text-[10px] font-medium tracking-wide text-[var(--text-muted)] uppercase shrink-0" aria-live="polite" aria-atomic="true">
-          {!isReady ? 'Loading' : isPlaying ? 'Playing' : currentTime > 0 ? 'Paused' : 'Ready'}
+          {!isReady ? t('mediaPlayer.statusLoading') : isPlaying ? t('mediaPlayer.statusPlaying') : currentTime > 0 ? t('mediaPlayer.statusPaused') : t('mediaPlayer.statusReady')}
         </span>
       </div>
 
       {/* Transport Controls + Volume */}
       <div className="flex items-center justify-between px-3 py-2 border-t border-[var(--border)]">
         <div className="flex items-center gap-0.5">
-          <button onClick={skipBack} className={transportBtn} title="Back 10s" aria-label="Skip back 10 seconds">
+          <button onClick={skipBack} className={transportBtn} title={t('mediaPlayer.skipBackSeconds', { seconds: 10 })} aria-label={t('mediaPlayer.skipBackSeconds', { seconds: 10 })}>
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z" />
             </svg>
@@ -518,8 +521,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           <button
             onClick={isPlaying ? pause : play}
             className={`${transportBtnLg}${isPlaying ? ' ring-2 ring-[var(--accent)]/30' : ''}${!isReady ? ' !cursor-not-allowed' : ''}`}
-            title={isPlaying ? 'Pause' : 'Play'}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            title={isPlaying ? t('mediaPlayer.pause') : t('mediaPlayer.play')}
+            aria-label={isPlaying ? t('mediaPlayer.pause') : t('mediaPlayer.play')}
             aria-pressed={isPlaying}
             aria-keyshortcuts="Space"
             aria-describedby={playError ? 'audio-play-error' : undefined}
@@ -537,13 +540,13 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             )}
           </button>
 
-          <button onClick={stop} className={transportBtn} title="Stop" aria-label="Stop">
+          <button onClick={stop} className={transportBtn} title={t('mediaPlayer.stop')} aria-label={t('mediaPlayer.stop')}>
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 6h12v12H6z" />
             </svg>
           </button>
 
-          <button onClick={skipForward} className={transportBtn} title="Forward 10s" aria-label="Skip forward 10 seconds">
+          <button onClick={skipForward} className={transportBtn} title={t('mediaPlayer.skipForwardSeconds', { seconds: 10 })} aria-label={t('mediaPlayer.skipForwardSeconds', { seconds: 10 })}>
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z" />
             </svg>
@@ -554,8 +557,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           <button
             onClick={toggleLoop}
             className={`${transportBtn} ${isLooping ? '!text-[var(--accent)]' : ''}`}
-            title={isLooping ? 'Repeat: On (L)' : 'Repeat: Off (L)'}
-            aria-label={isLooping ? 'Disable repeat' : 'Enable repeat'}
+            title={isLooping ? t('mediaPlayer.repeatOnShortcut', { key: 'L' }) : t('mediaPlayer.repeatOffShortcut', { key: 'L' })}
+            aria-label={isLooping ? t('mediaPlayer.disableRepeat') : t('mediaPlayer.enableRepeat')}
             aria-pressed={isLooping}
             aria-keyshortcuts="l"
           >
@@ -569,8 +572,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
               onClick={cycleSpeed}
               onContextMenu={(e) => { e.preventDefault(); setShowSpeedPopover(v => !v); }}
               className={`${transportBtn} text-[10px] font-bold tracking-tight min-w-[32px] ${playbackRate !== 1 ? '!text-[var(--accent)]' : ''}`}
-              title={`Speed: ${playbackRate}x (S) · Right-click for slider`}
-              aria-label={`Playback speed: ${playbackRate}x`}
+              title={t('mediaPlayer.speedShortcut', { speed: playbackRate, key: 'S' })}
+              aria-label={t('mediaPlayer.playbackSpeed', { speed: playbackRate })}
               aria-expanded={showSpeedPopover}
             >
               {playbackRate}x
@@ -596,7 +599,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
                   }}
                   className="audio-volume-slider w-16"
                   style={{ '--volume-pct': `${((playbackRate - 0.5) / 1.5) * 100}%` } as CSSProperties}
-                  aria-label="Fine speed control"
+                  aria-label={t('mediaPlayer.fineSpeedControl')}
                   autoFocus
                 />
                 <div className="flex justify-between w-full text-[9px] text-[var(--text-muted)]">
@@ -613,8 +616,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             <button
               onClick={() => setShowKeyHints(v => !v)}
               className={`${transportBtn} text-[10px] font-bold min-w-[24px] ${showKeyHints ? '!text-[var(--accent)]' : ''}`}
-              title="Keyboard shortcuts"
-              aria-label="Toggle keyboard shortcuts"
+              title={t('mediaPlayer.keyboardShortcuts')}
+              aria-label={t('mediaPlayer.toggleKeyboardShortcuts')}
               aria-expanded={showKeyHints}
             >
               ?
@@ -622,11 +625,11 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             {showKeyHints && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 text-white text-xs rounded-[var(--radius-md)] px-4 py-3 z-30 whitespace-nowrap shadow-lg">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> Play/Pause</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> Mute</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> Loop</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> Speed</span>
-                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">T</kbd> Time mode</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">Space</kbd> {t('mediaPlayer.hintPlayPause')}</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">M</kbd> {t('mediaPlayer.hintMute')}</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">L</kbd> {t('mediaPlayer.hintLoop')}</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">S</kbd> {t('mediaPlayer.hintSpeed')}</span>
+                  <span><kbd className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-[11px]">T</kbd> {t('mediaPlayer.hintTimeMode')}</span>
                 </div>
               </div>
             )}
@@ -637,8 +640,8 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
           <button
             onClick={toggleMute}
             className="w-6 h-6 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer outline-none focus-visible:shadow-[var(--focus-ring)]"
-            title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
-            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            title={isMuted ? t('mediaPlayer.unmuteShortcut', { key: 'M' }) : t('mediaPlayer.muteShortcut', { key: 'M' })}
+            aria-label={isMuted ? t('mediaPlayer.unmute') : t('mediaPlayer.mute')}
             aria-pressed={isMuted}
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -660,15 +663,15 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             onChange={(e) => setVolume(parseFloat(e.target.value))}
             className="audio-volume-slider w-20"
             style={{ '--volume-pct': `${Math.round(volume * 100)}%` } as CSSProperties}
-            aria-label="Volume"
+            aria-label={t('mediaPlayer.volume')}
             role="slider"
             aria-valuemin={0}
             aria-valuemax={1}
             aria-valuenow={volume}
-            aria-valuetext={`${Math.round(volume * 100)}%`}
+            aria-valuetext={t('mediaPlayer.volumePercent', { percent: Math.round(volume * 100) })}
           />
           <span className="text-[10px] font-mono text-[var(--text-muted)] w-7 text-right tabular-nums select-none">
-            {isMuted ? '0%' : `${Math.round(volume * 100)}%`}
+            {isMuted ? t('mediaPlayer.volumePercent', { percent: 0 }) : t('mediaPlayer.volumePercent', { percent: Math.round(volume * 100) })}
           </span>
         </div>
       </div>
@@ -684,7 +687,7 @@ export default function AudioPlayer({ fileExtension, tokenName, category, onExpo
             type="button"
             onClick={clearPlayError}
             className="text-[var(--error)] hover:text-[var(--text-primary)] cursor-pointer"
-            aria-label="Dismiss play error"
+            aria-label={t('mediaPlayer.dismissPlayError')}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

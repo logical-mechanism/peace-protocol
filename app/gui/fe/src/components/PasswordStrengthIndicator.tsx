@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import type { PasswordStrength } from '../hooks/usePasswordStrength'
 
 interface Props {
@@ -6,20 +7,21 @@ interface Props {
 }
 
 const requirementLabels = [
-  { key: 'minLength' as const, label: '12+ characters' },
-  { key: 'hasUppercase' as const, label: 'One uppercase letter' },
-  { key: 'hasLowercase' as const, label: 'One lowercase letter' },
-  { key: 'hasDigit' as const, label: 'One digit' },
-  { key: 'hasSpecialChar' as const, label: 'One special character' },
+  { key: 'minLength' as const, labelKey: 'passwordStrength.minChars' },
+  { key: 'hasUppercase' as const, labelKey: 'passwordStrength.uppercase' },
+  { key: 'hasLowercase' as const, labelKey: 'passwordStrength.lowercase' },
+  { key: 'hasDigit' as const, labelKey: 'passwordStrength.digit' },
+  { key: 'hasSpecialChar' as const, labelKey: 'passwordStrength.special' },
 ]
 
 const levelConfig = {
-  weak: { segments: 1, color: 'var(--error)', label: 'Weak' },
-  fair: { segments: 2, color: 'var(--warning)', label: 'Fair' },
-  strong: { segments: 3, color: 'var(--success)', label: 'Strong' },
+  weak: { segments: 1, color: 'var(--error)', labelKey: 'passwordStrength.weak' },
+  fair: { segments: 2, color: 'var(--warning)', labelKey: 'passwordStrength.fair' },
+  strong: { segments: 3, color: 'var(--success)', labelKey: 'passwordStrength.strong' },
 }
 
 export default function PasswordStrengthIndicator({ strength, password }: Props) {
+  const { t } = useTranslation('common')
   if (!password) return null
 
   const config = levelConfig[strength.level]
@@ -28,7 +30,7 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
     <div className="mt-3 space-y-3" aria-live="polite">
       {/* Requirements checklist */}
       <div className="space-y-1.5">
-        {requirementLabels.map(({ key, label }) => {
+        {requirementLabels.map(({ key, labelKey }) => {
           const met = strength.requirements[key]
           return (
             <div key={key} className="flex items-center gap-2 text-xs">
@@ -65,7 +67,7 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
                 </svg>
               )}
               <span style={{ color: met ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-                {label}
+                {t(labelKey)}
               </span>
             </div>
           )
@@ -88,7 +90,7 @@ export default function PasswordStrengthIndicator({ strength, password }: Props)
           ))}
         </div>
         <div className="text-xs mt-1" style={{ color: config.color }}>
-          {config.label}
+          {t(config.labelKey)}
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useModalStack } from '../hooks/useModalStack'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { getCommands, filterCommands, type Command, type CommandCategory } from '../services/commandRegistry'
@@ -9,13 +10,14 @@ interface CommandPaletteProps {
   onExecute: (commandId: string) => void
 }
 
-const CATEGORY_LABELS: Record<CommandCategory, string> = {
-  navigation: 'Navigation',
-  action: 'Actions',
-  settings: 'Settings',
+const CATEGORY_KEYS: Record<CommandCategory, string> = {
+  navigation: 'commandPalette.categoryNavigation',
+  action: 'commandPalette.categoryActions',
+  settings: 'commandPalette.categorySettings',
 }
 
 export default function CommandPalette({ isOpen, onClose, onExecute }: CommandPaletteProps) {
+  const { t } = useTranslation('common')
   const { zIndex, shouldRender, isTopmost } = useModalStack('command-palette', isOpen, onClose)
   const panelRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -114,7 +116,7 @@ export default function CommandPalette({ isOpen, onClose, onExecute }: CommandPa
         className="relative w-full max-w-lg mx-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg modal-panel-enter flex flex-col max-h-[70vh] overflow-hidden"
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={t('commandPalette.dialogAria')}
       >
         <div className="p-3 border-b border-[var(--border-subtle)]">
           <input
@@ -126,8 +128,8 @@ export default function CommandPalette({ isOpen, onClose, onExecute }: CommandPa
               setSelectedIndex(0)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command..."
-            aria-label="Command search"
+            placeholder={t('commandPalette.searchPlaceholder')}
+            aria-label={t('commandPalette.searchAria')}
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
           />
         </div>
@@ -135,13 +137,13 @@ export default function CommandPalette({ isOpen, onClose, onExecute }: CommandPa
         <div ref={listRef} className="overflow-y-auto flex-1">
           {flatOrdered.length === 0 ? (
             <div className="p-6 text-center text-sm text-[var(--text-secondary)]">
-              No matching commands
+              {t('commandPalette.noMatching')}
             </div>
           ) : (
             grouped.map((group) => (
               <div key={group.category} className="py-1">
                 <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                  {CATEGORY_LABELS[group.category]}
+                  {t(CATEGORY_KEYS[group.category])}
                 </div>
                 {group.items.map((cmd) => {
                   const flatIndex = flatOrdered.indexOf(cmd)

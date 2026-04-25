@@ -1,5 +1,7 @@
 import { useState, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay } from '../services/api';
+import { getTopLevelCategory } from '../config/categories';
 import { copyToClipboard } from '../utils/clipboard';
 import { truncateHex } from '../utils/truncate';
 import { EncryptionStatusBadge } from './Badge';
@@ -8,7 +10,7 @@ import ListingImage from './ListingImage';
 import { truncateDescription } from './descriptionUtils';
 import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
-import { formatPrice, getCategoryLabel } from '../utils/formatListing';
+import { formatPrice } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
 import type { CardSize } from '../hooks/useTabFilterState';
 
@@ -30,6 +32,8 @@ interface EncryptionCardProps {
   onFilterByCategory?: (category: string) => void;
   searchQuery?: string;
   nsfwEnabled?: boolean;
+  /** When true, sets id="tutorial-place-bid" on the Place Bid button so the bid tutorial can target it. */
+  tutorialTarget?: boolean;
 }
 
 function EncryptionCard({
@@ -49,7 +53,9 @@ function EncryptionCard({
   onFilterByCategory,
   searchQuery = '',
   nsfwEnabled = false,
+  tutorialTarget = false,
 }: EncryptionCardProps) {
+  const { t } = useTranslation('common');
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [initialBidCount] = useState(bidCount);
   const [copied, setCopied] = useState(false);
@@ -96,8 +102,8 @@ function EncryptionCard({
               <button
                 onClick={handleToggleFavorite}
                 className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
-                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                title={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
+                aria-label={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-pressed={isFavorite}
               >
                 <svg key={favPulseKey} className={`w-3.5 h-3.5${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -110,24 +116,24 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={`Filter by ${getCategoryLabel(encryption.category)}`}
-                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
                 className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
               >
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </button>
             ) : (
               <span className="ml-auto text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] flex-shrink-0">
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </span>
             )}
             {encryption.nsfw && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white flex-shrink-0">NSFW</span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white flex-shrink-0">{t('card.nsfwBadge')}</span>
             )}
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
-                Awaiting confirmation
+                {t('card.awaitingConfirmation')}
               </span>
             )}
           </div>
@@ -149,21 +155,22 @@ function EncryptionCard({
             {canBid && onPlaceBid && (
               <div className="flex items-center gap-[var(--space-2)]">
                 <button
+                  id={tutorialTarget ? 'tutorial-place-bid' : undefined}
                   onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
                   disabled={hasLowBalance}
-                  title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+                  title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
                   className={`px-[var(--space-3)] py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
                 >
-                  Bid
+                  {t('card.bid')}
                 </button>
                 {hasLowBalance && (
-                  <span className="text-xs text-[var(--error)]">Insufficient balance</span>
+                  <span className="text-xs text-[var(--error)]">{t('card.insufficientBalance')}</span>
                 )}
               </div>
             )}
             {hasBid && encryption.status === 'active' && !isOwnListing && (
               <span className="px-[var(--space-3)] py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-                Bid Placed
+                {t('card.bidPlaced')}
               </span>
             )}
           </div>
@@ -197,8 +204,8 @@ function EncryptionCard({
               <button
                 onClick={handleToggleFavorite}
                 className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
-                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                title={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
+                aria-label={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-pressed={isFavorite}
               >
                 <svg key={favPulseKey} className={`w-4 h-4${favPulseKey > 0 ? ' fav-pulse' : ''}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -210,7 +217,7 @@ function EncryptionCard({
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
-                Awaiting confirmation
+                {t('card.awaitingConfirmation')}
               </span>
             )}
           </div>
@@ -220,15 +227,15 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={handleFilterByCategory}
-                title={`Filter by ${getCategoryLabel(encryption.category)}`}
-                aria-label={`Filter by category ${getCategoryLabel(encryption.category)}`}
+                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
                 className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </button>
             ) : (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {getCategoryLabel(encryption.category)}
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
               </span>
             )}
             {bidCount > 0 ? (
@@ -236,15 +243,15 @@ function EncryptionCard({
                 key={bidCount}
                 className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
               >
-                {bidCount} {bidCount === 1 ? 'bid' : 'bids'}
+                {t('card.bid', { count: bidCount })}
               </span>
             ) : (
-              <span className="text-xs text-[var(--text-muted)]">0 bids</span>
+              <span className="text-xs text-[var(--text-muted)]">{t('card.noBids')}</span>
             )}
           </div>
           {/* Row 3: Listed Date */}
           <p className="text-xs text-[var(--text-muted)] text-center">
-            Listed {formatDate(encryption.createdAt)}
+            {t('card.listed', { date: formatDate(encryption.createdAt) })}
           </p>
         </div>
 
@@ -283,14 +290,14 @@ function EncryptionCard({
 
         {/* Seller Info */}
         <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">{t('card.seller')}</span>
           <div className="flex items-center gap-1.5">
             {onFilterBySeller ? (
               <button
                 type="button"
                 onClick={handleFilterBySeller}
-                title="Show all listings from this seller"
-                aria-label="Filter by this seller"
+                title={t('card.filterBySeller')}
+                aria-label={t('card.filterBySellerAria')}
                 className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] hover:underline transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
                 <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
@@ -303,8 +310,8 @@ function EncryptionCard({
             <button
               onClick={handleCopySeller}
               className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
-              title="Copy seller address"
-              aria-label="Copy seller address"
+              title={t('card.copySellerAddress')}
+              aria-label={t('card.copySellerAddress')}
             >
               {copied ? (
                 <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -323,40 +330,41 @@ function EncryptionCard({
         {canBid && onPlaceBid && (
           <>
             <button
+              id={tutorialTarget ? 'tutorial-place-bid' : undefined}
               onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
               disabled={hasLowBalance}
-              title={hasLowBalance ? 'Insufficient balance (minimum 2 ADA)' : undefined}
+              title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
               className={`w-full mt-[var(--space-md)] px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
             >
-              {hasLowBalance ? 'Insufficient Balance' : 'Place Bid'}
+              {hasLowBalance ? t('card.insufficientBalanceButton') : t('card.placeBid')}
             </button>
             {hasLowBalance && (
-              <p className="mt-[var(--space-1)] text-center text-xs text-[var(--error)]">Insufficient balance</p>
+              <p className="mt-[var(--space-1)] text-center text-xs text-[var(--error)]">{t('card.insufficientBalance')}</p>
             )}
           </>
         )}
 
         {hasBid && encryption.status === 'active' && !isOwnListing && (
           <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
-            You have a bid on this listing
+            {t('card.youHaveBidOnListing')}
           </div>
         )}
 
         {isOwnListing && (
           <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
-            This is your listing
+            {t('card.thisIsYourListing')}
           </div>
         )}
 
         {encryption.status === 'pending' && (
           <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] text-center">
-            <p className="text-xs text-[var(--warning)]">Sale in progress</p>
+            <p className="text-xs text-[var(--warning)]">{t('card.saleInProgress')}</p>
           </div>
         )}
 
         {encryption.status === 'completed' && (
           <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
-            <p className="text-xs text-[var(--success)]">Sale completed</p>
+            <p className="text-xs text-[var(--success)]">{t('card.saleCompleted')}</p>
           </div>
         )}
       </article>
@@ -396,7 +404,8 @@ function arePropsEqual(prev: EncryptionCardProps, next: EncryptionCardProps): bo
     prev.onPlaceBid === next.onPlaceBid &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onFilterBySeller === next.onFilterBySeller &&
-    prev.onFilterByCategory === next.onFilterByCategory
+    prev.onFilterByCategory === next.onFilterByCategory &&
+    prev.tutorialTarget === next.tutorialTarget
   );
 }
 

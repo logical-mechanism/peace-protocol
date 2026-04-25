@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, memo } from 'react';
-import { FILE_CATEGORIES, type CategoryConfig } from '../config/categories';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
+import { FILE_CATEGORIES, translateSubcategoryLabel, type CategoryConfig, type FileCategory } from '../config/categories';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -46,28 +48,37 @@ function isAllSelected(selected: string[]): boolean {
   return selected.includes('all') || selected.length === TOP_LEVEL_IDS.length;
 }
 
-function getLabel(selected: string[]): string {
-  if (isAllSelected(selected)) return 'All Categories';
+function getLabel(selected: string[], t: (key: string, options?: Record<string, unknown>) => string): string {
+  if (isAllSelected(selected)) return t('dashboard:filters.categoryAllLabel');
   if (selected.length === 1) {
     const id = selected[0];
     // Check top-level
     const topMatch = FILE_CATEGORIES.find((c) => c.id === id);
-    if (topMatch) return topMatch.label;
+    if (topMatch) return t(`common:categories.${topMatch.id}`);
     // Check sub-category (e.g. "audio:music")
     const parts = id.split(':');
     if (parts.length > 1) {
       const parent = FILE_CATEGORIES.find((c) => c.id === parts[0]);
       const sub = parent?.subcategories?.find((s) => s.id === parts[1]);
-      if (parent && sub) return `${parent.label} > ${sub.label}`;
+      if (parent && sub) {
+        const subLabel = translateSubcategoryLabel(
+          (key, opts) => t(`common:${key}`, opts),
+          parent.id,
+          sub.id,
+          sub.label,
+        );
+        return `${t(`common:categories.${parent.id}`)} > ${subLabel}`;
+      }
     }
-    return '1 Category';
+    return t('dashboard:filters.categoryOneSelected');
   }
-  return `${selected.length} Categories`;
+  return t('dashboard:filters.categoryCountSelected', { count: selected.length });
 }
 
 // ── Component ────────────────────────────────────────────────────
 
 function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -127,6 +138,34 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     }
   }
 
+  // Translate top-level, subcategory, and nested-child labels via the
+  // `categories.sub.<cat>.<id>` keys; fall back to the hardcoded English
+  // label from categories.ts when a translation is missing.
+  function nodeLabel(node: CategoryNode): string {
+    if (TOP_LEVEL_IDS.includes(node.id)) {
+      return t(`common:categories.${node.id}`);
+    }
+    const parts = node.id.split(':');
+    const category = parts[0] as FileCategory;
+    if (parts.length === 2) {
+      return translateSubcategoryLabel(
+        (key, opts) => t(`common:${key}`, opts),
+        category,
+        parts[1],
+        node.label,
+      );
+    }
+    if (parts.length === 3) {
+      return translateSubcategoryLabel(
+        (key, opts) => t(`common:${key}`, opts),
+        category,
+        `${parts[1]}_${parts[2]}`,
+        node.label,
+      );
+    }
+    return node.label;
+  }
+
   function renderNode(node: CategoryNode, depth: number = 0) {
     const hasChildren = node.children && node.children.length > 0;
 
@@ -145,7 +184,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             onChange={() => handleToggleNode(node.id)}
             className="accent-[var(--accent)]"
           />
-          {node.label}
+          {nodeLabel(node)}
         </label>
       );
     }
@@ -164,7 +203,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             onChange={() => handleToggleNode(node.id)}
             className="accent-[var(--accent)]"
           />
-          {node.label}
+          {nodeLabel(node)}
         </label>
         {node.children!.map((child) => renderNode(child, depth + 1))}
       </div>
@@ -180,10 +219,10 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
             ? 'bg-[var(--accent-muted)] text-[var(--accent)] border-[var(--accent)]'
             : 'bg-[var(--bg-primary)] border-[var(--border-subtle)] text-[var(--text-primary)]'
         }`}
-        aria-label="Filter by category"
+        aria-label={t('dashboard:filters.filterByCategoryAria')}
         aria-expanded={open}
       >
-        <span>{getLabel(selected)}</span>
+        <span>{getLabel(selected, t)}</span>
         <svg
           className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
@@ -205,7 +244,7 @@ function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
               onChange={handleToggleAll}
               className="accent-[var(--accent)]"
             />
-            All
+            {t('dashboard:filters.categoryAll')}
           </label>
           <div className="border-t border-[var(--border-subtle)] my-1" />
           {/* Category tree */}

@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "ตั้งค่าโหนด",
+    "bootstrapping": "กำลังดาวน์โหลดสแนปช็อต",
+    "starting": "กำลังเริ่มโหนด",
+    "syncing": "กำลังซิงค์เชน",
+    "synced": "โหนดพร้อม",
+    "error": "ข้อผิดพลาดโหนด"
+  },
+  "network": {
+    "preprod": "เครือข่าย Preprod",
+    "mainnet": "เครือข่าย Mainnet"
+  },
+  "stages": {
+    "bootstrap": "เตรียมระบบ",
+    "starting": "กำลังเริ่ม",
+    "syncing": "กำลังซิงค์",
+    "ready": "พร้อม"
+  },
+  "progressLabel": "ความคืบหน้าการซิงค์",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano Node",
+      "startingText": "กำลังเล่นบัญชีแยกประเภทซ้ำ...",
+      "description": "ตรวจสอบบล็อกจากบล็อกเชน Cardano และดูแลสำเนาบัญชีแยกประเภทในเครื่อง"
+    },
+    "ogmios": {
+      "label": "Ogmios Bridge",
+      "startingText": "กำลังเชื่อมต่อ...",
+      "description": "แปลข้อมูลโหนดเป็นโปรโตคอล WebSocket สำหรับสร้างและส่งธุรกรรม"
+    },
+    "kupo": {
+      "label": "Kupo Indexer",
+      "startingText": "กำลังเริ่ม...",
+      "description": "สร้างดัชนี UTxO ที่สัญญาและที่อยู่กระเป๋าเงินสำหรับการสอบถามยอดเงินและรายการอย่างรวดเร็ว"
+    },
+    "states": {
+      "waiting": "กำลังรอ...",
+      "starting": "กำลังเริ่ม...",
+      "ready": "พร้อม",
+      "error": "ข้อผิดพลาด"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano Node",
+    "kupoIndexer": "Kupo Indexer",
+    "backendServer": "เซิร์ฟเวอร์แบ็กเอนด์",
+    "syncing": "กำลังซิงค์ {{percent}}%",
+    "indexing": "กำลังสร้างดัชนี {{percent}}%",
+    "disconnected": "ตัดการเชื่อมต่อ",
+    "stalled": "หยุดชะงัก",
+    "starting": "กำลังเริ่ม...",
+    "waiting": "กำลังรอ...",
+    "synced": "ซิงค์แล้ว"
+  },
+  "syncInfo": {
+    "block": "บล็อก {{height}} — {{percent}}%",
+    "epoch": "ยุค {{epoch}} ({{era}})",
+    "slot": "สล็อต {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "ไม่พบข้อมูลบล็อกเชน ดาวน์โหลดสแนปช็อตเพื่อเริ่มต้น",
+    "stopped": "โครงสร้างพื้นฐานโหนดหยุดทำงาน",
+    "bootstrapDownloading": "กำลังดาวน์โหลดสแนปช็อต: {{current}} / {{total}} ไฟล์",
+    "bootstrapLedgerState": "กำลังดาวน์โหลดสถานะบัญชีแยกประเภท: {{downloaded}} / {{total}}",
+    "bootstrapPreparing": "กำลังเตรียมดาวน์โหลดสแนปช็อตบล็อกเชน...",
+    "bootstrapGeneric": "กำลังดาวน์โหลดสแนปช็อต...",
+    "startingNode": "กำลังเริ่ม Cardano node...",
+    "waitingChainBridge": "กำลังรอบริดจ์เชน...",
+    "connectingNetwork": "กำลังเชื่อมต่อกับเครือข่าย...",
+    "fullySyncedStartingBackend": "ซิงค์เรียบร้อย กำลังเริ่มบริการแบ็กเอนด์...",
+    "fullySynced": "ซิงค์กับเครือข่าย {{network}} เรียบร้อย",
+    "nodeSyncedWaitingKupo": "โหนดซิงค์แล้ว กำลังรอ Kupo indexer...",
+    "syncing": "กำลังซิงค์กับเครือข่าย {{network}}...",
+    "syncedAtBlock": "ซิงค์กับเครือข่าย {{network}} เรียบร้อยที่บล็อก {{height}}",
+    "genericError": "เกิดข้อผิดพลาด"
+  },
+  "stuckMessage": "บล็อกสุดท้ายไม่กี่บล็อกใช้เวลานานขึ้นเนื่องจากโหนดกำลังตรวจสอบธุรกรรมล่าสุด นี่เป็นเรื่องปกติ เปอร์เซ็นต์สุดท้ายอาจใช้เวลา 5-15 นาทีในขณะที่โหนดตรวจสอบบล็อกล่าสุด",
+  "diskSpace": {
+    "low": "พื้นที่ดิสก์เหลือน้อย: เหลือ {{available}} GB ต้องการประมาณ {{required}} GB สำหรับ {{network}} การซิงค์อาจล้มเหลวหากพื้นที่ดิสก์หมด",
+    "unknown": "ไม่สามารถตรวจสอบพื้นที่ดิสก์ได้ ตรวจสอบให้แน่ใจว่ามีพื้นที่ว่างอย่างน้อย 10 GB ก่อนซิงค์"
+  },
+  "actions": {
+    "starting": "กำลังเริ่ม...",
+    "downloadSnapshot": "ดาวน์โหลดสแนปช็อตและเริ่ม",
+    "startNode": "เริ่มโหนด",
+    "retry": "ลองใหม่",
+    "continueDashboard": "ดำเนินการต่อไปที่แดชบอร์ด",
+    "continueBackground": "ดำเนินการในพื้นหลัง",
+    "stop": "หยุด"
+  },
+  "console": {
+    "show": "แสดงผลลัพธ์คอนโซล ({{count}} บรรทัด)",
+    "hide": "ซ่อนผลลัพธ์คอนโซล ({{count}} บรรทัด)",
+    "copyLogs": "คัดลอกบันทึก",
+    "copyLogsAria": "คัดลอกบันทึกไปยังคลิปบอร์ด",
+    "noLogsTitle": "ไม่มีบันทึก",
+    "noLogsBody": "ไม่มีบรรทัดบันทึกให้คัดลอก",
+    "copiedTitle": "คัดลอกบันทึกแล้ว",
+    "copiedBody": "คัดลอกผลลัพธ์คอนโซลไปยังคลิปบอร์ดแล้ว",
+    "copyFailedTitle": "การคัดลอกล้มเหลว",
+    "copyFailedBody": "ไม่สามารถคัดลอกบันทึกไปยังคลิปบอร์ดได้"
+  },
+  "errorDetails": {
+    "summary": "รายละเอียด",
+    "copyAria": "คัดลอกรายละเอียดข้อผิดพลาด",
+    "errorFallback": "ข้อผิดพลาด"
+  },
+  "wasm": {
+    "checkingSetup": "กำลังตรวจสอบไฟล์ตั้งค่า SNARK...",
+    "checkingExist": "กำลังตรวจสอบว่ามีไฟล์ตั้งค่าหรือไม่...",
+    "proverReady": "ตัวพิสูจน์ SNARK พร้อม",
+    "setupFound": "พบไฟล์ตั้งค่า",
+    "decompressing": "กำลังแตกไฟล์ตั้งค่า SNARK...",
+    "decompressingDetail": "กำลังแตกไฟล์ pk.bin และ ccs.bin (~500MB)...",
+    "decompressed": "แตกไฟล์ตั้งค่าแล้ว"
+  },
+  "firstTimeSetup": {
+    "title": "การตั้งค่าครั้งแรก",
+    "description": "จะดาวน์โหลดสแนปช็อต Mithril เพื่อเตรียมระบบ Cardano node ใช้เวลาประมาณ 10-20 นาทีขึ้นอยู่กับความเร็วการเชื่อมต่อของคุณ สแนปช็อตจะถูกตรวจสอบด้วยวิทยาการเข้ารหัสก่อนใช้งาน"
+  }
+}

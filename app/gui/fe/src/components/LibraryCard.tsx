@@ -1,4 +1,5 @@
 import { useState, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LibraryItem } from '../services/libraryService';
 import { truncateHex } from '../utils/truncate';
 import { formatBytes } from '../utils/formatBytes';
@@ -6,6 +7,7 @@ import Badge from './Badge';
 import DescriptionModal from './DescriptionModal';
 import { truncateDescription } from './descriptionUtils';
 import { getContentType } from '../utils/contentType';
+import { getTopLevelCategory } from '../config/categories';
 import { formatDate } from '../utils/formatDate';
 import { copyToClipboard } from '../utils/clipboard';
 import ListingImage from './ListingImage';
@@ -26,10 +28,7 @@ interface LibraryCardProps {
 }
 
 
-const getCategoryLabel = (category: string): string => {
-  if (!category) return 'Text';
-  return category.charAt(0).toUpperCase() + category.slice(1);
-};
+// Category labels are resolved via i18n in the component below
 
 
 function CategoryIcon({ category, fileExtension, size = 'md' }: { category: string; fileExtension?: string; size?: 'sm' | 'md' }) {
@@ -95,6 +94,7 @@ function LibraryCard({
   selected = false,
   onToggleSelect,
 }: LibraryCardProps) {
+  const { t } = useTranslation('common');
   const [descriptionModalOpen, setDescriptionModalOpen] = useState(false);
   const [copiedSeller, setCopiedSeller] = useState(false);
 
@@ -130,7 +130,7 @@ function LibraryCard({
                   onChange={() => onToggleSelect?.(item.tokenName)}
                   onClick={(e) => e.stopPropagation()}
                   className="w-4 h-4 accent-[var(--accent)] cursor-pointer flex-shrink-0"
-                  aria-label={`Select ${item.tokenName}`}
+                  aria-label={t('library.selectItem', { name: item.tokenName })}
                 />
               )}
               {item.imageLink ? (
@@ -150,9 +150,9 @@ function LibraryCard({
                   <span className="text-xs font-mono text-[var(--text-muted)]" title={item.tokenName}>
                     {truncateHex(item.tokenName, 8, 4)}
                   </span>
-                  <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
+                  <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
                   {item.contentMissing && (
-                    <Badge variant="warning">Missing</Badge>
+                    <Badge variant="warning">{t('library.missingBadge')}</Badge>
                   )}
                 </div>
                 {item.description && (
@@ -176,14 +176,14 @@ function LibraryCard({
               <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs text-right">
                 {sellerPkh && (
                   <>
-                    <span className="text-[var(--text-muted)]">Seller</span>
+                    <span className="text-[var(--text-muted)]">{t('card.seller')}</span>
                     <span className="font-mono text-[var(--text-muted)] flex items-center justify-end gap-1" title={sellerPkh}>
                       {truncateHex(sellerPkh, 8, 4)}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                         className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                        title="Copy seller address"
-                        aria-label="Copy seller address"
+                        title={t('card.copySellerAddress')}
+                        aria-label={t('card.copySellerAddress')}
                       >
                         <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           {copiedSeller ? (
@@ -196,11 +196,11 @@ function LibraryCard({
                     </span>
                   </>
                 )}
-                <span className="text-[var(--text-muted)]">Date</span>
+                <span className="text-[var(--text-muted)]">{t('library.date')}</span>
                 <span className="text-[var(--text-muted)]">{formatDate(item.decryptedAt)}</span>
                 {item.fileSize != null && (
                   <>
-                    <span className="text-[var(--text-muted)]">Size</span>
+                    <span className="text-[var(--text-muted)]">{t('library.size')}</span>
                     <span className="text-[var(--text-muted)]">{formatBytes(item.fileSize)}</span>
                   </>
                 )}
@@ -213,14 +213,14 @@ function LibraryCard({
                     onClick={() => onView(item)}
                     className="px-3 py-1.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                   >
-                    View
+                    {t('library.view')}
                   </button>
                   {onRelist && !item.contentMissing && (
                     <button
                       onClick={() => onRelist(item)}
                       className="p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
-                      title="Create listing from this item"
-                      aria-label="Create listing from this item"
+                      title={t('library.createListingFromItem')}
+                      aria-label={t('library.createListingFromItem')}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -230,8 +230,8 @@ function LibraryCard({
                   <button
                     onClick={() => onDelete(item)}
                     className="p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] btn-base"
-                    title="Delete from library"
-                    aria-label="Delete from library"
+                    title={t('library.deleteFromLibrary')}
+                    aria-label={t('library.deleteFromLibrary')}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -277,7 +277,7 @@ function LibraryCard({
               onChange={() => onToggleSelect?.(item.tokenName)}
               onClick={(e) => e.stopPropagation()}
               className="w-4 h-4 accent-[var(--accent)] cursor-pointer"
-              aria-label={`Select ${item.tokenName}`}
+              aria-label={t('library.selectItem', { name: item.tokenName })}
             />
           </div>
         )}
@@ -296,9 +296,9 @@ function LibraryCard({
                 truncateHex(item.tokenName, 12, 8)
               )}
             </span>
-            <Badge variant="neutral">{getCategoryLabel(item.category)}</Badge>
+            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
             {item.contentMissing && (
-              <Badge variant="warning">Missing</Badge>
+              <Badge variant="warning">{t('library.missingBadge')}</Badge>
             )}
           </div>
           {/* Row 2: File Size (left) + Relist button (right) */}
@@ -310,8 +310,8 @@ function LibraryCard({
               <button
                 onClick={() => onRelist(item)}
                 className="p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
-                title="Create listing from this item"
-                aria-label="Create listing from this item"
+                title={t('library.createListingFromItem')}
+                aria-label={t('library.createListingFromItem')}
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -321,7 +321,7 @@ function LibraryCard({
           </div>
           {/* Row 3: Date (centered) */}
           <p className="text-xs text-[var(--text-muted)] text-center">
-            Decrypted {formatDate(item.decryptedAt)}
+            {t('card.decrypted', { date: formatDate(item.decryptedAt) })}
           </p>
         </div>
 
@@ -345,7 +345,7 @@ function LibraryCard({
         ) : (
           <div className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]`}>
             <p className={`text-sm font-medium text-[var(--text-muted)] ${descClamp}`}>
-              No description
+              {t('library.noDescription')}
             </p>
           </div>
         )}
@@ -368,14 +368,14 @@ function LibraryCard({
         {/* Seller Info */}
         {sellerPkh && (
           <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs font-medium text-[var(--text-muted)]">Seller</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">{t('card.seller')}</span>
             <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerPkh}>
               {truncateHex(sellerPkh, 12, 8)}
               <button
                 onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
                 className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                title="Copy seller address"
-                aria-label="Copy seller address"
+                title={t('card.copySellerAddress')}
+                aria-label={t('card.copySellerAddress')}
               >
                 <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {copiedSeller ? (
@@ -396,13 +396,13 @@ function LibraryCard({
               onClick={() => onView(item)}
               className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              View Content
+              {t('library.viewContent')}
             </button>
             <button
               onClick={() => onDelete(item)}
               className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
             >
-              Delete
+              {t('library.delete')}
             </button>
           </div>
         )}

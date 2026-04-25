@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { EncryptionDisplay } from '../services/api';
 import { truncateHex } from '../utils/truncate';
 import LoadingSpinner from './LoadingSpinner';
@@ -53,6 +54,7 @@ export default function PlaceBidModal({
   bidCount = 0,
   balanceLovelace,
 }: PlaceBidModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const [formData, setFormData] = useState<PlaceBidFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -113,17 +115,17 @@ export default function PlaceBidModal({
 
     // Bid amount validation
     if (!formData.bidAmount.trim()) {
-      newErrors.bidAmount = 'Bid amount is required';
+      newErrors.bidAmount = t('modals:placeBid.errors.bidRequired');
     } else {
       const amount = parseFloat(formData.bidAmount.replace(/,/g, ''));
       if (isNaN(amount) || amount <= 0) {
-        newErrors.bidAmount = 'Bid amount must be a positive number';
+        newErrors.bidAmount = t('modals:placeBid.errors.bidPositive');
       } else if (amount < MIN_BID_ADA) {
-        newErrors.bidAmount = `Minimum bid is ${MIN_BID_ADA} ADA`;
+        newErrors.bidAmount = t('modals:placeBid.errors.bidMin', { amount: MIN_BID_ADA });
       } else if (amount > 45_000_000_000) {
-        newErrors.bidAmount = 'Bid exceeds maximum (45B ADA)';
+        newErrors.bidAmount = t('modals:placeBid.errors.bidMax');
       } else if (balanceAda !== undefined && amount > balanceAda) {
-        newErrors.bidAmount = 'Bid exceeds your wallet balance';
+        newErrors.bidAmount = t('modals:placeBid.errors.bidExceedsBalance');
       }
     }
 
@@ -131,9 +133,9 @@ export default function PlaceBidModal({
     if (showFuturePrice && formData.futurePrice.trim()) {
       const price = parseFloat(formData.futurePrice.replace(/,/g, ''));
       if (isNaN(price) || price < 0) {
-        newErrors.futurePrice = 'Future price must be a non-negative number';
+        newErrors.futurePrice = t('modals:placeBid.errors.futureNegative');
       } else if (price > 45_000_000_000) {
-        newErrors.futurePrice = 'Future price exceeds maximum (45B ADA)';
+        newErrors.futurePrice = t('modals:placeBid.errors.futureMax');
       }
     }
 
@@ -174,7 +176,7 @@ export default function PlaceBidModal({
     e.preventDefault();
 
     if (!encryption) {
-      setSubmitError(getFriendlyError('No encryption selected'));
+      setSubmitError(getFriendlyError(t('modals:placeBid.errors.noEncryption')));
       return;
     }
 
@@ -195,7 +197,7 @@ export default function PlaceBidModal({
       onClose();
     } catch (error) {
       console.error('Failed to place bid:', error);
-      const rawMsg = error instanceof Error ? error.message : 'Failed to place bid. Please try again.';
+      const rawMsg = error instanceof Error ? error.message : t('modals:placeBid.errors.submitFailed');
       setSubmitError(getFriendlyError(rawMsg));
       // Save form state so user can retry without re-entering
       saveBidFormDraft({
@@ -233,13 +235,13 @@ export default function PlaceBidModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
-            <h2 id="place-bid-title" className="text-lg font-semibold text-[var(--text-primary)]">Place Bid</h2>
+            <h2 id="place-bid-title" className="text-lg font-semibold text-[var(--text-primary)]">{t('modals:placeBid.title')}</h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Bid on encrypted data listing
+              {t('modals:placeBid.subtitle')}
             </p>
             {bidCount > 0 && (
               <p className="text-xs text-[var(--accent)] mt-0.5">
-                {bidCount} {bidCount === 1 ? 'bid' : 'bids'} on this listing
+                {t('modals:placeBid.bidsOnListing', { count: bidCount })}
               </p>
             )}
           </div>
@@ -247,7 +249,7 @@ export default function PlaceBidModal({
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Close dialog"
+            aria-label={t('modals:common.closeDialog')}
             tabIndex={-1}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
           >
@@ -268,24 +270,24 @@ export default function PlaceBidModal({
             {/* Listing Info */}
             <div className="p-4 bg-[var(--bg-secondary)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
               <h3 className="text-sm font-medium text-[var(--text-primary)] mb-3">
-                Listing Details
+                {t('modals:placeBid.listingDetails')}
               </h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">Token</span>
+                  <span className="text-xs text-[var(--text-muted)]">{t('modals:placeBid.token')}</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.tokenName}>
                     {truncateHex(encryption.tokenName, 8, 4)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">Seller</span>
+                  <span className="text-xs text-[var(--text-muted)]">{t('modals:placeBid.seller')}</span>
                   <span className="text-xs font-mono text-[var(--text-secondary)]" title={encryption.sellerPkh}>
                     {truncateHex(encryption.sellerPkh, 10, 6)}
                   </span>
                 </div>
                 {encryption.suggestedPrice !== undefined && (
                   <div className="flex justify-between">
-                    <span className="text-xs text-[var(--text-muted)]">Suggested Price</span>
+                    <span className="text-xs text-[var(--text-muted)]">{t('modals:placeBid.suggestedPrice')}</span>
                     <span className="text-xs font-medium text-[var(--accent)]">
                       {formatAda(encryption.suggestedPrice)} ADA
                     </span>
@@ -293,7 +295,7 @@ export default function PlaceBidModal({
                 )}
                 {encryption.description && (
                   <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]">
-                    <span className="text-xs text-[var(--text-muted)]">Description</span>
+                    <span className="text-xs text-[var(--text-muted)]">{t('modals:placeBid.description')}</span>
                     <p
                       className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-1"
                       title={encryption.description}
@@ -311,18 +313,18 @@ export default function PlaceBidModal({
                 <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Restored from previous attempt
+                {t('modals:placeBid.restoredFromDraft')}
               </div>
             )}
 
             {/* Bid Amount */}
-            <div>
+            <div id="tutorial-bid-amount">
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="bidAmount"
                   className="text-sm font-medium text-[var(--text-primary)]"
                 >
-                  Your Bid Amount (ADA) <span className="text-[var(--error)]">*</span>
+                  {t('modals:placeBid.bidAmountLabel')} <span className="text-[var(--error)]">*</span>
                 </label>
                 {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
                   <div className="flex gap-1.5">
@@ -334,7 +336,7 @@ export default function PlaceBidModal({
                       disabled={isSubmitting}
                       className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
-                      Suggested ({formatAda(encryption.suggestedPrice!)} ADA)
+                      {t('modals:placeBid.suggestedButton', { amount: formatAda(encryption.suggestedPrice!) })}
                     </button>
                     <button
                       type="button"
@@ -347,7 +349,7 @@ export default function PlaceBidModal({
                       disabled={isSubmitting}
                       className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
-                      +10%
+                      {t('modals:placeBid.plusTen')}
                     </button>
                     <button
                       type="button"
@@ -360,12 +362,12 @@ export default function PlaceBidModal({
                       disabled={isSubmitting}
                       className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                     >
-                      +25%
+                      {t('modals:placeBid.plusTwentyFive')}
                     </button>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-[var(--text-muted)] mb-1.5">Minimum bid: {MIN_BID_ADA} ADA</p>
+              <p className="text-xs text-[var(--text-muted)] mb-1.5">{t('modals:placeBid.minimumBidHint', { amount: MIN_BID_ADA })}</p>
               <div className="relative">
                 <input
                   ref={bidAmountRef}
@@ -396,20 +398,18 @@ export default function PlaceBidModal({
               )}
               {!errors.bidAmount && isBelowSuggested && (
                 <p className="mt-1 text-xs text-[var(--warning)]">
-                  Your bid is below the seller's suggested price of{' '}
-                  {formatAda(encryption.suggestedPrice!)} ADA
+                  {t('modals:placeBid.belowSuggested', { amount: formatAda(encryption.suggestedPrice!) })}
                 </p>
               )}
               <div className="mt-1 space-y-1">
                 <p id="bidAmount-hint" className="text-xs text-[var(--text-muted)]">
-                  Your bid will be locked until the seller accepts or you cancel.{' '}
-                  Why {MIN_BID_ADA} ADA minimum?
-                  <InfoTooltip text="The Cardano network requires each piece of on-chain data (UTxO) to hold a minimum amount of ADA. Your bid is stored on-chain, so it must meet this minimum." />
+                  {t('modals:placeBid.bidHint', { amount: MIN_BID_ADA })}
+                  <InfoTooltip text={t('modals:placeBid.minimumTooltip')} />
                 </p>
                 {balanceAda !== undefined ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-[var(--text-secondary)]">
-                      Balance: {balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 })} ADA
+                      {t('modals:placeBid.balance', { amount: balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
                     </span>
                     <button
                       type="button"
@@ -427,26 +427,26 @@ export default function PlaceBidModal({
                       disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
                       className="px-1.5 py-0.5 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary"
                     >
-                      Max
+                      {t('modals:placeBid.maxButton')}
                     </button>
                   </div>
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">
-                    Balance: loading...
+                    {t('modals:placeBid.balanceLoading')}
                   </span>
                 )}
               </div>
             </div>
 
             {/* Future Listing Price (collapsible) */}
-            <div className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
+            <div id="tutorial-future-price" className="border border-[var(--border-subtle)] rounded-[var(--radius-md)] overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowFuturePrice(!showFuturePrice)}
                 disabled={isSubmitting}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-sm btn-base btn-tertiary border-0"
               >
-                <span>Set Future Listing Price</span>
+                <span>{t('modals:placeBid.setFuturePrice')}</span>
                 <svg
                   className={`w-4 h-4 transition-transform duration-[var(--transition-fast)] ${showFuturePrice ? 'rotate-180' : ''}`}
                   fill="none"
@@ -463,9 +463,9 @@ export default function PlaceBidModal({
                       htmlFor="futurePrice"
                       className="text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-1"
                     >
-                      Future Listing Price (ADA){' '}
-                      <span className="text-[var(--text-muted)] font-normal">(optional)</span>
-                      <InfoTooltip text="The price you intend to re-list this data for after you win the bid. Recorded on-chain as metadata for future buyers." />
+                      {t('modals:placeBid.futurePriceLabel')}{' '}
+                      <span className="text-[var(--text-muted)] font-normal">{t('modals:placeBid.futurePriceOptional')}</span>
+                      <InfoTooltip text={t('modals:placeBid.futurePriceTooltip')} />
                     </label>
                     {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
                       <div className="flex gap-1.5">
@@ -477,7 +477,7 @@ export default function PlaceBidModal({
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                         >
-                          Same Price
+                          {t('modals:placeBid.samePrice')}
                         </button>
                         <button
                           type="button"
@@ -534,7 +534,7 @@ export default function PlaceBidModal({
                     <p id="futurePrice-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.futurePrice}</p>
                   )}
                   <p className="mt-1 text-xs text-[var(--text-muted)]">
-                    The suggested price for the next listing after you win. Defaults to the current price.
+                    {t('modals:placeBid.futurePriceHelp')}
                   </p>
                 </div>
               )}
@@ -556,7 +556,7 @@ export default function PlaceBidModal({
                     if (ok) { setCopiedError(true); setTimeout(() => setCopiedError(false), 1500); }
                   }}
                   className="flex-shrink-0 p-1 text-[var(--error)]/60 hover:text-[var(--error)] transition-colors cursor-pointer"
-                  aria-label="Copy error to clipboard"
+                  aria-label={t('modals:placeBid.copyErrorLabel')}
                 >
                   {copiedError ? (
                     <svg className="w-4 h-4 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,10 +577,10 @@ export default function PlaceBidModal({
             {/* Info box about what happens next */}
             <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
-                <strong>Note:</strong> Placing a bid will generate a unique encryption key and lock
-                your ADA in the contract. You can cancel the bid anytime before the seller accepts.
+                <strong>{t('modals:placeBid.infoNoteLabel')}</strong> {t('modals:placeBid.infoNote')}
               </p>
             </div>
+
 
             <div className="flex items-center gap-3">
               <button
@@ -589,9 +589,10 @@ export default function PlaceBidModal({
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
               <button
+                id="tutorial-submit-bid"
                 type="submit"
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] flex items-center justify-center gap-2 btn-base btn-primary"
@@ -599,7 +600,7 @@ export default function PlaceBidModal({
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Placing Bid...
+                    {t('modals:placeBid.submitting')}
                   </>
                 ) : (
                   <>
@@ -611,7 +612,7 @@ export default function PlaceBidModal({
                         d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    Place Bid
+                    {t('modals:placeBid.submit')}
                   </>
                 )}
               </button>

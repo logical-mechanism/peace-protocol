@@ -20,11 +20,12 @@ export const SOUND_EVENTS: readonly SoundEvent[] = [
   'bid_accepted',
 ] as const
 
-export const SOUND_EVENT_LABELS: Record<SoundEvent, { label: string; description: string }> = {
-  new_bid: { label: 'New Bid', description: 'A new bid is placed on one of your listings' },
-  tx_confirmed: { label: 'Transaction Confirmed', description: 'A transaction reaches 15 confirmations' },
-  tx_failed: { label: 'Transaction Failed', description: 'A transaction submission fails' },
-  bid_accepted: { label: 'Bid Accepted', description: 'A bid you placed was accepted by the seller' },
+/** i18n keys for sound event labels — resolve via t(`settings:preferences.soundEvents.${key}`) */
+export const SOUND_EVENT_KEYS: Record<SoundEvent, { labelKey: string; descKey: string }> = {
+  new_bid: { labelKey: 'preferences.soundEvents.new_bid', descKey: 'preferences.soundEvents.new_bidDesc' },
+  tx_confirmed: { labelKey: 'preferences.soundEvents.tx_confirmed', descKey: 'preferences.soundEvents.tx_confirmedDesc' },
+  tx_failed: { labelKey: 'preferences.soundEvents.tx_failed', descKey: 'preferences.soundEvents.tx_failedDesc' },
+  bid_accepted: { labelKey: 'preferences.soundEvents.bid_accepted', descKey: 'preferences.soundEvents.bid_acceptedDesc' },
 }
 
 // ---------------------------------------------------------------------------

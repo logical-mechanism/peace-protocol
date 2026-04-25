@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Cardano üzerinde şifreli veri pazarı",
+    "chooseCreateTitle": "Yeni Cüzdan Oluştur",
+    "chooseCreateSubtitle": "24 kelimelik yeni bir kurtarma cümlesi oluşturun",
+    "chooseImportTitle": "Mevcut Cüzdanı İçe Aktar",
+    "chooseImportSubtitle": "24 kelimelik kurtarma cümlesinden geri yükleyin",
+    "back": "Geri",
+    "steps": {
+      "backup": "Yedekleme",
+      "verify": "Doğrulama",
+      "password": "Parola",
+      "recoveryPhrase": "Kurtarma Cümlesi"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Kurtarma Cümlesi",
+      "verifyTitle": "Cümleyi Doğrula",
+      "passwordTitle": "Parola Belirle",
+      "warning": "Bu 24 kelimeyi sırasıyla yazın. Cüzdanınızı kurtarmanın tek yolu budur. Bunları asla kimseyle paylaşmayın.",
+      "copyToClipboard": "Panoya Kopyala",
+      "copied": "Kopyalandı!",
+      "wroteItDown": "Yazdım",
+      "verifyInstructions": "Aşağıdaki kelimeleri girerek kurtarma cümlenizi doğrulayın. Yazmaya başlayın ve eşleşen kelimeyi seçin.",
+      "continue": "Devam"
+    },
+    "import": {
+      "enterTitle": "Kurtarma Cümlesini Girin",
+      "passwordTitle": "Parola Belirle",
+      "instructions": "24 kelimelik kurtarma cümlenizi girin. Her kelimeyi yazmaya başlayın ve önerilerden seçin.",
+      "pasteAll": "24 kelimenin tamamını yapıştır",
+      "wordCount": "{{count}} / 24 kelime",
+      "continue": "Devam"
+    },
+    "password": {
+      "description": "Kurtarma cümlenizi şifrelemek için bir cüzdan parolası belirleyin. Uygulamayı her açtığınızda bu parolaya ihtiyacınız olacak.",
+      "label": "Parola",
+      "confirmLabel": "Parolayı Onayla",
+      "placeholder": "Parola girin",
+      "confirmPlaceholder": "Parolayı onaylayın",
+      "show": "Göster",
+      "hide": "Gizle",
+      "capsLockOn": "Caps Lock açık",
+      "creating": "Cüzdan Oluşturuluyor...",
+      "submit": "Cüzdan Oluştur"
+    },
+    "errors": {
+      "allWordsRequired": "24 kelimenin tamamı gereklidir",
+      "passwordRequirements": "Parola tüm gereksinimleri karşılamıyor",
+      "passwordMismatch": "Parolalar eşleşmiyor",
+      "createFailed": "Cüzdan oluşturulamadı",
+      "copyFailedTitle": "Kopyalama başarısız",
+      "copyFailedBody": "Mnemonic panoya kopyalanamadı.",
+      "clipboardUnavailableTitle": "Pano kullanılamıyor",
+      "clipboardUnavailableBody": "Panoya erişilemedi. Ctrl+V ile doğrudan kelime alanlarına yapıştırmayı deneyin."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Parola",
+    "togglePasswordVisibility": "Parola görünürlüğünü değiştir",
+    "capsLockOn": "Caps Lock açık",
+    "unlock": "Kilidi Aç",
+    "unlocking": "Kilit açılıyor...",
+    "forgotPassword": "Parolanızı mı unuttunuz?",
+    "details": "Ayrıntılar",
+    "copyErrorTitle": "Hata ayrıntılarını kopyala",
+    "delete": {
+      "title": "Cüzdanı Sil?",
+      "description": "Bu, şifreli cüzdanı bu cihazdan kaldıracaktır. 24 kelimelik kurtarma cümlenizi yedeklediyseniz fonlarınız güvendedir. Sildikten sonra tekrar içe aktarabilirsiniz.",
+      "warning": "Kurtarma cümleniz olmadan fonlarınız kalıcı olarak kaybolacaktır.",
+      "acknowledge": "24 kelimelik kurtarma cümlemi yedekledim",
+      "cancel": "İptal",
+      "confirm": "Cüzdanı Sil",
+      "deleting": "Siliniyor..."
+    }
+  }
+}

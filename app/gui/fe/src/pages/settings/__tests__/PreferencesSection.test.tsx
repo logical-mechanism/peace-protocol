@@ -7,8 +7,8 @@ vi.mock('../../../services/toastSettings', () => ({
   getToastDurationMs: vi.fn().mockReturnValue(5000),
   setToastDurationMs: vi.fn(),
   TOAST_DURATION_OPTIONS: [
-    { label: '3 seconds', value: 3000 },
-    { label: '5 seconds', value: 5000 },
+    { labelKey: 'notifDuration3s', value: 3000 },
+    { labelKey: 'notifDuration5s', value: 5000 },
   ],
 }))
 
@@ -24,8 +24,8 @@ vi.mock('../../../services/soundPreferences', () => ({
   getEventSoundVolume: vi.fn().mockReturnValue(0.5),
   setEventSoundVolume: vi.fn(),
   SOUND_EVENTS: ['new_bid'],
-  SOUND_EVENT_LABELS: {
-    new_bid: { label: 'New Bid', description: 'A new bid is placed on one of your listings' },
+  SOUND_EVENT_KEYS: {
+    new_bid: { labelKey: 'preferences.soundEvents.new_bid', descKey: 'preferences.soundEvents.new_bidDesc' },
   },
 }))
 

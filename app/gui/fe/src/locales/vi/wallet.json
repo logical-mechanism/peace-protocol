@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Sàn giao dịch dữ liệu mã hóa trên Cardano",
+    "chooseCreateTitle": "Tạo ví mới",
+    "chooseCreateSubtitle": "Tạo cụm từ khôi phục 24 từ mới",
+    "chooseImportTitle": "Nhập ví hiện có",
+    "chooseImportSubtitle": "Khôi phục từ cụm từ khôi phục 24 từ",
+    "back": "Quay lại",
+    "steps": {
+      "backup": "Sao lưu",
+      "verify": "Xác minh",
+      "password": "Mật khẩu",
+      "recoveryPhrase": "Cụm từ khôi phục"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Cụm từ khôi phục",
+      "verifyTitle": "Xác minh cụm từ",
+      "passwordTitle": "Đặt mật khẩu",
+      "warning": "Viết lại 24 từ này theo đúng thứ tự. Đây là cách duy nhất để khôi phục ví của bạn. Không bao giờ chia sẻ chúng với bất kỳ ai.",
+      "copyToClipboard": "Sao chép vào clipboard",
+      "copied": "Đã sao chép!",
+      "wroteItDown": "Tôi đã ghi lại",
+      "verifyInstructions": "Xác minh cụm từ khôi phục bằng cách nhập các từ sau. Bắt đầu gõ và chọn từ phù hợp.",
+      "continue": "Tiếp tục"
+    },
+    "import": {
+      "enterTitle": "Nhập cụm từ khôi phục",
+      "passwordTitle": "Đặt mật khẩu",
+      "instructions": "Nhập cụm từ khôi phục 24 từ của bạn. Bắt đầu gõ từng từ và chọn từ gợi ý.",
+      "pasteAll": "Dán tất cả 24 từ",
+      "wordCount": "{{count}} / 24 từ",
+      "continue": "Tiếp tục"
+    },
+    "password": {
+      "description": "Đặt mật khẩu ví để mã hóa cụm từ khôi phục. Bạn sẽ cần mật khẩu này mỗi khi mở ứng dụng.",
+      "label": "Mật khẩu",
+      "confirmLabel": "Xác nhận mật khẩu",
+      "placeholder": "Nhập mật khẩu",
+      "confirmPlaceholder": "Xác nhận mật khẩu",
+      "show": "Hiện",
+      "hide": "Ẩn",
+      "capsLockOn": "Caps Lock đang bật",
+      "creating": "Đang tạo ví...",
+      "submit": "Tạo ví"
+    },
+    "errors": {
+      "allWordsRequired": "Cần nhập đủ 24 từ",
+      "passwordRequirements": "Mật khẩu chưa đáp ứng tất cả yêu cầu",
+      "passwordMismatch": "Mật khẩu không khớp",
+      "createFailed": "Không thể tạo ví",
+      "copyFailedTitle": "Sao chép thất bại",
+      "copyFailedBody": "Không thể sao chép mnemonic vào clipboard.",
+      "clipboardUnavailableTitle": "Clipboard không khả dụng",
+      "clipboardUnavailableBody": "Không thể truy cập clipboard. Hãy thử dán trực tiếp vào các ô từ bằng Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Mật khẩu",
+    "togglePasswordVisibility": "Bật/tắt hiển thị mật khẩu",
+    "capsLockOn": "Caps Lock đang bật",
+    "unlock": "Mở khóa",
+    "unlocking": "Đang mở khóa...",
+    "forgotPassword": "Quên mật khẩu?",
+    "details": "Chi tiết",
+    "copyErrorTitle": "Sao chép chi tiết lỗi",
+    "delete": {
+      "title": "Xóa ví?",
+      "description": "Thao tác này sẽ xóa ví đã mã hóa khỏi thiết bị này. Tiền của bạn an toàn nếu bạn đã sao lưu cụm từ khôi phục 24 từ. Bạn có thể nhập lại sau khi xóa.",
+      "warning": "Nếu không có cụm từ khôi phục, tiền của bạn sẽ bị mất vĩnh viễn.",
+      "acknowledge": "Tôi đã sao lưu cụm từ khôi phục 24 từ",
+      "cancel": "Hủy",
+      "confirm": "Xóa ví",
+      "deleting": "Đang xóa..."
+    }
+  }
+}

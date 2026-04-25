@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+
 import PlaceBidModal from '../PlaceBidModal';
 import { ModalProvider } from '../../contexts/ModalContext';
 import type { EncryptionDisplay } from '../../services/api';
@@ -448,5 +449,25 @@ describe('PlaceBidModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
     const error = await screen.findByText(/Minimum bid is 2 ADA/);
     expect(error.textContent).toBe('Minimum bid is 2 ADA');
+  });
+
+  // --- Tutorial target IDs ---
+
+  it('exposes tutorial-bid-amount id on the bid amount section', () => {
+    renderModal();
+    const amountSection = document.querySelector('#tutorial-bid-amount');
+    expect(amountSection).not.toBeNull();
+  });
+
+  it('exposes tutorial-future-price id on the future price section', () => {
+    renderModal();
+    const futureSection = document.querySelector('#tutorial-future-price');
+    expect(futureSection).not.toBeNull();
+  });
+
+  it('exposes tutorial-submit-bid id on the submit button', () => {
+    renderModal();
+    const submit = document.querySelector('#tutorial-submit-bid');
+    expect(submit).not.toBeNull();
   });
 });

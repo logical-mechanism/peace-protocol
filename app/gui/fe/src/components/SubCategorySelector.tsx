@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { getSubcategories, getCategoryConfig, type FileCategory, type SubCategory } from '../config/categories';
+import { useTranslation } from 'react-i18next';
+import { getSubcategories, getCategoryConfig, translateSubcategoryLabel, type FileCategory, type SubCategory } from '../config/categories';
 import Select, { type SelectOption } from './Select';
 
 interface SubCategorySelectorProps {
@@ -15,15 +16,8 @@ const ChildChevron = (
   </svg>
 );
 
-function toOptions(items: SubCategory[]): SelectOption[] {
-  return items.map((s) => ({
-    value: s.id,
-    label: s.label,
-    trailing: s.children && s.children.length > 0 ? ChildChevron : undefined,
-  }));
-}
-
 function SubCategorySelector({ category, selected, onChange, disabled }: SubCategorySelectorProps) {
+  const { t } = useTranslation(['dashboard', 'common']);
   const subcategories = getSubcategories(category);
 
   if (subcategories.length === 0) return null;
@@ -55,18 +49,36 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
     onChange(level1Id);
   };
 
+  // Adapter so translateSubcategoryLabel can call the namespaced common.json
+  // keys via a single translation callback.
+  const tCommon = (key: string, opts?: { defaultValue?: string }) => t(`common:${key}`, opts);
+
+  const localizeLevel1 = (s: SubCategory) => translateSubcategoryLabel(tCommon, category, s.id, s.label);
+  const localizeLevel2 = (parentId: string, c: SubCategory) =>
+    translateSubcategoryLabel(tCommon, category, `${parentId}_${c.id}`, c.label);
+
+  const toLevel1Options = (items: SubCategory[]): SelectOption[] =>
+    items.map((s) => ({
+      value: s.id,
+      label: localizeLevel1(s),
+      trailing: s.children && s.children.length > 0 ? ChildChevron : undefined,
+    }));
+
+  const toLevel2Options = (parentId: string, items: SubCategory[]): SelectOption[] =>
+    items.map((c) => ({ value: c.id, label: localizeLevel2(parentId, c) }));
+
   const breadcrumbParts: string[] = [];
-  if (categoryConfig) breadcrumbParts.push(categoryConfig.label);
-  if (level1Item) breadcrumbParts.push(level1Item.label);
+  if (categoryConfig) breadcrumbParts.push(t(`common:categories.${categoryConfig.id}`));
+  if (level1Item) breadcrumbParts.push(localizeLevel1(level1Item));
   if (level2Id) {
     const level2Item = level2Items.find((c) => c.id === level2Id);
-    breadcrumbParts.push(level2Item?.label ?? level2Id);
+    breadcrumbParts.push(level2Item ? localizeLevel2(level1Id, level2Item) : level2Id);
   }
 
   return (
     <div>
       <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-        Sub-category <span className="text-xs font-normal text-[var(--text-muted)]">(optional)</span>
+        {t('filters.subcategory.label')} <span className="text-xs font-normal text-[var(--text-muted)]">{t('filters.subcategory.optional')}</span>
       </label>
 
       {level1Id && (
@@ -88,7 +100,7 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
             onClick={level2Id ? handleClearLevel2 : handleClear}
             disabled={disabled}
             className="ml-1 p-0.5 rounded hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer disabled:cursor-not-allowed"
-            aria-label={level2Id ? 'Clear genre' : 'Clear sub-category'}
+            aria-label={level2Id ? t('filters.subcategory.clearGenre') : t('filters.subcategory.clearSubcategory')}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -99,22 +111,22 @@ function SubCategorySelector({ category, selected, onChange, disabled }: SubCate
 
       <Select
         value={level1Id}
-        options={toOptions(subcategories)}
+        options={toLevel1Options(subcategories)}
         onChange={handleLevel1Select}
-        placeholder="None"
+        placeholder={t('filters.subcategory.placeholder')}
         disabled={disabled}
-        ariaLabel="Sub-category"
+        ariaLabel={t('filters.subcategory.ariaLabel')}
       />
 
       {level1Id && level2Items.length > 0 && (
         <div className="mt-2">
           <Select
             value={level2Id}
-            options={toOptions(level2Items)}
+            options={toLevel2Options(level1Id, level2Items)}
             onChange={handleLevel2Select}
-            placeholder="None"
+            placeholder={t('filters.subcategory.placeholder')}
             disabled={disabled}
-            ariaLabel="Sub-category level 2"
+            ariaLabel={t('filters.subcategory.ariaLabelLevel2')}
           />
         </div>
       )}

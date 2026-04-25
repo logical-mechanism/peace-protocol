@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DelayedSpinner } from './LoadingSpinner';
 import { downloadImage, getCachedImage, banImage, unbanImage } from '../services/imageCache';
 
@@ -23,6 +24,7 @@ export default function ListingImage({
   nsfw = false,
   nsfwEnabled = false,
 }: ListingImageProps) {
+  const { t } = useTranslation('common');
   const [state, setState] = useState<ImageState>(() => {
     if (!imageLink) return 'no-link';
     if (initialBanned) return 'banned';
@@ -164,14 +166,14 @@ export default function ListingImage({
           <img
             loading="lazy"
             src="/default.png"
-            alt="Loading preview"
+            alt={t('card.loadingPreview')}
             className="w-full h-full object-cover blur-sm cursor-pointer"
             onClick={handleClick}
           />
         )}
         {state === 'loading' && (
           <div className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center">
-            <DelayedSpinner size="sm" label="Loading image" />
+            <DelayedSpinner size="sm" label={t('card.loadingImage')} />
           </div>
         )}
         {state === 'loaded' && dataUrl && (
@@ -179,13 +181,13 @@ export default function ListingImage({
             <img
               loading="lazy"
               src={dataUrl}
-              alt="Listing preview"
+              alt={t('card.listingPreview')}
               className={`w-full h-full object-cover${shouldBlur ? ' blur-lg cursor-pointer' : ''}`}
               onClick={shouldBlur ? () => setNsfwRevealed(true) : undefined}
             />
             {shouldBlur && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[6px] font-bold text-white bg-[var(--error)] px-1 rounded">NSFW</span>
+                <span className="text-[6px] font-bold text-white bg-[var(--error)] px-1 rounded">{t('card.nsfwBadge')}</span>
               </div>
             )}
           </>
@@ -194,10 +196,10 @@ export default function ListingImage({
           <img
             loading="lazy"
             src="/banned.png"
-            alt="Banned image"
+            alt={t('card.bannedImage')}
             className="w-full h-full object-cover cursor-pointer"
             onClick={handleUnban}
-            title="Click to unban"
+            title={t('card.bannedClickToUnbanShort')}
           />
         )}
       </div>
@@ -211,7 +213,7 @@ export default function ListingImage({
         <img
           loading="lazy"
           src="/default.png"
-          alt="Loading preview"
+          alt={t('card.loadingPreview')}
           className="w-full h-full object-cover blur-sm cursor-pointer transition-all duration-[var(--transition-fast)] hover:blur-xs"
           onClick={handleClick}
         />
@@ -222,11 +224,11 @@ export default function ListingImage({
           <img
             loading="lazy"
             src="/default.png"
-            alt="Loading..."
+            alt={t('card.loadingText')}
             className="w-full h-full object-cover blur-sm"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <DelayedSpinner size="lg" label="Downloading image" />
+            <DelayedSpinner size="lg" label={t('card.downloadingImage')} />
           </div>
         </>
       )}
@@ -236,17 +238,17 @@ export default function ListingImage({
           <img
             loading="lazy"
             src={dataUrl}
-            alt="Listing preview"
+            alt={t('card.listingPreview')}
             className={`w-full h-full object-cover${shouldBlur ? ' blur-xl' : ''}`}
           />
           {shouldBlur && (
             <button
               onClick={() => setNsfwRevealed(true)}
               className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 cursor-pointer"
-              aria-label="Reveal NSFW content"
+              aria-label={t('card.nsfwReveal')}
             >
-              <span className="px-2 py-0.5 text-xs font-bold text-white bg-[var(--error)] rounded">NSFW</span>
-              <span className="text-[10px] text-white/70 mt-1">Click to reveal</span>
+              <span className="px-2 py-0.5 text-xs font-bold text-white bg-[var(--error)] rounded">{t('card.nsfwBadge')}</span>
+              <span className="text-[10px] text-white/70 mt-1">{t('card.nsfwRevealHint')}</span>
             </button>
           )}
           {/* Ban button — visible on hover */}
@@ -254,8 +256,8 @@ export default function ListingImage({
             <button
               onClick={handleBan}
               className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-[var(--error)] transition-all duration-[var(--transition-fast)] opacity-0 group-hover:opacity-100 cursor-pointer"
-              title="Ban this image"
-              aria-label="Ban this image"
+              title={t('card.banImage')}
+              aria-label={t('card.banImage')}
             >
               <svg
                 className="w-3 h-3 text-white"
@@ -280,10 +282,10 @@ export default function ListingImage({
         <img
           loading="lazy"
           src="/banned.png"
-          alt="Banned image"
+          alt={t('card.bannedImage')}
           className="w-full h-full object-cover cursor-pointer"
           onClick={handleUnban}
-          title="Click to unban this image"
+          title={t('card.bannedClickToUnban')}
         />
       )}
     </div>

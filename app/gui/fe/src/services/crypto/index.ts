@@ -131,6 +131,6 @@ export {
   fetchEncryptionHistory,
   computeKEM,
   isStubMode,
-  getDecryptionExplanation,
+  getDecryptionExplanationState,
 } from './decrypt';
-export type { DecryptionResult, EncryptionLevel, EncryptionHistory } from './decrypt';
+export type { DecryptionResult, EncryptionLevel, EncryptionHistory, DecryptionExplanationState } from './decrypt';

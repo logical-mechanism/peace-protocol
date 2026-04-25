@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function OfflineBanner() {
+  const { t } = useTranslation('notifications')
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
   useEffect(() => {
@@ -40,9 +42,7 @@ export default function OfflineBanner() {
             d="M18.364 5.636a9 9 0 010 12.728M5.636 18.364a9 9 0 010-12.728M8.464 15.536a5 5 0 010-7.072M15.536 8.464a5 5 0 010 7.072M12 12h.01"
           />
         </svg>
-        <span>
-          You're offline. Some features may be unavailable.
-        </span>
+        <span>{t('banner.offline')}</span>
       </div>
     </div>
   )

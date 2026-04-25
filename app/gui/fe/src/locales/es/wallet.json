@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "Mercado de datos cifrados en Cardano",
+    "chooseCreateTitle": "Crear nueva billetera",
+    "chooseCreateSubtitle": "Genera una nueva frase de recuperación de 24 palabras",
+    "chooseImportTitle": "Importar billetera existente",
+    "chooseImportSubtitle": "Restaurar desde una frase de recuperación de 24 palabras",
+    "back": "Atrás",
+    "steps": {
+      "backup": "Respaldo",
+      "verify": "Verificar",
+      "password": "Contraseña",
+      "recoveryPhrase": "Frase de recuperación"
+    },
+    "create": {
+      "recoveryPhraseTitle": "Frase de recuperación",
+      "verifyTitle": "Verificar frase",
+      "passwordTitle": "Establecer contraseña",
+      "warning": "Anota estas 24 palabras en orden. Esta es la única forma de recuperar tu billetera. Nunca las compartas con nadie.",
+      "copyToClipboard": "Copiar al portapapeles",
+      "copied": "¡Copiado!",
+      "wroteItDown": "Ya las anoté",
+      "verifyInstructions": "Verifica tu frase de recuperación ingresando las siguientes palabras. Empieza a escribir y selecciona la palabra correcta.",
+      "continue": "Continuar"
+    },
+    "import": {
+      "enterTitle": "Ingresar frase de recuperación",
+      "passwordTitle": "Establecer contraseña",
+      "instructions": "Ingresa tu frase de recuperación de 24 palabras. Empieza a escribir cada palabra y selecciona de las sugerencias.",
+      "pasteAll": "Pegar las 24 palabras",
+      "wordCount": "{{count}} / 24 palabras",
+      "continue": "Continuar"
+    },
+    "password": {
+      "description": "Establece una contraseña para cifrar tu frase de recuperación. Necesitarás esta contraseña cada vez que abras la aplicación.",
+      "label": "Contraseña",
+      "confirmLabel": "Confirmar contraseña",
+      "placeholder": "Ingresa la contraseña",
+      "confirmPlaceholder": "Confirma la contraseña",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "capsLockOn": "Bloq Mayús activado",
+      "creating": "Creando billetera...",
+      "submit": "Crear billetera"
+    },
+    "errors": {
+      "allWordsRequired": "Se requieren las 24 palabras",
+      "passwordRequirements": "La contraseña no cumple todos los requisitos",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "createFailed": "Error al crear la billetera",
+      "copyFailedTitle": "Error al copiar",
+      "copyFailedBody": "No se pudo copiar la frase mnemónica al portapapeles.",
+      "clipboardUnavailableTitle": "Portapapeles no disponible",
+      "clipboardUnavailableBody": "No se pudo acceder al portapapeles. Intenta pegar directamente en los campos con Ctrl+V."
+    }
+  },
+  "unlock": {
+    "passwordLabel": "Contraseña",
+    "togglePasswordVisibility": "Alternar visibilidad de contraseña",
+    "capsLockOn": "Bloq Mayús activado",
+    "unlock": "Desbloquear",
+    "unlocking": "Desbloqueando...",
+    "forgotPassword": "¿Olvidaste la contraseña?",
+    "details": "Detalles",
+    "copyErrorTitle": "Copiar detalles del error",
+    "delete": {
+      "title": "¿Eliminar billetera?",
+      "description": "Esto eliminará la billetera cifrada de este dispositivo. Tus fondos están seguros si tienes respaldada tu frase de recuperación de 24 palabras. Puedes reimportarla después de eliminar.",
+      "warning": "Sin tu frase de recuperación, tus fondos se perderán permanentemente.",
+      "acknowledge": "Tengo respaldada mi frase de recuperación de 24 palabras",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar billetera",
+      "deleting": "Eliminando..."
+    }
+  }
+}

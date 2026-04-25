@@ -1,0 +1,77 @@
+{
+  "appName": "Veiled",
+  "setup": {
+    "tagline": "ตลาดข้อมูลเข้ารหัสบน Cardano",
+    "chooseCreateTitle": "สร้างกระเป๋าเงินใหม่",
+    "chooseCreateSubtitle": "สร้างวลีกู้คืน 24 คำใหม่",
+    "chooseImportTitle": "นำเข้ากระเป๋าเงินที่มีอยู่",
+    "chooseImportSubtitle": "กู้คืนจากวลีกู้คืน 24 คำ",
+    "back": "ย้อนกลับ",
+    "steps": {
+      "backup": "สำรองข้อมูล",
+      "verify": "ยืนยัน",
+      "password": "รหัสผ่าน",
+      "recoveryPhrase": "วลีกู้คืน"
+    },
+    "create": {
+      "recoveryPhraseTitle": "วลีกู้คืน",
+      "verifyTitle": "ยืนยันวลี",
+      "passwordTitle": "ตั้งรหัสผ่าน",
+      "warning": "จดคำทั้ง 24 คำตามลำดับ นี่เป็นวิธีเดียวในการกู้คืนกระเป๋าเงินของคุณ อย่าเปิดเผยให้ผู้อื่นทราบ",
+      "copyToClipboard": "คัดลอกไปยังคลิปบอร์ด",
+      "copied": "คัดลอกแล้ว!",
+      "wroteItDown": "ฉันจดไว้แล้ว",
+      "verifyInstructions": "ยืนยันวลีกู้คืนของคุณโดยป้อนคำต่อไปนี้ เริ่มพิมพ์แล้วเลือกคำที่ตรงกัน",
+      "continue": "ดำเนินการต่อ"
+    },
+    "import": {
+      "enterTitle": "ป้อนวลีกู้คืน",
+      "passwordTitle": "ตั้งรหัสผ่าน",
+      "instructions": "ป้อนวลีกู้คืน 24 คำของคุณ เริ่มพิมพ์แต่ละคำแล้วเลือกจากคำแนะนำ",
+      "pasteAll": "วางทั้ง 24 คำ",
+      "wordCount": "{{count}} / 24 คำ",
+      "continue": "ดำเนินการต่อ"
+    },
+    "password": {
+      "description": "ตั้งรหัสผ่านกระเป๋าเงินเพื่อเข้ารหัสวลีกู้คืนของคุณ คุณจะต้องใช้รหัสผ่านนี้ทุกครั้งที่เปิดแอป",
+      "label": "รหัสผ่าน",
+      "confirmLabel": "ยืนยันรหัสผ่าน",
+      "placeholder": "ป้อนรหัสผ่าน",
+      "confirmPlaceholder": "ยืนยันรหัสผ่าน",
+      "show": "แสดง",
+      "hide": "ซ่อน",
+      "capsLockOn": "Caps Lock เปิดอยู่",
+      "creating": "กำลังสร้างกระเป๋าเงิน...",
+      "submit": "สร้างกระเป๋าเงิน"
+    },
+    "errors": {
+      "allWordsRequired": "ต้องป้อนคำทั้ง 24 คำ",
+      "passwordRequirements": "รหัสผ่านไม่ตรงตามข้อกำหนดทั้งหมด",
+      "passwordMismatch": "รหัสผ่านไม่ตรงกัน",
+      "createFailed": "ไม่สามารถสร้างกระเป๋าเงินได้",
+      "copyFailedTitle": "การคัดลอกล้มเหลว",
+      "copyFailedBody": "ไม่สามารถคัดลอก mnemonic ไปยังคลิปบอร์ดได้",
+      "clipboardUnavailableTitle": "คลิปบอร์ดไม่พร้อมใช้งาน",
+      "clipboardUnavailableBody": "ไม่สามารถเข้าถึงคลิปบอร์ดได้ ลองวางลงในช่องคำโดยตรงด้วย Ctrl+V"
+    }
+  },
+  "unlock": {
+    "passwordLabel": "รหัสผ่าน",
+    "togglePasswordVisibility": "สลับการแสดงรหัสผ่าน",
+    "capsLockOn": "Caps Lock เปิดอยู่",
+    "unlock": "ปลดล็อก",
+    "unlocking": "กำลังปลดล็อก...",
+    "forgotPassword": "ลืมรหัสผ่าน?",
+    "details": "รายละเอียด",
+    "copyErrorTitle": "คัดลอกรายละเอียดข้อผิดพลาด",
+    "delete": {
+      "title": "ลบกระเป๋าเงิน?",
+      "description": "การดำเนินการนี้จะลบกระเป๋าเงินที่เข้ารหัสออกจากอุปกรณ์นี้ เงินของคุณปลอดภัยหากคุณสำรองวลีกู้คืน 24 คำไว้แล้ว คุณสามารถนำเข้าอีกครั้งหลังจากลบ",
+      "warning": "หากไม่มีวลีกู้คืน เงินของคุณจะสูญหายอย่างถาวร",
+      "acknowledge": "ฉันได้สำรองวลีกู้คืน 24 คำไว้แล้ว",
+      "cancel": "ยกเลิก",
+      "confirm": "ลบกระเป๋าเงิน",
+      "deleting": "กำลังลบ..."
+    }
+  }
+}

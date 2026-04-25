@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { MeshWallet } from '@meshsdk/core'
+import '../i18n'
 import { useWalletContext } from '../contexts/WalletContext'
 import { copyToClipboard } from '../utils/clipboard'
 import MnemonicInput, { validateMnemonicWords } from '../components/MnemonicInput'
@@ -74,21 +76,22 @@ function StepIndicator({ steps, currentIndex }: { steps: StepInfo[]; currentInde
   )
 }
 
-const CREATE_STEPS: StepInfo[] = [
-  { label: 'Backup' },
-  { label: 'Verify' },
-  { label: 'Password' },
-]
-
-const IMPORT_STEPS: StepInfo[] = [
-  { label: 'Recovery Phrase' },
-  { label: 'Password' },
-]
-
 export default function WalletSetup() {
   const { createWallet } = useWalletContext()
   const navigate = useNavigate()
   const toast = useToast()
+  const { t } = useTranslation('wallet')
+
+  const createSteps: StepInfo[] = useMemo(() => [
+    { label: t('setup.steps.backup') },
+    { label: t('setup.steps.verify') },
+    { label: t('setup.steps.password') },
+  ], [t])
+
+  const importSteps: StepInfo[] = useMemo(() => [
+    { label: t('setup.steps.recoveryPhrase') },
+    { label: t('setup.steps.password') },
+  ], [t])
 
   const [mode, setMode] = useState<Mode>('choose')
   const [mnemonic, setMnemonic] = useState<string[]>([])
@@ -146,9 +149,9 @@ export default function WalletSetup() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } else {
-      toast.warning('Copy failed', 'Could not copy mnemonic to clipboard.')
+      toast.warning(t('setup.errors.copyFailedTitle'), t('setup.errors.copyFailedBody'))
     }
-  }, [mnemonic, toast])
+  }, [mnemonic, toast, t])
 
   const handleImportWordChange = useCallback((index: number, value: string) => {
     setImportWords((prev) => {
@@ -202,22 +205,22 @@ export default function WalletSetup() {
         setImportWords(padded)
       }
     } catch {
-      toast.warning('Clipboard unavailable', 'Could not access clipboard. Try pasting directly into the word fields with Ctrl+V.')
+      toast.warning(t('setup.errors.clipboardUnavailableTitle'), t('setup.errors.clipboardUnavailableBody'))
     }
-  }, [toast])
+  }, [toast, t])
 
   const handleSubmit = useCallback(async () => {
     const words = mode === 'create' ? mnemonic : importWords
     if (words.length !== 24 || words.some((w) => !w.trim())) {
-      setError('All 24 words are required')
+      setError(t('setup.errors.allWordsRequired'))
       return
     }
     if (!strength.allMet) {
-      setError('Password does not meet all requirements')
+      setError(t('setup.errors.passwordRequirements'))
       return
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('setup.errors.passwordMismatch'))
       return
     }
 
@@ -232,7 +235,7 @@ export default function WalletSetup() {
       await createWallet(words, password)
       navigate('/dashboard')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create wallet')
+      setError(e instanceof Error ? e.message : t('setup.errors.createFailed'))
     } finally {
       setIsSubmitting(false)
     }
@@ -245,6 +248,7 @@ export default function WalletSetup() {
     strength,
     createWallet,
     navigate,
+    t,
   ])
 
   // Mode selection screen
@@ -260,10 +264,10 @@ export default function WalletSetup() {
               className="text-4xl font-bold mb-[var(--space-3)]"
               style={{ color: 'var(--text-primary)' }}
             >
-              Veiled
+              {t('appName')}
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              Encrypted data marketplace on Cardano
+              {t('setup.tagline')}
             </p>
           </div>
 
@@ -276,10 +280,10 @@ export default function WalletSetup() {
                 className="text-lg font-semibold mb-[var(--space-1)]"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Create New Wallet
+                {t('setup.chooseCreateTitle')}
               </div>
               <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Generate a new 24-word recovery phrase
+                {t('setup.chooseCreateSubtitle')}
               </div>
             </button>
 
@@ -291,10 +295,10 @@ export default function WalletSetup() {
                 className="text-lg font-semibold mb-[var(--space-1)]"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Import Existing Wallet
+                {t('setup.chooseImportTitle')}
               </div>
               <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Restore from a 24-word recovery phrase
+                {t('setup.chooseImportSubtitle')}
               </div>
             </button>
           </div>
@@ -330,23 +334,23 @@ export default function WalletSetup() {
                 border: '1px solid var(--border-subtle)',
               }}
             >
-              Back
+              {t('setup.back')}
             </button>
             <h2
               className="text-xl font-semibold"
               style={{ color: 'var(--text-primary)' }}
             >
               {createStep === 'generate'
-                ? 'Recovery Phrase'
+                ? t('setup.create.recoveryPhraseTitle')
                 : createStep === 'verify'
-                  ? 'Verify Phrase'
-                  : 'Set Password'}
+                  ? t('setup.create.verifyTitle')
+                  : t('setup.create.passwordTitle')}
             </h2>
           </div>
 
           {/* Step Progress */}
           <StepIndicator
-            steps={CREATE_STEPS}
+            steps={createSteps}
             currentIndex={createStep === 'generate' ? 0 : createStep === 'verify' ? 1 : 2}
           />
 
@@ -367,8 +371,7 @@ export default function WalletSetup() {
                   border: '1px solid var(--warning)',
                 }}
               >
-                Write down these 24 words in order. This is the only way to
-                recover your wallet. Never share them with anyone.
+                {t('setup.create.warning')}
               </div>
 
               <div className="grid grid-cols-4 gap-[var(--space-3)] mb-[var(--space-lg)]">
@@ -407,7 +410,7 @@ export default function WalletSetup() {
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  {copied ? 'Copied!' : 'Copy to Clipboard'}
+                  {copied ? t('setup.create.copied') : t('setup.create.copyToClipboard')}
                 </button>
                 <div className="flex-1" />
                 <button
@@ -418,7 +421,7 @@ export default function WalletSetup() {
                     color: '#fff',
                   }}
                 >
-                  I wrote it down
+                  {t('setup.create.wroteItDown')}
                 </button>
               </div>
             </div>
@@ -434,8 +437,7 @@ export default function WalletSetup() {
               }}
             >
               <p className="mb-[var(--space-lg)] text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Verify your recovery phrase by entering the following words.
-                Start typing and select the matching word.
+                {t('setup.create.verifyInstructions')}
               </p>
 
               <div className="space-y-[var(--space-md)] mb-[var(--space-lg)]">
@@ -463,7 +465,7 @@ export default function WalletSetup() {
                   color: '#fff',
                 }}
               >
-                Continue
+                {t('setup.create.continue')}
               </button>
             </div>
           )}
@@ -514,19 +516,19 @@ export default function WalletSetup() {
               border: '1px solid var(--border-subtle)',
             }}
           >
-            Back
+            {t('setup.back')}
           </button>
           <h2
             className="text-xl font-semibold"
             style={{ color: 'var(--text-primary)' }}
           >
-            {importStep === 'enter' ? 'Enter Recovery Phrase' : 'Set Password'}
+            {importStep === 'enter' ? t('setup.import.enterTitle') : t('setup.import.passwordTitle')}
           </h2>
         </div>
 
         {/* Step Progress */}
         <StepIndicator
-          steps={IMPORT_STEPS}
+          steps={importSteps}
           currentIndex={importStep === 'enter' ? 0 : 1}
         />
 
@@ -541,8 +543,7 @@ export default function WalletSetup() {
           >
             <div className="flex items-center justify-between mb-[var(--space-md)]">
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Enter your 24-word recovery phrase. Start typing each word and
-                select from the suggestions.
+                {t('setup.import.instructions')}
               </p>
               <button
                 type="button"
@@ -554,7 +555,7 @@ export default function WalletSetup() {
                   background: 'transparent',
                 }}
               >
-                Paste all 24 words
+                {t('setup.import.pasteAll')}
               </button>
             </div>
 
@@ -582,7 +583,7 @@ export default function WalletSetup() {
                     : 'transparent',
               }}
             >
-              {filledImportCount} / 24 words
+              {t('setup.import.wordCount', { count: filledImportCount })}
             </div>
 
             <button
@@ -597,7 +598,7 @@ export default function WalletSetup() {
                 color: '#fff',
               }}
             >
-              Continue
+              {t('setup.import.continue')}
             </button>
           </div>
         )}
@@ -650,6 +651,7 @@ function PasswordForm({
   onToggleShow: () => void
   onSubmit: () => void
 }) {
+  const { t } = useTranslation('wallet')
   const [capsLockOn, setCapsLockOn] = useState(false)
 
   return (
@@ -661,8 +663,7 @@ function PasswordForm({
       }}
     >
       <p className="mb-[var(--space-lg)] text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Set a wallet password to encrypt your recovery phrase. You will need
-        this password each time you open the app.
+        {t('setup.password.description')}
       </p>
 
       <div className="space-y-[var(--space-md)] mb-[var(--space-lg)]">
@@ -671,7 +672,7 @@ function PasswordForm({
             className="block text-sm mb-[var(--space-1)]"
             style={{ color: 'var(--text-muted)' }}
           >
-            Password
+            {t('setup.password.label')}
           </label>
           <div className="relative">
             <input
@@ -686,7 +687,7 @@ function PasswordForm({
                 border: '1px solid var(--border-subtle)',
                 outline: 'none',
               }}
-              placeholder="Enter password"
+              placeholder={t('setup.password.placeholder')}
               autoComplete="new-password"
               minLength={12}
               maxLength={128}
@@ -697,13 +698,13 @@ function PasswordForm({
               className="absolute right-2 top-1/2 -translate-y-1/2 px-[var(--space-2)] py-[var(--space-1)] text-xs rounded cursor-pointer"
               style={{ color: 'var(--text-muted)' }}
             >
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? t('setup.password.hide') : t('setup.password.show')}
             </button>
           </div>
           <PasswordStrengthIndicator strength={strength} password={password} />
           {capsLockOn && (
             <p className="text-xs mt-1" style={{ color: 'var(--warning)' }}>
-              Caps Lock is on
+              {t('setup.password.capsLockOn')}
             </p>
           )}
         </div>
@@ -713,7 +714,7 @@ function PasswordForm({
             className="block text-sm mb-[var(--space-1)]"
             style={{ color: 'var(--text-muted)' }}
           >
-            Confirm Password
+            {t('setup.password.confirmLabel')}
           </label>
           <input
             type={showPassword ? 'text' : 'password'}
@@ -736,7 +737,7 @@ function PasswordForm({
               }`,
               outline: 'none',
             }}
-            placeholder="Confirm password"
+            placeholder={t('setup.password.confirmPlaceholder')}
             autoComplete="new-password"
             minLength={12}
             maxLength={128}
@@ -772,7 +773,7 @@ function PasswordForm({
         }}
       >
         {isSubmitting && <LoadingSpinner size="sm" className="text-white" />}
-        {isSubmitting ? 'Creating Wallet...' : 'Create Wallet'}
+        {isSubmitting ? t('setup.password.creating') : t('setup.password.submit')}
       </button>
     </div>
   )

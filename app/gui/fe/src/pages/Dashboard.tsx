@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { useWalletContext, useAddress, useLovelace } from '../contexts/WalletContext'
 import { useState, useCallback, useEffect, useMemo, useRef, useReducer, lazy, Suspense, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useWasm } from '../contexts/WasmContext'
 import { useNode } from '../contexts/NodeContext'
 import { useModal } from '../contexts/ModalContext'
@@ -43,16 +44,32 @@ import { useSellerActions } from './dashboard/useSellerActions'
 import { useBuyerActions } from './dashboard/useBuyerActions'
 import { useDashboardEffects } from './dashboard/useDashboardEffects'
 import { useAcceptBidQueue } from '../contexts/AcceptBidQueueContext'
+import { useTutorial } from '../hooks/useTutorial'
+import TutorialOverlay from '../components/TutorialOverlay'
+import { LISTING_TUTORIAL_STEPS } from '../tutorials/listingTutorial'
+import { BID_TUTORIAL_STEPS } from '../tutorials/bidTutorial'
+import { DECRYPT_TUTORIAL_STEPS } from '../tutorials/decryptTutorial'
+import { FIRST_BID_ACCEPTED_TUTORIAL_STEPS, queueStateToTourStep } from '../tutorials/firstBidAcceptedTutorial'
+import {
+  markFirstListingCompleted,
+  markFirstBidCompleted,
+  markFirstDecryptCompleted,
+  markFirstBidAcceptedCompleted,
+} from '../services/onboardingStorage'
+import type { EncryptionDisplay } from '../services/api'
+import type { DecryptTutorialTarget } from '../components/MyPurchasesTab'
 
 export type { TabId } from './dashboard/dashboardTypes'
 
 export default function Dashboard() {
+  const { t } = useTranslation(['notifications', 'dashboard'])
   const { disconnect, wallet, refreshBalance } = useWalletContext()
   const address = useAddress()
   const lovelace = useLovelace()
   const { isReady: wasmReady, isLoading: wasmLoading, progress: wasmProgress } = useWasm()
   const { stage: nodeStage, syncProgress: nodeSyncProgress, kupoSyncProgress, tipSlot, tipHeight, expressReady } = useNode()
   const navigate = useNavigate()
+  const location = useLocation()
   const { hasOpenModal } = useModal()
   const walletHealth = useWalletHealth(wallet, tipSlot, nodeStage)
   const [copied, setCopied] = useState(false)
@@ -114,12 +131,116 @@ export default function Dashboard() {
   const [historyFilters, historyDispatch] = useReducer(historyReducer, HISTORY_INITIAL)
   const [libraryFilters, libraryDispatch] = useReducer(libraryReducer, LIBRARY_INITIAL)
 
+  // ── Tutorial hook ─────────────────────────────────────────────────
+  const tutorial = useTutorial()
+  // Which tutorial is currently running — disambiguates the auto-open effects
+  // so e.g. the listing-tutorial effect doesn't fire during a bid-tutorial run.
+  const [activeTutorialKey, setActiveTutorialKey] = useState<'listing' | 'bid' | 'decrypt' | 'first-bid-accepted' | null>(null)
+  // Encryption the bid tutorial should target; used by the auto-open effect below.
+  const [bidTutorialTarget, setBidTutorialTarget] = useState<{ encryption: EncryptionDisplay; bidCount: number } | null>(null)
+  // Target the decrypt tutorial should drive; used by the orchestration effect below.
+  const [decryptTutorialTarget, setDecryptTutorialTarget] = useState<DecryptTutorialTarget | null>(null)
+  // Auto-start signal sent to MyPurchasesTab — e.g. when the user hits "Replay"
+  // in Settings. MyPurchasesTab picks the first eligible target and calls back
+  // via onStartDecryptTutorial; we then clear this flag.
+  const [autoStartDecryptTutorial, setAutoStartDecryptTutorial] = useState(false)
+
+  const handleStartListingTutorial = useCallback(() => {
+    setActiveTutorialKey('listing')
+    tutorial.startTutorial(
+      LISTING_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => { markFirstListingCompleted(); setActiveTutorialKey(null) },
+        onSkip: () => { markFirstListingCompleted(); setActiveTutorialKey(null) },
+      },
+    )
+  }, [tutorial, t])
+
+  const handleStartBidTutorial = useCallback((encryption: EncryptionDisplay, bidCount: number) => {
+    setActiveTutorialKey('bid')
+    setBidTutorialTarget({ encryption, bidCount })
+    tutorial.startTutorial(
+      BID_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => {
+          markFirstBidCompleted()
+          setActiveTutorialKey(null)
+          setBidTutorialTarget(null)
+        },
+        onSkip: () => {
+          markFirstBidCompleted()
+          setActiveTutorialKey(null)
+          setBidTutorialTarget(null)
+        },
+      },
+    )
+  }, [tutorial, t])
+
+  const handleStartDecryptTutorial = useCallback((target: DecryptTutorialTarget) => {
+    setActiveTutorialKey('decrypt')
+    setDecryptTutorialTarget(target)
+    setActiveTab('my-purchases')
+    tutorial.startTutorial(
+      DECRYPT_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        onComplete: () => {
+          markFirstDecryptCompleted()
+          setActiveTutorialKey(null)
+          setDecryptTutorialTarget(null)
+        },
+        onSkip: () => {
+          markFirstDecryptCompleted()
+          setActiveTutorialKey(null)
+          setDecryptTutorialTarget(null)
+        },
+      },
+    )
+  }, [tutorial, t, setActiveTab])
+
+  // First-bid-accepted (seller) tour — event-driven. Steps advance as the
+  // accept-bid queue state machine transitions; users don't click Next.
+  // `startStep` lets callers join mid-flow (e.g. the auto-trigger kicks in
+  // after the user has already clicked Accept, so it skips the step-1 anchor).
+  const handleStartFirstBidAcceptedTutorial = useCallback((options?: { startStep?: number }) => {
+    setActiveTutorialKey('first-bid-accepted')
+    tutorial.startTutorial(
+      FIRST_BID_ACCEPTED_TUTORIAL_STEPS.map(step => ({
+        ...step,
+        title: t(`common:${step.title}`),
+        description: t(`common:${step.description}`),
+      })),
+      {
+        startStep: options?.startStep,
+        onComplete: () => {
+          markFirstBidAcceptedCompleted()
+          setActiveTutorialKey(null)
+        },
+        onSkip: () => {
+          markFirstBidAcceptedCompleted()
+          setActiveTutorialKey(null)
+        },
+      },
+    )
+  }, [tutorial, t])
+
   const { refreshSignal, historySignal, triggerRefresh, triggerHistoryRefresh, triggerTransactionRefresh, triggerSoftRefresh } = useDataRefresh()
   const [lastRefreshTime, setLastRefreshTime] = useState(Date.now())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
-  const [relativeTime, setRelativeTime] = useState('just now')
+  const [relativeTime, setRelativeTime] = useState(() => t('dashboard:shell.timeJustNow'))
   const toast = useToast()
 
   // ── Update check (auto-check on startup) ────────────────────────
@@ -130,11 +251,11 @@ export default function Dashboard() {
     if (updateState.status === 'available' && !updateToastShownRef.current) {
       updateToastShownRef.current = true
       toast.info(
-        `Update available: v${updateState.info.latest_version}`,
-        `You are running v${updateState.info.current_version}`,
+        t('toast.updateAvailableTitle', { version: updateState.info.latest_version }),
+        t('toast.updateAvailableBody', { currentVersion: updateState.info.current_version }),
         0,
         {
-          label: 'Download',
+          label: t('toast.updateDownload'),
           onClick: () => {
             downloadAppUpdate(updateState.info.download_url)
           },
@@ -143,13 +264,13 @@ export default function Dashboard() {
     }
     if (updateState.status === 'downloaded') {
       toast.success(
-        'Update downloaded',
-        `Saved to: ${updateState.filePath}. Close and reopen the app to use the new version.`,
+        t('toast.updateDownloadedTitle'),
+        t('toast.updateDownloadedBody', { path: updateState.filePath }),
         0
       )
     }
     if (updateState.status === 'error' && updateToastShownRef.current) {
-      toast.error('Update check failed', updateState.message)
+      toast.error(t('toast.updateCheckFailedTitle'), updateState.message)
     }
   }, [updateState.status]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -185,7 +306,13 @@ export default function Dashboard() {
 
   // ── Seller actions hook ───────────────────────────────────────────
   // ── Accept-bid queue — supply optional UI handles ────────────────
-  const { setToast: setQueueToast, setRefreshTrigger: setQueueRefresh } = useAcceptBidQueue()
+  const queueCtx = useAcceptBidQueue()
+  const {
+    setToast: setQueueToast,
+    setRefreshTrigger: setQueueRefresh,
+    currentItem: queueCurrentItem,
+    completedCount: queueCompletedCount,
+  } = queueCtx
   useEffect(() => {
     setQueueToast(toast)
     setQueueRefresh(triggerTransactionRefresh)
@@ -197,11 +324,112 @@ export default function Dashboard() {
     iagonConnected: effects.iagonConnected,
   })
 
+  // Open CreateListingModal when listing tutorial advances past step 1 (the button)
+  // into steps 2-5 (modal fields). Close is handled normally by the user.
+  useEffect(() => {
+    if (activeTutorialKey === 'listing' && tutorial.isTutorialActive && tutorial.currentStepIndex >= 1) {
+      seller.setShowCreateListing(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex])
+
   // ── Buyer actions hook ────────────────────────────────────────────
   const buyer = useBuyerActions({
     actions: dashboardActions,
     lovelace,
   })
+
+  // Open PlaceBidModal when bid tutorial advances past step 1 (the button)
+  // into steps 2-4 (modal fields). Uses the encryption captured at tutorial start.
+  useEffect(() => {
+    if (
+      activeTutorialKey === 'bid' &&
+      tutorial.isTutorialActive &&
+      tutorial.currentStepIndex >= 1 &&
+      bidTutorialTarget
+    ) {
+      buyer.handlePlaceBid(bidTutorialTarget.encryption, bidTutorialTarget.bidCount)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, bidTutorialTarget])
+
+  // Settings "Replay" navigations arrive with `location.state.startTutorial`.
+  // Both tours are one-shot — we clear the nav state immediately so a later tab
+  // switch or refresh doesn't re-arm the flow. first-decrypt hands off to
+  // MyPurchasesTab (which owns the list of eligible targets); first-bid-accepted
+  // starts directly on Dashboard.
+  useEffect(() => {
+    const navState = location.state as { startTutorial?: string } | null
+    if (navState?.startTutorial === 'first-decrypt') {
+      setActiveTab('my-purchases')
+      setAutoStartDecryptTutorial(true)
+      navigate(location.pathname, { replace: true, state: null })
+    } else if (navState?.startTutorial === 'first-bid-accepted') {
+      if (activeTutorialKey) return
+      setActiveTab('my-sales')
+      handleStartFirstBidAcceptedTutorial({ startStep: 0 })
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
+
+  // Decrypt tutorial orchestration — the flow spans MyPurchasesTab, DecryptModal,
+  // Library tab, and LibraryContentModal. Each step advance opens/switches the
+  // relevant surface so the spotlight target is mounted when TutorialOverlay
+  // goes looking for it.
+  useEffect(() => {
+    if (activeTutorialKey !== 'decrypt' || !tutorial.isTutorialActive || !decryptTutorialTarget) return
+    const { bid, encryption, ownerPkh } = decryptTutorialTarget
+    switch (tutorial.currentStepIndex) {
+      case 0:
+        // Step 1: highlight the Decrypt button on MyPurchaseBidCard.
+        setActiveTab('my-purchases')
+        break
+      case 1:
+        // Step 2: open DecryptModal so the header id is in the DOM.
+        // Prefer the bid path when available (richer context); fall back to
+        // encryption-only for users who already decrypted everything.
+        if (bid) {
+          buyer.handleDecrypt(bid)
+        } else {
+          buyer.handleDecryptEncryption(encryption, ownerPkh)
+        }
+        break
+      case 2:
+        // Step 3: close DecryptModal and switch to the Library tab.
+        buyer.closeDecryptModal()
+        setActiveTab('library')
+        break
+      case 3:
+        // Step 4: highlight the LibraryContentModal action row. The modal is
+        // opened by LibraryTab when the user clicks an item, so the tutorial
+        // relies on the tab being visited; the overlay polls for the target
+        // until the user opens the item.
+        setActiveTab('library')
+        break
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTutorialKey, tutorial.isTutorialActive, tutorial.currentStepIndex, decryptTutorialTarget])
+
+
+  // Event-driven step advancement: watch queue state transitions and move the
+  // tour forward without user Next clicks. Completion (step 4) is detected via
+  // completedCount increasing since the queue clears `currentItem` at that point.
+  const prevCompletedCountRef = useRef(queueCompletedCount)
+  const queueCurrentItemStatus = queueCurrentItem?.status
+  useEffect(() => {
+    if (activeTutorialKey !== 'first-bid-accepted') {
+      prevCompletedCountRef.current = queueCompletedCount
+      return
+    }
+    const didJustComplete = queueCompletedCount > prevCompletedCountRef.current
+    const targetStep = queueStateToTourStep({
+      currentItemStatus: queueCurrentItemStatus,
+      didJustComplete,
+    })
+    if (targetStep !== null) tutorial.goToStep(targetStep)
+    prevCompletedCountRef.current = queueCompletedCount
+  }, [activeTutorialKey, queueCurrentItemStatus, queueCompletedCount, tutorial])
 
   // Refresh handler for manual data refresh
   const handleRefresh = useCallback(() => {
@@ -209,33 +437,33 @@ export default function Dashboard() {
     setIsRefreshing(true)
     triggerRefresh()
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
     setTimeout(() => setIsRefreshing(false), 2000)
-  }, [isRefreshing, triggerRefresh])
+  }, [isRefreshing, triggerRefresh, t])
 
   // Handler for tab-level refresh buttons to update the timestamp without triggering all tabs
   const handleLocalRefresh = useCallback(() => {
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
-  }, [])
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
+  }, [t])
 
   // Update relative time display every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const seconds = Math.floor((Date.now() - lastRefreshTime) / 1000)
-      if (seconds < 10) setRelativeTime('just now')
-      else if (seconds < 60) setRelativeTime(`${seconds}s ago`)
-      else if (seconds < 3600) setRelativeTime(`${Math.floor(seconds / 60)}m ago`)
-      else setRelativeTime(`${Math.floor(seconds / 3600)}h ago`)
+      if (seconds < 10) setRelativeTime(t('dashboard:shell.timeJustNow'))
+      else if (seconds < 60) setRelativeTime(t('dashboard:shell.timeSecondsAgo', { count: seconds }))
+      else if (seconds < 3600) setRelativeTime(t('dashboard:shell.timeMinutesAgo', { count: Math.floor(seconds / 60) }))
+      else setRelativeTime(t('dashboard:shell.timeHoursAgo', { count: Math.floor(seconds / 3600) }))
     }, 5000)
     return () => clearInterval(interval)
-  }, [lastRefreshTime])
+  }, [lastRefreshTime, t])
 
   // Reset timestamp when data refreshes externally (e.g. after tx submission)
   useEffect(() => {
     setLastRefreshTime(Date.now())
-    setRelativeTime('just now')
-  }, [refreshSignal])
+    setRelativeTime(t('dashboard:shell.timeJustNow'))
+  }, [refreshSignal, t])
 
   // Keyboard shortcuts: Ctrl+1-5 for tabs, Ctrl+R for refresh
   useEffect(() => {
@@ -282,9 +510,9 @@ export default function Dashboard() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } else {
-      toast.warning('Copy failed', 'Could not copy address to clipboard.')
+      toast.warning(t('toast.copyFailedTitle'), t('toast.copyAddressFailedBody'))
     }
-  }, [address, toast])
+  }, [address, toast, t])
 
   const handleDisconnect = useCallback(() => {
     clearLastActiveTab()
@@ -346,84 +574,84 @@ export default function Dashboard() {
       {/* Navigation */}
       <nav className="h-16 border-b border-[var(--border-subtle)] px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold">Veiled</h1>
+          <h1 className="text-lg font-semibold">{t('dashboard:shell.appName')}</h1>
           <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
-            Preprod
+            {t('dashboard:shell.networkPreprod')}
           </span>
           {/* Node Sync Indicator */}
           {nodeStage === 'synced' ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Node Ready
+              {t('dashboard:shell.nodeReady')}
             </span>
           ) : nodeStage === 'syncing' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
-              title="Click to view sync progress"
+              title={t('dashboard:shell.nodeSyncingTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
-              Syncing {Math.round(Math.min(nodeSyncProgress, kupoSyncProgress))}%
+              {t('dashboard:shell.nodeSyncing', { count: Math.round(Math.min(nodeSyncProgress, kupoSyncProgress)) })}
             </button>
           ) : nodeStage === 'error' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--error)] bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-full hover:bg-[var(--error)]/20 transition-all cursor-pointer"
-              title="Node error - click for details"
+              title={t('dashboard:shell.nodeErrorTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]"></span>
-              Node Error
+              {t('dashboard:shell.nodeError')}
             </button>
           ) : nodeStage === 'starting' || nodeStage === 'bootstrapping' ? (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
-              title="Click to view node progress"
+              title={t('dashboard:shell.nodeProgressTitle')}
             >
               <LoadingSpinner size="sm" />
-              {nodeStage === 'bootstrapping' ? 'Bootstrapping' : 'Starting'}
+              {nodeStage === 'bootstrapping' ? t('dashboard:shell.nodeBootstrapping') : t('dashboard:shell.nodeStarting')}
             </button>
           ) : (
             <button
               onClick={() => navigate('/node-sync')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
-              title="Node offline - click to start"
+              title={t('dashboard:shell.nodeOfflineTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
-              Node Offline
+              {t('dashboard:shell.nodeOffline')}
             </button>
           )}
           {/* WASM Prover Indicator */}
           {wasmReady ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Prover Ready
+              {t('dashboard:shell.proverReady')}
             </span>
           ) : wasmLoading ? (
             <button
               onClick={() => navigate('/loading')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--accent)] bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-full hover:bg-[var(--accent)]/20 transition-all cursor-pointer"
-              title="Click to view loading progress"
+              title={t('dashboard:shell.proverLoadingTitle')}
             >
               <LoadingSpinner size="sm" />
-              Prover {Math.round(wasmProgress)}%
+              {t('dashboard:shell.proverProgress', { count: Math.round(wasmProgress) })}
             </button>
           ) : null}
           {/* Iagon Connection Indicator */}
           {effects.iagonConnected ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-              Iagon Ready
+              {t('dashboard:shell.iagonReady')}
             </span>
           ) : (
             <button
               onClick={() => navigate('/settings')}
               className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all cursor-pointer"
-              title="Iagon not connected - click to configure"
+              title={t('dashboard:shell.iagonOfflineTitle')}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-muted)]"></span>
-              Iagon Offline
+              {t('dashboard:shell.iagonOffline')}
             </button>
           )}
           {/* Collateral Indicator */}
@@ -431,16 +659,16 @@ export default function Dashboard() {
             walletHealth.hasCollateral ? (
               <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
-                Collateral Set
+                {t('dashboard:shell.collateralSet')}
               </span>
             ) : (
               <button
                 onClick={() => navigate('/settings', { state: { section: 'wallet' } })}
                 className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--warning)] bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-full hover:bg-[var(--warning)]/20 transition-all cursor-pointer"
-                title="No collateral UTxO found — click to set up in Settings"
+                title={t('dashboard:shell.noCollateralTitle')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse"></span>
-                No Collateral
+                {t('dashboard:shell.noCollateral')}
               </button>
             )
           )}
@@ -450,18 +678,19 @@ export default function Dashboard() {
           <div className="relative" ref={createListingDropdownRef}>
             <div className="flex">
               <button
+                id="tutorial-create-listing"
                 onClick={() => seller.setShowCreateListing(true)}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-l-[var(--radius-md)] btn-base btn-primary"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Create Listing
+                {t('dashboard:shell.createListing')}
               </button>
               <button
                 onClick={() => setCreateListingDropdownOpen((prev) => !prev)}
                 className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-white/20 btn-base btn-primary"
-                aria-label="More listing options"
+                aria-label={t('dashboard:shell.moreListingOptionsAria')}
                 aria-expanded={createListingDropdownOpen}
                 aria-haspopup="true"
               >
@@ -479,7 +708,7 @@ export default function Dashboard() {
                   <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  New Listing
+                  {t('dashboard:shell.newListing')}
                 </button>
                 <button
                   onClick={() => { setCreateListingDropdownOpen(false); seller.setShowImportListing(true); }}
@@ -488,7 +717,7 @@ export default function Dashboard() {
                   <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  Import from Iagon
+                  {t('dashboard:shell.importFromIagon')}
                 </button>
               </div>
             )}
@@ -502,12 +731,12 @@ export default function Dashboard() {
           ) : (
             <div
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
-              title="Waiting for Kupo to start. Your funds are safe."
+              title={t('dashboard:shell.balanceUnavailableTitle')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Balance unavailable
+              {t('dashboard:shell.balanceUnavailable')}
             </div>
           )}
 
@@ -515,7 +744,7 @@ export default function Dashboard() {
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 px-3 py-1.5 text-sm text-[var(--text-secondary)] font-mono bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-tertiary"
-            title={address || 'Loading...'}
+            title={address || t('dashboard:shell.addressLoading')}
           >
             <span>{address ? truncateHex(address, 12, 8) : '...'}</span>
             <svg
@@ -546,8 +775,8 @@ export default function Dashboard() {
           <button
             onClick={() => navigate('/settings')}
             className="p-2 rounded-[var(--radius-md)] btn-base btn-icon"
-            title="Settings"
-            aria-label="Settings"
+            title={t('dashboard:shell.settingsTitle')}
+            aria-label={t('dashboard:shell.settingsAria')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -560,7 +789,7 @@ export default function Dashboard() {
             onClick={handleDisconnect}
             className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
           >
-            Disconnect
+            {t('dashboard:shell.disconnect')}
           </button>
         </div>
       </nav>
@@ -572,11 +801,10 @@ export default function Dashboard() {
             <div className="p-4 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-[var(--radius-lg)] flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium text-[var(--text-primary)]">
-                  Unfinished Listing Found
+                  {t('dashboard:shell.unfinishedListingTitle')}
                 </h3>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                  A file listing for "{seller.recoverableDraft.originalFilename}" was uploaded but the transaction was not completed.
-                  The file is still on Iagon — you can resume without re-uploading.
+                  {t('dashboard:shell.unfinishedListingBody', { filename: seller.recoverableDraft.originalFilename })}
                 </p>
               </div>
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
@@ -584,19 +812,19 @@ export default function Dashboard() {
                   onClick={() => seller.handleDraftRecovery('discard')}
                   className="px-3 py-1.5 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
                 >
-                  Discard
+                  {t('dashboard:shell.discard')}
                 </button>
                 <button
                   onClick={() => seller.handleDraftRecovery('resume')}
                   className="px-3 py-1.5 text-xs font-medium rounded-[var(--radius-md)] btn-base btn-primary"
                 >
-                  Resume Listing
+                  {t('dashboard:shell.resumeListing')}
                 </button>
                 <button
                   onClick={() => seller.setRecoverableDraft(null)}
                   className="p-1 btn-base btn-icon"
-                  title="Dismiss"
-                  aria-label="Dismiss draft recovery banner"
+                  title={t('dashboard:shell.dismissTitle')}
+                  aria-label={t('dashboard:shell.dismissDraftRecoveryAria')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -621,13 +849,13 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">My Listings</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.myListingsCount === null ? '...' : `${effects.myListingsCount} active`}
+              {effects.myListingsCount === null ? '...' : t('dashboard:shell.statActiveCount', { count: effects.myListingsCount })}
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
               <p className="text-sm text-[var(--success)] mt-1" aria-live="polite">
-                {effects.bidNotifications.unseenBidCount} new {effects.bidNotifications.unseenBidCount === 1 ? 'bid' : 'bids'}
+                {t('newBidCount', { count: effects.bidNotifications.unseenBidCount })}
               </p>
             )}
           </button>
@@ -639,9 +867,9 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">My Bids</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.myBidsCount === null ? '...' : `${effects.myBidsCount} pending`}
+              {effects.myBidsCount === null ? '...' : t('dashboard:shell.statPendingCount', { count: effects.myBidsCount })}
             </p>
           </button>
           <button
@@ -652,9 +880,9 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">Library</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.libraryCount === null ? '...' : `${effects.libraryCount} ${effects.libraryCount === 1 ? 'item' : 'items'}`}
+              {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
           </button>
           <button
@@ -665,15 +893,15 @@ export default function Dashboard() {
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
             }`}
           >
-            <h2 className="text-lg font-medium mb-2">Transactions</h2>
+            <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
             <p className="text-2xl font-semibold text-[var(--accent)]">
-              {effects.pendingTxCount > 0 ? `${effects.pendingTxCount} pending` : 'None pending'}
+              {effects.pendingTxCount > 0 ? t('dashboard:shell.statPendingCount', { count: effects.pendingTxCount }) : t('dashboard:shell.statNonePending')}
             </p>
           </button>
         </div>
 
         {/* Tabs */}
-        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label="Dashboard tabs">
+        <nav className="border-b border-[var(--border-subtle)] mb-6" aria-label={t('dashboard:shell.tabsAria')}>
           <div className="flex items-center justify-between">
           <div className="flex gap-6" role="tablist" ref={tabListRef} onKeyDown={handleTabKeyDown}>
             {TABS.map((tab, index) => (
@@ -685,14 +913,14 @@ export default function Dashboard() {
                 aria-controls={`tabpanel-${tab.id}`}
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
-                title={`${tab.label} (Ctrl+${index + 1})`}
+                title={t('dashboard:shell.tabShortcutTitle', { label: t(`dashboard:${tab.labelKey}`), number: index + 1 })}
                 className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
                     ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
-                {tab.label}
+                {t(`dashboard:${tab.labelKey}`)}
                 {tab.id === 'my-sales' && effects.bidNotifications.unseenBidCount > 0 && (
                   <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
                     {effects.bidNotifications.unseenBidCount}
@@ -714,14 +942,14 @@ export default function Dashboard() {
           {/* Refresh button + timestamp */}
           <div className="flex items-center gap-3 pb-3">
             <span className="text-xs text-[var(--text-muted)]">
-              Updated {relativeTime}
+              {t('dashboard:shell.updatedRelative', { time: relativeTime })}
             </span>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)] rounded-[var(--radius-md)] transition-all duration-[var(--transition-fast)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Refresh data (Ctrl+R)"
-              aria-label="Refresh data"
+              title={t('dashboard:shell.refreshTitle')}
+              aria-label={t('dashboard:shell.refreshAria')}
             >
               <svg
                 className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
@@ -759,6 +987,8 @@ export default function Dashboard() {
                 lovelace={lovelace}
                 onPlaceBid={buyer.handlePlaceBid}
                 onCreateListing={handleOpenCreateListing}
+                onStartTutorial={handleStartListingTutorial}
+                onStartBidTutorial={handleStartBidTutorial}
                 onLocalRefresh={handleLocalRefresh}
                 filters={marketplaceFilters}
                 dispatch={marketplaceDispatch}
@@ -787,6 +1017,7 @@ export default function Dashboard() {
                 onCompleteSale={seller.handleCompleteSale}
                 onCreateListing={handleOpenCreateListing}
                 onBidsViewed={effects.bidNotifications.markListingSeen}
+                onStartAcceptBidTutorial={() => handleStartFirstBidAcceptedTutorial({ startStep: 0 })}
                 onLocalRefresh={handleLocalRefresh}
                 filters={mySalesFilters}
                 dispatch={mySalesDispatch}
@@ -814,6 +1045,9 @@ export default function Dashboard() {
                 onDecryptEncryption={buyer.handleDecryptEncryption}
                 onSwitchTab={setActiveTab}
                 onLocalRefresh={handleLocalRefresh}
+                onStartDecryptTutorial={handleStartDecryptTutorial}
+                autoStartDecryptTutorial={autoStartDecryptTutorial}
+                onAutoStartConsumed={() => setAutoStartDecryptTutorial(false)}
                 filters={myPurchasesFilters}
                 dispatch={myPurchasesDispatch}
                 failedDecryptTokens={buyer.failedDecryptTokens}
@@ -864,7 +1098,7 @@ export default function Dashboard() {
                 filters={libraryFilters}
                 dispatch={libraryDispatch}
                 onBulkDeleteResult={(message, hadErrors) =>
-                  hadErrors ? toast.warning('Bulk Delete', message) : toast.success('Bulk Delete', message)
+                  hadErrors ? toast.warning(t('toast.bulkDeleteTitle'), message) : toast.success(t('toast.bulkDeleteTitle'), message)
                 }
                 onRelist={seller.handleRelistFromLibrary}
               />
@@ -886,7 +1120,10 @@ export default function Dashboard() {
         onSubmit={seller.handleCreateListing}
         isIagonConnected={effects.iagonConnected}
         prefill={seller.relistPrefill}
-        title={seller.relistPrefill ? 'Relist from Library' : undefined}
+        title={seller.relistPrefill ? t('dashboard:shell.relistFromLibraryTitle') : undefined}
+        wallet={wallet}
+        address={address}
+        onIagonConnected={() => effects.setIagonConnected(true)}
       />
 
       {/* Import Listing Modal */}
@@ -933,7 +1170,7 @@ export default function Dashboard() {
         encryption={buyer.selectedEncryption}
         isIagonConnected={effects.iagonConnected}
         onDecryptResult={buyer.handleDecryptResult}
-        onSaveWarning={(msg) => toast.warning('Save failed', msg)}
+        onSaveWarning={(msg) => toast.warning(t('toast.saveFailedTitle'), msg)}
         ownerPkh={buyer.decryptOwnerPkh}
       />
 
@@ -958,9 +1195,18 @@ export default function Dashboard() {
         title={confirmAction?.title ?? ''}
         message={confirmAction?.message ?? ''}
         description={confirmAction?.description}
-        confirmLabel={confirmAction?.confirmLabel ?? 'Confirm'}
+        confirmLabel={confirmAction?.confirmLabel ?? t('dashboard:shell.confirmFallback')}
         confirmVariant="danger"
         loading={confirmLoading}
+      />
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        step={tutorial.currentStep}
+        stepIndex={tutorial.currentStepIndex}
+        totalSteps={tutorial.totalSteps}
+        onNext={tutorial.nextStep}
+        onSkip={tutorial.skipTutorial}
       />
 
       {/* Toast Notifications */}

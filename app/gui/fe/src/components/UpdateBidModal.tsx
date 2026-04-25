@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BidDisplay } from '../services/api';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
@@ -19,6 +20,7 @@ export default function UpdateBidModal({
   onSubmit,
   bid,
 }: UpdateBidModalProps) {
+  const { t } = useTranslation(['modals', 'common']);
   const [amountAda, setAmountAda] = useState('');
   const [futurePriceAda, setFuturePriceAda] = useState('');
   const [futurePriceManuallyEdited, setFuturePriceManuallyEdited] = useState(false);
@@ -63,45 +65,45 @@ export default function UpdateBidModal({
     const trimmedPrice = futurePriceAda.trim();
 
     if (!trimmedAmount) {
-      setError('Bid amount is required');
+      setError(t('modals:updateBid.errors.amountRequired'));
       return false;
     }
     const parsedAmount = parseFloat(trimmedAmount.replace(/,/g, ''));
     if (isNaN(parsedAmount)) {
-      setError('Bid amount must be a valid number');
+      setError(t('modals:updateBid.errors.amountInvalid'));
       return false;
     }
     if (parsedAmount <= 0) {
-      setError('Bid amount must be greater than zero');
+      setError(t('modals:updateBid.errors.amountPositive'));
       return false;
     }
     if (parsedAmount > 45_000_000_000) {
-      setError('Bid exceeds maximum (45B ADA)');
+      setError(t('modals:updateBid.errors.amountMax'));
       return false;
     }
 
     if (!trimmedPrice) {
-      setError('Future price is required');
+      setError(t('modals:updateBid.errors.priceRequired'));
       return false;
     }
     const parsedPrice = parseFloat(trimmedPrice.replace(/,/g, ''));
     if (isNaN(parsedPrice)) {
-      setError('Future price must be a valid number');
+      setError(t('modals:updateBid.errors.priceInvalid'));
       return false;
     }
     if (parsedPrice < 0) {
-      setError('Future price cannot be negative');
+      setError(t('modals:updateBid.errors.priceNegative'));
       return false;
     }
     if (parsedPrice > 45_000_000_000) {
-      setError('Future price exceeds maximum (45B ADA)');
+      setError(t('modals:updateBid.errors.priceMax'));
       return false;
     }
 
     const newAmountLovelace = Math.floor(parsedAmount * 1_000_000);
     const newPriceLovelace = Math.floor(parsedPrice * 1_000_000);
     if (bid && newAmountLovelace === bid.amount && newPriceLovelace === bid.datum.new_price) {
-      setError('At least one value must differ from current');
+      setError(t('modals:updateBid.errors.noChange'));
       return false;
     }
 
@@ -144,7 +146,7 @@ export default function UpdateBidModal({
     e.preventDefault();
 
     if (!bid) {
-      setSubmitError(getFriendlyError('No bid selected'));
+      setSubmitError(getFriendlyError(t('modals:updateBid.errors.noBid')));
       return;
     }
 
@@ -159,7 +161,7 @@ export default function UpdateBidModal({
       await onSubmit(bid, newAmountLovelace, newPriceLovelace);
       onClose();
     } catch (err) {
-      setSubmitError(getFriendlyError(err instanceof Error ? err.message : 'Unknown error'));
+      setSubmitError(getFriendlyError(err instanceof Error ? err.message : t('modals:updateBid.errors.unknown')));
     } finally {
       setIsSubmitting(false);
     }
@@ -194,7 +196,7 @@ export default function UpdateBidModal({
         <form onSubmit={handleSubmit}>
           {/* Header */}
           <div className="p-[var(--space-lg)] border-b border-[var(--border-subtle)]">
-            <h2 id="update-bid-title" className="text-lg font-semibold text-[var(--text-primary)]">Update Bid</h2>
+            <h2 id="update-bid-title" className="text-lg font-semibold text-[var(--text-primary)]">{t('modals:updateBid.title')}</h2>
           </div>
 
           {/* Body */}
@@ -203,7 +205,7 @@ export default function UpdateBidModal({
             <div className="space-y-[var(--space-2)]">
               {currentAmountAda !== undefined && (
                 <div className="flex items-center justify-between p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-                  <span className="text-sm text-[var(--text-muted)]">Current bid</span>
+                  <span className="text-sm text-[var(--text-muted)]">{t('modals:updateBid.currentBid')}</span>
                   <span className="text-sm font-medium text-[var(--text-secondary)]">
                     {formatAda(bid!.amount)} ADA
                   </span>
@@ -211,7 +213,7 @@ export default function UpdateBidModal({
               )}
               {currentFuturePriceAda !== undefined && currentFuturePriceAda > 0 && (
                 <div className="flex items-center justify-between p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
-                  <span className="text-sm text-[var(--text-muted)]">Current future price</span>
+                  <span className="text-sm text-[var(--text-muted)]">{t('modals:updateBid.currentFuturePrice')}</span>
                   <span className="text-sm font-medium text-[var(--text-secondary)]">
                     {formatAda(bid!.datum.new_price)} ADA
                   </span>
@@ -222,7 +224,7 @@ export default function UpdateBidModal({
             {/* Bid amount input */}
             <div>
               <label htmlFor="update-bid-amount-input" className="block text-sm font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">
-                Bid Amount (ADA)
+                {t('modals:updateBid.bidAmountLabel')}
               </label>
               <input
                 ref={amountInputRef}
@@ -244,7 +246,7 @@ export default function UpdateBidModal({
               />
               {amountAda.trim() && !isNaN(parseFloat(amountAda)) && parseFloat(amountAda) >= 0 && (
                 <p id="update-bid-amount-hint" className="mt-[var(--space-1)] text-xs text-[var(--text-muted)]">
-                  = {Math.floor(parseFloat(amountAda.replace(/,/g, '')) * 1_000_000).toLocaleString()} lovelace
+                  {t('modals:updateBid.lovelaceSuffix', { amount: Math.floor(parseFloat(amountAda.replace(/,/g, '')) * 1_000_000).toLocaleString() })}
                 </p>
               )}
             </div>
@@ -252,7 +254,7 @@ export default function UpdateBidModal({
             {/* Future price input */}
             <div>
               <label htmlFor="update-bid-price-input" className="block text-sm font-medium text-[var(--text-secondary)] mb-[var(--space-1)]">
-                Future Price (ADA)
+                {t('modals:updateBid.futurePriceLabel')}
               </label>
               <input
                 id="update-bid-price-input"
@@ -273,12 +275,12 @@ export default function UpdateBidModal({
               />
               {futurePriceAda.trim() && !isNaN(parseFloat(futurePriceAda)) && parseFloat(futurePriceAda) >= 0 && (
                 <p id="update-bid-price-hint" className="mt-[var(--space-1)] text-xs text-[var(--text-muted)]">
-                  = {Math.floor(parseFloat(futurePriceAda.replace(/,/g, '')) * 1_000_000).toLocaleString()} lovelace
+                  {t('modals:updateBid.lovelaceSuffix', { amount: Math.floor(parseFloat(futurePriceAda.replace(/,/g, '')) * 1_000_000).toLocaleString() })}
                 </p>
               )}
               {!futurePriceManuallyEdited && (
                 <p className="mt-[var(--space-1)] text-xs text-[var(--text-muted)] italic">
-                  Auto-synced to bid amount
+                  {t('modals:updateBid.autoSynced')}
                 </p>
               )}
             </div>
@@ -305,7 +307,7 @@ export default function UpdateBidModal({
               disabled={isSubmitting}
               className="px-[var(--space-md)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
             >
-              Cancel
+              {t('common:actions.cancel')}
             </button>
             <button
               type="submit"
@@ -313,7 +315,7 @@ export default function UpdateBidModal({
               className="px-[var(--space-md)] py-[var(--space-2)] text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary flex items-center gap-[var(--space-2)]"
             >
               {isSubmitting && <LoadingSpinner size="sm" />}
-              {isSubmitting ? 'Updating...' : 'Update Bid'}
+              {isSubmitting ? t('modals:updateBid.submitting') : t('modals:updateBid.submit')}
             </button>
           </div>
         </form>

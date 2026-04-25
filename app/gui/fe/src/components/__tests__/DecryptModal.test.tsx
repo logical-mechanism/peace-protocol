@@ -17,7 +17,7 @@ const mockDecryptEncryption = vi.fn();
 vi.mock('../../services/crypto/decrypt', () => ({
   decryptBid: (...args: unknown[]) => mockDecryptBid(...args),
   decryptEncryption: (...args: unknown[]) => mockDecryptEncryption(...args),
-  getDecryptionExplanation: () => 'Test decryption explanation text.',
+  getDecryptionExplanationState: () => ({ mode: 'real' as const, wasmReady: true }),
   isStubMode: () => false,
 }));
 
@@ -144,9 +144,16 @@ describe('DecryptModal', () => {
     expect(screen.queryByText(/Your winning bid/)).not.toBeInTheDocument();
   });
 
-  it('shows decryption explanation text', () => {
+  it('shows decryption explanation steps in real mode', () => {
     renderModal();
-    expect(screen.getByText('Test decryption explanation text.')).toBeInTheDocument();
+    // Step list is rendered when mode === 'real'; spot-check the intro and
+    // the WASM-ready note (mock returns wasmReady: true).
+    expect(
+      screen.getByText(/Decryption uses zero-knowledge cryptography/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/WASM cryptography loaded and ready/i),
+    ).toBeInTheDocument();
   });
 
   it('shows security note', () => {

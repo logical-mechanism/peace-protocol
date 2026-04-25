@@ -30,7 +30,12 @@ vi.mock('../../services/favoritesStorage', () => ({
   toggleFavorite: vi.fn(),
 }));
 
+vi.mock('../../services/onboardingStorage', () => ({
+  getOnboardingState: vi.fn().mockReturnValue({ step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false }),
+}));
+
 import { encryptionsApi, bidsApi } from '../../services/api';
+import { getOnboardingState } from '../../services/onboardingStorage';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -339,6 +344,153 @@ describe('MarketplaceTab', () => {
 
     await waitFor(() => {
       expect(screen.queryByText(/Showing cached listings/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows tutorial banner when onboarding complete and firstListingCompleted is false', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+      expect(screen.getByText(/Take a guided tour/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides tutorial banner when firstListingCompleted is true', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('hides tutorial banner when onboarding not complete', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 1, completed: false, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('dismisses tutorial banner on X click (session only)', async () => {
+    // firstBidCompleted: true so only the listing banner renders — isolates this test
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+
+    expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+  });
+
+  it('calls onStartTutorial and hides banner when Start Tour is clicked', async () => {
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    const onStartTutorial = vi.fn();
+    renderTab({ onStartTutorial });
+
+    await waitFor(() => {
+      expect(screen.getByText('Start Tour')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Start Tour'));
+
+    expect(onStartTutorial).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/New to Veiled/)).not.toBeInTheDocument();
+  });
+
+  // --- Bid tutorial banner ---
+
+  it('shows bid banner when onboarding complete, firstBidCompleted is false, and an eligible listing exists', async () => {
+    const enc = makeEncryption(); // default sellerPkh != USER_PKH so it's eligible
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides bid banner when no eligible listings exist (empty marketplace)', async () => {
+    // default beforeEach mocks return empty data
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    // Wait for the loaded state (no listings) to settle, then confirm banner is absent
+    await waitFor(() => {
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+  });
+
+  it('hides bid banner when the only listing is the user\'s own (not eligible)', async () => {
+    const own = makeEncryption({ sellerPkh: USER_PKH });
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [own], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(encryptionsApi.getAllWithWarnings).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+  });
+
+  it('hides bid banner when firstBidCompleted is true', async () => {
+    const enc = makeEncryption();
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: true, firstBidCompleted: true,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Ready to place your first bid/)).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows both banners when both tutorials are incomplete and an eligible listing exists', async () => {
+    const enc = makeEncryption();
+    (encryptionsApi.getAllWithWarnings as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [enc], stale: false });
+    (getOnboardingState as ReturnType<typeof vi.fn>).mockReturnValue({
+      step: 3, completed: true, firstListingCompleted: false, firstBidCompleted: false,
+    });
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/New to Veiled/)).toBeInTheDocument();
+      expect(screen.getByText(/Ready to place your first bid/)).toBeInTheDocument();
     });
   });
 });

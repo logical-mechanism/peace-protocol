@@ -7,6 +7,7 @@ locales/
   en/
     common.json         # shared primitives (actions, states, units)
     wallet.json         # wallet setup / unlock
+    nodeSync.json       # node bootstrap + sync page
     dashboard.json      # tab labels
     settings.json       # Settings page
     modals.json         # modal strings (validation, titles)

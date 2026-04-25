@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import LoadingSpinner from './LoadingSpinner'
 
@@ -16,6 +17,7 @@ interface ShutdownProgress {
 }
 
 export default function ShutdownOverlay() {
+  const { t } = useTranslation('common')
   const [isShuttingDown, setIsShuttingDown] = useState(false)
   const [progress, setProgress] = useState<ShutdownProgress | null>(null)
 
@@ -46,21 +48,21 @@ export default function ShutdownOverlay() {
       className="fixed inset-0 z-[100] bg-[var(--bg-primary)]/95 backdrop-blur-sm flex items-center justify-center"
       role="alert"
       aria-live="assertive"
-      aria-label="Application shutting down"
+      aria-label={t('overlay.shuttingDownLabel')}
     >
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <LoadingSpinner size="lg" label="Shutting down" />
+          <LoadingSpinner size="lg" label={t('overlay.shuttingDown')} />
         </div>
         <h2 className="text-lg font-medium text-[var(--text-primary)]">
-          Shutting down...
+          {t('overlay.shuttingDown')}
         </h2>
         <p className="text-sm text-[var(--text-muted)] mt-2">
-          Stopping services safely. Please wait.
+          {t('overlay.shuttingDownDescription')}
         </p>
         {progress && progress.remaining_processes > 0 && (
           <p className="text-xs text-[var(--text-muted)] mt-3 font-mono">
-            {progress.remaining_processes} process{progress.remaining_processes !== 1 ? 'es' : ''} remaining
+            {t('overlay.shuttingDownProcess', { count: progress.remaining_processes })}
           </p>
         )}
       </div>

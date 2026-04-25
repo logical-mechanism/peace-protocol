@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getSnarkProver } from '../services/snark'
 import type { SnarkProofInputs, SnarkProof, ProvingProgress } from '../services/snark'
 import { getFriendlyError } from '../services/errorMessages'
@@ -28,6 +29,7 @@ export default function SnarkProvingModal({
   onProofGenerated,
   inputs,
 }: SnarkProvingModalProps) {
+  const { t } = useTranslation(['modals', 'common'])
   const [state, setState] = useState<ProvingState>('idle')
   const [, setProgress] = useState<ProvingProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -99,7 +101,7 @@ export default function SnarkProvingModal({
       } catch (err) {
         if (cancelledRef.current) return
         console.error('SNARK proof generation error:', err)
-        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
+        const message = err instanceof Error ? err.message : typeof err === 'string' ? err : t('modals:snarkProving.failedFallback')
         setError(message)
         setState('error')
       }
@@ -110,7 +112,7 @@ export default function SnarkProvingModal({
     return () => {
       cancelledRef.current = true
     }
-  }, [isOpen, inputs])
+  }, [isOpen, inputs, t])
 
   const handleContinue = useCallback(() => {
     if (proof) {
@@ -145,7 +147,7 @@ export default function SnarkProvingModal({
         } catch (err) {
           if (cancelledRef.current) return
           console.error('SNARK proof generation error:', err)
-          const message = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Proof generation failed'
+          const message = err instanceof Error ? err.message : typeof err === 'string' ? err : t('modals:snarkProving.failedFallback')
           setError(message)
           setState('error')
         }
@@ -153,21 +155,21 @@ export default function SnarkProvingModal({
 
       generateProof()
     }
-  }, [inputs])
+  }, [inputs, t])
 
   // Warn before closing during proving
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (state === 'proving' || state === 'initializing') {
         e.preventDefault()
-        e.returnValue = 'Proof generation is in progress. Are you sure you want to leave?'
+        e.returnValue = t('modals:snarkProving.beforeUnload')
         return e.returnValue
       }
     }
 
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [state])
+  }, [state, t])
 
   if (!shouldRender) return null
 
@@ -199,13 +201,13 @@ export default function SnarkProvingModal({
         <div className="px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div className="flex items-center justify-between">
             <h2 id="snark-proving-title" className="text-xl font-semibold">
-              {state === 'success' ? 'Proof Generated' : 'Generating Proof'}
+              {state === 'success' ? t('modals:snarkProving.titleGenerated') : t('modals:snarkProving.titleGenerating')}
             </h2>
             {canClose && (
               // tabIndex={-1}: Escape closes.
               <button
                 onClick={onClose}
-                aria-label="Close dialog"
+                aria-label={t('modals:common.closeDialog')}
                 tabIndex={-1}
                 className="p-1 btn-base btn-icon"
               >
@@ -241,31 +243,31 @@ export default function SnarkProvingModal({
                     </svg>
                   </div>
                   {/* Spinning ring */}
-                  <LoadingSpinner variant="ring" size="lg" className="absolute inset-0 !w-full !h-full" label="Proving" />
+                  <LoadingSpinner variant="ring" size="lg" className="absolute inset-0 !w-full !h-full" label={t('modals:snarkProving.provingLabel')} />
                 </div>
               </div>
 
               {/* Progress info */}
               <div className="text-center space-y-2 mt-6">
                 <p className="text-lg font-medium inline-flex items-center justify-center gap-1.5">
-                  {state === 'initializing' ? 'Initializing prover...' : (
+                  {state === 'initializing' ? t('modals:snarkProving.initializing') : (
                     <>
-                      Generating zero-knowledge proof...
+                      {t('modals:snarkProving.generating')}
                       <InfoTooltip
-                        text="A SNARK proof mathematically proves the data re-encryption was done correctly, without revealing your secret. This lets the buyer verify the sale is honest."
+                        text={t('modals:snarkProving.tooltip')}
                         position="bottom"
                       />
                     </>
                   )}
                 </p>
                 <p className="text-sm text-[var(--text-muted)]">
-                  This may take ~3 minutes
+                  {t('modals:snarkProving.estimate')}
                 </p>
               </div>
 
               {/* Timer */}
               <div className="text-center mt-4">
-                <span className="text-sm text-[var(--text-muted)]">Elapsed: </span>
+                <span className="text-sm text-[var(--text-muted)]">{t('modals:snarkProving.elapsed')} </span>
                 <span className="text-sm font-mono text-[var(--text-secondary)]">{formatTime(elapsedTime)}</span>
               </div>
 
@@ -274,7 +276,7 @@ export default function SnarkProvingModal({
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span>Do not close the app</span>
+                <span>{t('modals:snarkProving.doNotClose')}</span>
               </div>
             </div>
           )}
@@ -286,9 +288,9 @@ export default function SnarkProvingModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="text-xl font-medium">Proof Generated!</p>
+              <p className="text-xl font-medium">{t('modals:snarkProving.successTitle')}</p>
               <p className="text-sm text-[var(--text-muted)] mt-2 text-center">
-                Zero-knowledge proof generated successfully in {formatTime(elapsedTime)}
+                {t('modals:snarkProving.successBody', { time: formatTime(elapsedTime) })}
               </p>
             </div>
           )}
@@ -303,7 +305,7 @@ export default function SnarkProvingModal({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </div>
-                  <p className="text-xl font-medium">{friendly?.title ?? 'Proof Generation Failed'}</p>
+                  <p className="text-xl font-medium">{friendly?.title ?? t('modals:snarkProving.failedTitle')}</p>
                 </div>
 
                 <div className="bg-[var(--error-muted)] text-[var(--error)] rounded-[var(--radius-md)] px-4 py-3 text-sm space-y-1">
@@ -324,7 +326,7 @@ export default function SnarkProvingModal({
               onClick={handleContinue}
               className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
             >
-              Continue
+              {t('modals:snarkProving.continue')}
             </button>
           )}
 
@@ -334,13 +336,13 @@ export default function SnarkProvingModal({
                 onClick={onClose}
                 className="px-4 py-2 text-sm btn-base btn-icon"
               >
-                Cancel
+                {t('common:actions.cancel')}
               </button>
               <button
                 onClick={handleRetry}
                 className="px-4 py-2 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                Retry
+                {t('modals:snarkProving.retry')}
               </button>
             </>
           )}

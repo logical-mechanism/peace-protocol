@@ -1,0 +1,122 @@
+{
+  "title": {
+    "stopped": "节点设置",
+    "bootstrapping": "下载快照",
+    "starting": "启动节点",
+    "syncing": "同步区块链",
+    "synced": "节点就绪",
+    "error": "节点错误"
+  },
+  "network": {
+    "preprod": "Preprod 网络",
+    "mainnet": "Mainnet 网络"
+  },
+  "stages": {
+    "bootstrap": "引导",
+    "starting": "启动中",
+    "syncing": "同步中",
+    "ready": "就绪"
+  },
+  "progressLabel": "同步进度",
+  "services": {
+    "cardanoNode": {
+      "label": "Cardano 节点",
+      "startingText": "重放账本...",
+      "description": "验证 Cardano 区块链中的区块并维护本地账本副本。"
+    },
+    "ogmios": {
+      "label": "Ogmios 桥接",
+      "startingText": "连接中...",
+      "description": "将节点数据转换为 WebSocket 协议，用于交易构建和提交。"
+    },
+    "kupo": {
+      "label": "Kupo 索引器",
+      "startingText": "启动中...",
+      "description": "索引合约和钱包地址的 UTxO，以实现快速余额和商品查询。"
+    },
+    "states": {
+      "waiting": "等待中...",
+      "starting": "启动中...",
+      "ready": "就绪",
+      "error": "错误"
+    }
+  },
+  "syncChecklist": {
+    "cardanoNode": "Cardano 节点",
+    "kupoIndexer": "Kupo 索引器",
+    "backendServer": "后端服务器",
+    "syncing": "同步中 {{percent}}%",
+    "indexing": "索引中 {{percent}}%",
+    "disconnected": "已断开",
+    "stalled": "已停滞",
+    "starting": "启动中...",
+    "waiting": "等待中...",
+    "synced": "已同步"
+  },
+  "syncInfo": {
+    "block": "区块 {{height}} — {{percent}}%",
+    "epoch": "纪元 {{epoch}} ({{era}})",
+    "slot": "时隙 {{current}} / {{total}}"
+  },
+  "status": {
+    "stoppedNeedsBootstrap": "未找到区块链数据。下载快照以开始使用。",
+    "stopped": "节点基础设施已停止。",
+    "bootstrapDownloading": "下载快照中：{{current}} / {{total}} 个文件",
+    "bootstrapLedgerState": "下载账本状态：{{downloaded}} / {{total}}",
+    "bootstrapPreparing": "准备下载区块链快照...",
+    "bootstrapGeneric": "下载快照中...",
+    "startingNode": "启动 Cardano 节点...",
+    "waitingChainBridge": "等待链桥接...",
+    "connectingNetwork": "连接网络中...",
+    "fullySyncedStartingBackend": "已完全同步，正在启动后端服务...",
+    "fullySynced": "已与 {{network}} 网络完全同步",
+    "nodeSyncedWaitingKupo": "节点已同步，等待 Kupo 索引器...",
+    "syncing": "正在与 {{network}} 网络同步...",
+    "syncedAtBlock": "已与 {{network}} 网络在区块 {{height}} 完全同步",
+    "genericError": "发生错误"
+  },
+  "stuckMessage": "最后几个区块需要更长时间，因为节点正在验证最近的交易。这是正常现象。最后几个百分比可能需要 5-15 分钟，因为节点正在验证最近的区块。",
+  "diskSpace": {
+    "low": "磁盘空间不足：可用 {{available}} GB，{{network}} 约需 {{required}} GB。如果磁盘空间用完，同步可能失败。",
+    "unknown": "无法验证磁盘空间。请确保在同步前有至少 10 GB 的可用空间。"
+  },
+  "actions": {
+    "starting": "启动中...",
+    "downloadSnapshot": "下载快照并启动",
+    "startNode": "启动节点",
+    "retry": "重试",
+    "continueDashboard": "继续到仪表板",
+    "continueBackground": "后台继续",
+    "stop": "停止"
+  },
+  "console": {
+    "show": "显示控制台输出（{{count}} 行）",
+    "hide": "隐藏控制台输出（{{count}} 行）",
+    "copyLogs": "复制日志",
+    "copyLogsAria": "复制日志到剪贴板",
+    "noLogsTitle": "无日志",
+    "noLogsBody": "没有可复制的日志行。",
+    "copiedTitle": "日志已复制",
+    "copiedBody": "控制台输出已复制到剪贴板。",
+    "copyFailedTitle": "复制失败",
+    "copyFailedBody": "无法将日志复制到剪贴板。"
+  },
+  "errorDetails": {
+    "summary": "详情",
+    "copyAria": "复制错误详情",
+    "errorFallback": "错误"
+  },
+  "wasm": {
+    "checkingSetup": "检查 SNARK 配置文件...",
+    "checkingExist": "检查配置文件是否存在...",
+    "proverReady": "SNARK 证明器就绪",
+    "setupFound": "已找到配置文件",
+    "decompressing": "解压 SNARK 配置文件...",
+    "decompressingDetail": "解压 pk.bin 和 ccs.bin（约 500MB）...",
+    "decompressed": "配置文件已解压"
+  },
+  "firstTimeSetup": {
+    "title": "首次设置",
+    "description": "将下载 Mithril 快照以引导 Cardano 节点。根据您的网络速度，这大约需要 10-20 分钟。快照在使用前会进行密码学验证。"
+  }
+}
