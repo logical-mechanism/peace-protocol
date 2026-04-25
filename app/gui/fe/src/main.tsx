@@ -5,6 +5,7 @@ import { WalletProvider } from './contexts/WalletContext'
 import { NodeProvider } from './contexts/NodeContext'
 import { WasmProvider } from './contexts/WasmContext'
 import { AcceptBidQueueProvider } from './contexts/AcceptBidQueueContext'
+import { UpdateProvider } from './contexts/UpdateContext'
 import { ModalProvider } from './contexts/ModalContext'
 import './index.css'
 import App from './App'
@@ -32,11 +33,13 @@ createRoot(document.getElementById('root')!).render(
         <NodeProvider>
           <WasmProvider>
             <AcceptBidQueueProvider>
-              <BrowserRouter>
-                <ModalProvider>
-                <App />
-                </ModalProvider>
-              </BrowserRouter>
+              <UpdateProvider autoCheck>
+                <BrowserRouter>
+                  <ModalProvider>
+                    <App />
+                  </ModalProvider>
+                </BrowserRouter>
+              </UpdateProvider>
             </AcceptBidQueueProvider>
           </WasmProvider>
         </NodeProvider>

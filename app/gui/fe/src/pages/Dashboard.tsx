@@ -30,7 +30,7 @@ import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import { useDataRefresh } from '../hooks/useDataRefresh'
-import { useUpdateCheck } from '../hooks/useUpdateCheck'
+import { useUpdate } from '../contexts/UpdateContext'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
@@ -243,21 +243,27 @@ export default function Dashboard() {
   const [relativeTime, setRelativeTime] = useState(() => t('dashboard:shell.timeJustNow'))
   const toast = useToast()
 
-  // ── Update check (auto-check on startup) ────────────────────────
-  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdateCheck(true)
+  // ── Update check (auto-check happens in UpdateProvider) ────────
+  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdate()
   const updateToastShownRef = useRef(false)
 
   useEffect(() => {
     if (updateState.status === 'available' && !updateToastShownRef.current) {
       updateToastShownRef.current = true
+      const info = updateState.info
       toast.info(
-        t('toast.updateAvailableTitle', { version: updateState.info.latest_version }),
-        t('toast.updateAvailableBody', { currentVersion: updateState.info.current_version }),
+        t('toast.updateAvailableTitle', { version: info.latest_version }),
+        t('toast.updateAvailableBody', { currentVersion: info.current_version }),
         0,
         {
           label: t('toast.updateDownload'),
           onClick: () => {
-            downloadAppUpdate(updateState.info.download_url)
+            // Kick off the download (visible in Settings → Updates via the
+            // shared UpdateContext) and navigate the user to that section so
+            // they can watch progress instead of staring at a toast that
+            // appears to do nothing.
+            downloadAppUpdate(info.download_url, info.download_size)
+            navigate('/settings', { state: { section: 'update' } })
           },
         }
       )

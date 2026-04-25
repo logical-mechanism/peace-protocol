@@ -64,6 +64,16 @@ vi.mock('../../contexts/AcceptBidQueueContext', () => ({
     setToast: vi.fn(), setRefreshTrigger: vi.fn(),
   }),
 }));
+vi.mock('../../contexts/UpdateContext', () => ({
+  useUpdate: () => ({
+    state: { status: 'idle' as const },
+    checkForUpdate: vi.fn(),
+    downloadUpdate: vi.fn(),
+    cancelDownload: vi.fn(),
+    dismiss: vi.fn(),
+    reset: vi.fn(),
+  }),
+}));
 
 // Mock lazy-loaded tab components to avoid deep dependency chains
 vi.mock('../../components/MarketplaceTab', () => ({
