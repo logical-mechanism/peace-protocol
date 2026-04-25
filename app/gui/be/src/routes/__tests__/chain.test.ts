@@ -298,6 +298,28 @@ describe('GET /api/chain/activity/:pkh', () => {
     expect(res.body.data[1].txHash).toBe(olderHash);
   });
 
+  it('reads tx_timestamp (Koios /tx_info field) for the record timestamp', async () => {
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: 'd'.repeat(64), block_height: 300, block_time: 1700000000 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: 'd'.repeat(64),
+        block_height: 300,
+        // /tx_info uses tx_timestamp, not block_time. Verify we read it.
+        tx_timestamp: 1700000123,
+        inputs: [{ tx_hash: 'e'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '2000000' }],
+        outputs: [{ payment_addr: { cred: userPkh }, value: '2000000', inline_datum: null }],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].timestamp).toBe(1700000123_000);
+  });
+
   it('returns 503 when Koios fails and no stale cache exists', async () => {
     mockKoiosClient.getCredentialTxs.mockRejectedValue(new Error('koios down'));
     mockKoiosClient.getAddressTxs.mockResolvedValue([]);

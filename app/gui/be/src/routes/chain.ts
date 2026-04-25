@@ -230,15 +230,16 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
       .slice(0, 50)
       .map(t => t.tx_hash);
 
+    logger.info('Wallet activity query', {
+      pkh,
+      credentialTxCount: credentialTxs.length,
+      protocolHashCount: protocolHashSet.size,
+      activityHashCount: activityHashes.length,
+      firstHashes: activityHashes.slice(0, 3),
+      requestId: req.requestId,
+    });
+
     if (activityHashes.length === 0) {
-      // Don't cache empty results — Koios may have been mid-indexing or the user
-      // may have just received a tx. Caching [] for 60s would mask the new entry.
-      logger.info('No wallet activity found', {
-        pkh,
-        credentialTxCount: credentialTxs.length,
-        protocolHashCount: protocolHashSet.size,
-        requestId: req.requestId,
-      });
       return res.json({ data: [] });
     }
 
@@ -252,9 +253,18 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
 
     records.sort((a, b) => b.timestamp - a.timestamp);
 
+    logger.info('Wallet activity classified', {
+      pkh,
+      txInfoCount: txInfos.length,
+      recordCount: records.length,
+      sampleTypes: records.slice(0, 5).map(r => `${r.type}:${r.txHash.slice(0, 8)}`),
+      requestId: req.requestId,
+    });
+
     if (records.length > 0) {
       apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
     }
+    res.set('Cache-Control', 'no-cache');
     return res.json({ data: records });
   } catch (error) {
     logger.error('Failed to fetch wallet activity', { error: String(error), pkh, requestId: req.requestId });
@@ -423,7 +433,8 @@ function classifyTx(
 ): HistoryRecord | null {
   const isEncryptionTx = encryptionTxSet.has(tx.tx_hash);
   const isBiddingTx = biddingTxSet.has(tx.tx_hash);
-  const timestamp = tx.block_time * 1000; // Koios returns seconds
+  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+  const timestamp = epochSeconds * 1000; // Koios returns seconds
 
   // Check outputs for contract addresses and extract token info
   let encryptionTokenName: string | undefined;
@@ -570,7 +581,8 @@ function classifyTx(
  * PKH for sends.
  */
 export function classifyActivityTx(tx: TxInfoWithAssets, userPkh: string): HistoryRecord | null {
-  const timestamp = tx.block_time * 1000;
+  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+  const timestamp = epochSeconds * 1000;
 
   let userInputLovelace = 0;
   let userOutputLovelace = 0;
