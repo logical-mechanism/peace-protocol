@@ -104,14 +104,17 @@ export function useUpdateCheck(autoCheck = false) {
     setState({ status: 'idle' })
   }, [])
 
-  // Auto-check on mount when enabled (Dashboard startup)
+  // Auto-check on mount when enabled. The guard is set inside the timeout
+  // callback (not in the effect body) so React StrictMode's double-invoke in
+  // dev — setup → cleanup → setup — cannot leave the ref `true` with the
+  // first timer already cancelled, which would skip the second scheduling
+  // and prevent the check from ever firing.
   useEffect(() => {
-    if (!autoCheck || startupCheckedRef.current) return
-    startupCheckedRef.current = true
+    if (!autoCheck) return
     const timer = setTimeout(() => {
-      if (!dismissedRef.current) {
-        checkForUpdate()
-      }
+      if (startupCheckedRef.current || dismissedRef.current) return
+      startupCheckedRef.current = true
+      checkForUpdate()
     }, 3000)
     return () => clearTimeout(timer)
   }, [autoCheck, checkForUpdate])

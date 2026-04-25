@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { useUpdateCheck, type UpdateInfo } from '../useUpdateCheck'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -254,6 +255,26 @@ describe('useUpdateCheck', () => {
     })
 
     // Wait for the async invoke to complete
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(invoke).toHaveBeenCalledWith('check_for_update')
+  })
+
+  it('auto-checks under React.StrictMode (effect setup → cleanup → setup must still fire timer)', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce(MOCK_UPDATE_INFO)
+
+    // Regression: the previous implementation flipped a guard ref before
+    // the timer fired, so StrictMode's cleanup-then-rerun pattern left the
+    // ref `true` with the only timer already cancelled — the auto-check
+    // never ran in dev (production builds skip the double-invoke and were
+    // unaffected).
+    renderHook(() => useUpdateCheck(true), { wrapper: StrictMode })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
     await act(async () => {
       await vi.runAllTimersAsync()
     })
