@@ -4,7 +4,7 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.5.2] - 2026-04-21
+## [0.5.2] - 2026-04-22
 
 ### Added
 - i18n: extracted strings from core pages (WalletSetup, WalletUnlock, NodeSync) (#109)
