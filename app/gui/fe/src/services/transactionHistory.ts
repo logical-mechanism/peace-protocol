@@ -9,6 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import { playSound } from './notificationSound';
+import type { EncryptionDisplay, BidDisplay } from './api';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid' | 'send' | 'receive';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -321,6 +322,83 @@ export function toCSV(records: TransactionRecord[]): string {
     const block = r.confirmedAtBlock !== undefined ? String(r.confirmedAtBlock) : '';
     const counterparty = r.counterparty ?? '';
     return `${date},${type},${status},${hash},${token},${desc},${amount},${block},${counterparty}`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+function lovelaceToAda(lovelace: number | undefined | null): string {
+  if (lovelace === undefined || lovelace === null) return '';
+  return (lovelace / 1_000_000).toFixed(6);
+}
+
+/**
+ * Convert seller's listings to CSV for tax reporting.
+ * Columns: Date, Token Name, Status, Description, Listed Price (ADA),
+ * Highest Bid (ADA), Sale Amount (ADA), Buyer PKH, Tx Hash
+ *
+ * Status maps EncryptionDisplay.status: active→Open, pending→Pending, completed→Sold.
+ * Highest Bid is the max amount across pending bids in `bidsMap`.
+ * Sale Amount + Buyer PKH come from the accepted bid (when one exists).
+ */
+export function salesToCSV(
+  encryptions: EncryptionDisplay[],
+  bidsMap: Map<string, BidDisplay[]>,
+): string {
+  const header =
+    'Date,Token Name,Status,Description,Listed Price (ADA),Highest Bid (ADA),Sale Amount (ADA),Buyer PKH,Tx Hash';
+  const rows = encryptions.map((e) => {
+    const date = new Date(e.createdAt).toISOString();
+    const tokenName = e.tokenName;
+    const statusLabel =
+      e.status === 'active' ? 'Open'
+      : e.status === 'pending' ? 'Pending'
+      : 'Sold';
+    const desc = csvEscape(e.description ?? '');
+    const listed = lovelaceToAda(e.suggestedPrice ?? e.datum?.new_price);
+    const bids = bidsMap.get(e.tokenName) ?? [];
+    const pendingAmounts = bids.filter((b) => b.status === 'pending').map((b) => b.amount);
+    const highestBid = pendingAmounts.length > 0 ? lovelaceToAda(Math.max(...pendingAmounts)) : '';
+    const acceptedBid = bids.find((b) => b.status === 'accepted');
+    const saleAmount = acceptedBid ? lovelaceToAda(acceptedBid.amount) : '';
+    const buyerPkh = acceptedBid?.bidderPkh ?? '';
+    const txHash = e.utxo.txHash;
+    return `${date},${tokenName},${statusLabel},${desc},${listed},${highestBid},${saleAmount},${buyerPkh},${txHash}`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Convert buyer's bids to CSV for tax reporting.
+ * Columns: Date, Token Name, Status, Bid Amount (ADA), Future Price (ADA),
+ * Seller PKH, Encryption Token, Tx Hash
+ *
+ * Status: pending→Active (or Locked while lockedUntil>now), accepted→Won,
+ * cancelled→Cancelled, rejected→Rejected.
+ */
+export function purchasesToCSV(
+  bids: BidDisplay[],
+  encryptionsMap: Map<string, EncryptionDisplay>,
+): string {
+  const header =
+    'Date,Token Name,Status,Bid Amount (ADA),Future Price (ADA),Seller PKH,Encryption Token,Tx Hash';
+  const now = Date.now();
+  const rows = bids.map((b) => {
+    const date = new Date(b.createdAt).toISOString();
+    let statusLabel: string;
+    if (b.status === 'pending') {
+      statusLabel = b.lockedUntil > now ? 'Locked' : 'Active';
+    } else if (b.status === 'accepted') {
+      statusLabel = 'Won';
+    } else if (b.status === 'cancelled') {
+      statusLabel = 'Cancelled';
+    } else {
+      statusLabel = 'Rejected';
+    }
+    const bidAmount = lovelaceToAda(b.amount);
+    const futurePrice = b.futurePrice !== undefined ? lovelaceToAda(b.futurePrice) : '';
+    const enc = encryptionsMap.get(b.encryptionToken);
+    const sellerPkh = enc?.sellerPkh ?? '';
+    return `${date},${b.tokenName},${statusLabel},${bidAmount},${futurePrice},${sellerPkh},${b.encryptionToken},${b.utxo.txHash}`;
   });
   return [header, ...rows].join('\n');
 }
