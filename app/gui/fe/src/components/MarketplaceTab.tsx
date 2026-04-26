@@ -370,7 +370,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     categoryFilter.length === 1 && categoryFilter[0] !== 'all' ? categoryFilter[0] : null;
 
   const activeChips = sellerPkh || singleCategorySelected ? (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 mt-[var(--space-2)] pt-[var(--space-2)] border-t border-[var(--border-subtle)]">
       {sellerPkh && (
         <button
           type="button"
@@ -514,11 +514,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
         </div>
       )}
-      {activeChips}
-      {/* Toolbar */}
-      <div className="mb-6">
+      {/* Toolbar — single framed container; active chips + filter panel dock inside */}
+      <div className="mb-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-2)]">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}
-        <div className="flex gap-3">
+        <div className="flex gap-[var(--space-2)]">
           {/* Search */}
           <div className="flex-1 relative">
             <svg
@@ -541,7 +540,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label={t('marketplace.searchAria')}
-              className="w-full pl-10 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
+              className="w-full pl-10 pr-8 py-2 text-sm bg-transparent border border-transparent rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:bg-[var(--bg-primary)] focus:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]"
             />
             {searchQuery && (
               <button
@@ -604,9 +603,12 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
         </div>
 
-        {/* Collapsible filter panel */}
+        {/* Active filter chips dock inside the toolbar frame */}
+        {activeChips}
+
+        {/* Collapsible filter panel — also docks inside */}
         {filtersOpen && (
-          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-[var(--space-2)] pt-[var(--space-3)] border-t border-[var(--border-subtle)]">
             {/* Status Filter */}
             <div className="w-40">
               <Select
