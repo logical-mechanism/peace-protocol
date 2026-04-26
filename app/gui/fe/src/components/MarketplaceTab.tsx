@@ -782,7 +782,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((encryption, index) => (
-            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={encryption.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <EncryptionCard
                 encryption={encryption}
                 onPlaceBid={onPlaceBid}

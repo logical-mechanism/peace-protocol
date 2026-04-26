@@ -193,7 +193,7 @@ function EncryptionCard({
 
   return (
     <>
-      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
+      <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
         {/* Image banner with overlay controls */}
         <div className="relative">
           <ListingImage
@@ -229,7 +229,7 @@ function EncryptionCard({
         </div>
 
         {/* Content */}
-        <div className={innerPadClass}>
+        <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero price + bid count */}
           <div className="flex items-baseline justify-between mb-[var(--space-2)]">
             <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none`}>
@@ -300,8 +300,8 @@ function EncryptionCard({
             </div>
           )}
 
-          {/* Footer meta — single quiet dot-separated row */}
-          <div className="mt-[var(--space-3)] pt-[var(--space-3)] border-t border-[var(--border-subtle)] flex items-center gap-[var(--space-2)] text-xs text-[var(--text-muted)] flex-wrap">
+          {/* Footer meta — single quiet dot-separated row, pinned to card bottom for equal-height grid */}
+          <div className="mt-auto pt-[var(--space-3)] border-t border-[var(--border-subtle)] flex items-center gap-[var(--space-2)] text-xs text-[var(--text-muted)] flex-wrap">
             <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono" />
             <span aria-hidden="true">·</span>
             {onFilterByCategory ? (
