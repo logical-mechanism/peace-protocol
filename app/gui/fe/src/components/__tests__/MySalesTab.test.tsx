@@ -41,9 +41,16 @@ vi.mock('../../services/transactionHistory', () => ({
   getTransactions: vi.fn().mockReturnValue([]),
   getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
   getTypeLabel: vi.fn((type: string) => type),
+  salesToCSV: vi.fn(() => 'mock,csv,header'),
+}));
+
+vi.mock('../../services/fileExport', () => ({
+  exportTextFile: vi.fn(),
 }));
 
 import { encryptionsApi, bidsApi } from '../../services/api';
+import { exportTextFile } from '../../services/fileExport';
+import { salesToCSV } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -313,6 +320,52 @@ describe('MySalesTab', () => {
         expect(screen.getByText('No handler')).toBeInTheDocument();
       });
       expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('CSV export', () => {
+    it('disables the export button when there are no listings to export', async () => {
+      const otherEnc = makeEncryption({ sellerPkh: 'other_pkh_' + 'x'.repeat(46), description: 'Not mine' });
+      // User has no listings of their own — filtered array is empty even though API returned data.
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([otherEnc]);
+
+      renderTab();
+
+      await waitFor(() => {
+        // Empty state appears, no toolbar/export button at all
+        expect(screen.getByText('No listings yet')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('button', { name: 'Export as CSV' })).not.toBeInTheDocument();
+    });
+
+    it('renders the export button when the user has listings', async () => {
+      const enc = makeEncryption({ description: 'Listing one' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+      renderTab();
+
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      expect(exportBtn).toBeInTheDocument();
+      expect(exportBtn).not.toBeDisabled();
+    });
+
+    it('calls exportTextFile with veiled-sales-{date}.csv filename on click', async () => {
+      const enc = makeEncryption({ description: 'For export' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-sales-2026-04-25.csv');
+
+      renderTab();
+
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      fireEvent.click(exportBtn);
+
+      await waitFor(() => {
+        expect(exportTextFile).toHaveBeenCalledTimes(1);
+      });
+      const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(csvArg).toBe('mock,csv,header');
+      expect(filenameArg).toMatch(/^veiled-sales-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(salesToCSV).toHaveBeenCalledTimes(1);
     });
   });
 });

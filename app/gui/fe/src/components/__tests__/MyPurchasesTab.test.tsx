@@ -31,8 +31,18 @@ vi.mock('../../services/onboardingStorage', () => ({
   getOnboardingState: (...args: unknown[]) => mockGetOnboardingState(...args),
 }));
 
+vi.mock('../../services/transactionHistory', () => ({
+  purchasesToCSV: vi.fn(() => 'mock,purchases,csv'),
+}));
+
+vi.mock('../../services/fileExport', () => ({
+  exportTextFile: vi.fn(),
+}));
+
 import { bidsApi, encryptionsApi } from '../../services/api';
 import { getBidSecretsForEncryption, listBidSecretTokens } from '../../services/bidSecretStorage';
+import { exportTextFile } from '../../services/fileExport';
+import { purchasesToCSV } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -387,5 +397,46 @@ describe('MyPurchasesTab — first-decrypt tutorial banner', () => {
       expect(screen.getByText(/^1 bid$/)).toBeInTheDocument();
     });
     expect(onStart).not.toHaveBeenCalled();
+  });
+});
+
+describe('MyPurchasesTab — CSV export', () => {
+  it('does not render the export button when the user has no bids', async () => {
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText(/no purchases yet/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Export as CSV' })).not.toBeInTheDocument();
+  });
+
+  it('renders the export button when the user has bids', async () => {
+    const bid = makeBid({ tokenName: 'bid_export_render' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+
+    renderTab();
+
+    const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+    expect(exportBtn).toBeInTheDocument();
+    expect(exportBtn).not.toBeDisabled();
+  });
+
+  it('calls exportTextFile with veiled-purchases-{date}.csv filename on click', async () => {
+    const bid = makeBid({ tokenName: 'bid_export_click' });
+    (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
+    (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-purchases-2026-04-25.csv');
+
+    renderTab();
+
+    const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(exportTextFile).toHaveBeenCalledTimes(1);
+    });
+    const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(csvArg).toBe('mock,purchases,csv');
+    expect(filenameArg).toMatch(/^veiled-purchases-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(purchasesToCSV).toHaveBeenCalledTimes(1);
   });
 });
