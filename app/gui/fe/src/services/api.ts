@@ -435,20 +435,39 @@ export const chainApi = {
    * regardless of whether they still own it. The seller side uses
    * getCredentialTxs(pkh) and needs no extra hint.
    *
-   * Throws on backend failure so the caller can distinguish "no events"
-   * from "Koios was unreachable".
+   * Returns events plus a `meta` block with candidate-scan counts so
+   * the caller can diagnose empty results without round-tripping to
+   * the BE log. Throws on backend failure (caller can distinguish
+   * "no events" from "Koios unreachable").
    */
-  async getReencryptionHistory(pkh: string, encryptionTokens: string[]): Promise<ReencryptionEvent[]> {
-    const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(
+  async getReencryptionHistory(
+    pkh: string,
+    encryptionTokens: string[],
+  ): Promise<{ events: ReencryptionEvent[]; meta?: ReencryptionHistoryMeta }> {
+    const response = await apiFetch<ApiResponse<ReencryptionEvent[]> & { meta?: ReencryptionHistoryMeta }>(
       `/api/chain/reencryption-history/${pkh}`,
       {
         method: 'POST',
         body: JSON.stringify({ encryptionTokens }),
       },
     );
-    return response.data;
+    return { events: response.data, meta: response.meta };
   },
 };
+
+export interface ReencryptionHistoryMeta {
+  encryptionTokens: number;
+  buyerSideHashes: number;
+  sellerSideHashes: number;
+  candidates: number;
+  fetched: number;
+  extracted: number;
+  skipNoBidInput: number;
+  skipNoSellerInput: number;
+  skipNoBuyerOutput: number;
+  skipParseFail: number;
+  matchedUser: number;
+}
 
 export interface ReencryptionEvent {
   txHash: string;

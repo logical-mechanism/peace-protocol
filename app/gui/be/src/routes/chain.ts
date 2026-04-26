@@ -409,13 +409,20 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
         else if (result === 'parse-fail') skipParseFail++;
         continue;
       }
-      if (result.buyerPkh === pkh || result.sellerPkh === pkh) {
+      const lowerPkh = pkh.toLowerCase();
+      if (
+        result.buyerPkh.toLowerCase() === lowerPkh ||
+        result.sellerPkh.toLowerCase() === lowerPkh
+      ) {
         events.push(result);
       }
     }
 
-    logger.info('reencryption-history: extraction summary', {
-      pkh,
+    const meta = {
+      encryptionTokens: encryptionTokens.length,
+      buyerSideHashes: buyerSideHashes.size,
+      sellerSideHashes: sellerSideHashes.size,
+      candidates: candidateHashes.size,
       fetched: txInfos.length,
       extracted: txInfos.length - skipNoBidInput - skipNoSellerInput - skipNoBuyerOutput - skipParseFail,
       skipNoBidInput,
@@ -423,13 +430,14 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
       skipNoBuyerOutput,
       skipParseFail,
       matchedUser: events.length,
-      requestId: req.requestId,
-    });
+    };
+
+    logger.info('reencryption-history: extraction summary', { pkh, ...meta, requestId: req.requestId });
 
     events.sort((a, b) => b.timestamp - a.timestamp);
 
     apiCache.set(cacheKey, events, CACHE_TTL_CHAIN);
-    return res.json({ data: events });
+    return res.json({ data: events, meta });
   } catch (error) {
     const detail = error instanceof Error ? `${error.message}` : String(error);
     const stack = error instanceof Error ? error.stack : undefined;

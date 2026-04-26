@@ -355,11 +355,15 @@ function MyPurchasesTab({
     try {
       const tokens = await listBidSecretTokens().catch(() => [] as string[]);
       console.info(`reencryption-history: querying with ${tokens.length} bid tokens`);
-      const events = await chainApi.getReencryptionHistory(userPkh, tokens);
+      const { events, meta } = await chainApi.getReencryptionHistory(userPkh, tokens);
+      if (meta) console.info('reencryption-history: meta', meta);
       console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
       if (events.length === 0) {
-        setExportMessage('No completed re-encryption events found on chain yet.');
-        setTimeout(() => setExportMessage(null), 5000);
+        const summary = meta
+          ? `(${meta.candidates} candidates, ${meta.extracted} re-encryption txs found, ${meta.matchedUser} matched your wallet)`
+          : '';
+        setExportMessage(`No completed re-encryption events found on chain yet. ${summary}`);
+        setTimeout(() => setExportMessage(null), 8000);
         return;
       }
       const csv = reencryptionHistoryToCSV(events, userPkh);
@@ -371,8 +375,8 @@ function MyPurchasesTab({
       }
     } catch (err) {
       console.error('Failed to export CSV:', err);
-      setExportMessage(t('history.exportFailed'));
-      setTimeout(() => setExportMessage(null), 5000);
+      setExportMessage(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
+      setTimeout(() => setExportMessage(null), 8000);
     }
   };
 

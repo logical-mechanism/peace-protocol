@@ -26,7 +26,7 @@ vi.mock('../../contexts/AcceptBidQueueContext', () => ({
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
-  chainApi: { getReencryptionHistory: vi.fn().mockResolvedValue([]) },
+  chainApi: { getReencryptionHistory: vi.fn().mockResolvedValue({ events: [] }) },
 }));
 
 vi.mock('../../services/imageCache', () => ({
@@ -354,18 +354,20 @@ describe('MySalesTab', () => {
     it('queries reencryption history and saves veiled-tax-records-{date}.csv on click', async () => {
       const enc = makeEncryption({ description: 'For export' });
       (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
-      (chainApi.getReencryptionHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
-        {
-          txHash: 'd'.repeat(64),
-          blockHeight: 5_000_000,
-          timestamp: 1_700_000_000_000,
-          encryptionTokenName: 'enc_export',
-          buyerPkh: 'b'.repeat(56),
-          sellerPkh: USER_PKH,
-          bidAmountLovelace: 25_000_000,
-          futurePriceLovelace: 60_000_000,
-        },
-      ]);
+      (chainApi.getReencryptionHistory as ReturnType<typeof vi.fn>).mockResolvedValue({
+        events: [
+          {
+            txHash: 'd'.repeat(64),
+            blockHeight: 5_000_000,
+            timestamp: 1_700_000_000_000,
+            encryptionTokenName: 'enc_export',
+            buyerPkh: 'b'.repeat(56),
+            sellerPkh: USER_PKH,
+            bidAmountLovelace: 25_000_000,
+            futurePriceLovelace: 60_000_000,
+          },
+        ],
+      });
       (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-tax-records-2026-04-25.csv');
 
       renderTab();
