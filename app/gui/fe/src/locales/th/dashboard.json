@@ -302,7 +302,9 @@
       "create-collateral": "ตั้งค่าหลักประกัน",
       "optimize-wallet": "ปรับปรุงกระเป๋าเงิน",
       "update-price": "อัปเดตราคา",
-      "update-bid": "อัปเดตการเสนอราคา"
+      "update-bid": "อัปเดตการเสนอราคา",
+      "send": "ส่ง ADA",
+      "receive": "รับ ADA"
     }
   },
   "library": {

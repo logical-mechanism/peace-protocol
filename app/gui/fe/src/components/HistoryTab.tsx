@@ -12,6 +12,7 @@ import LoadingSpinner, { DelayedSpinner } from './LoadingSpinner';
 import { SkeletonHistoryList } from './SkeletonCard';
 import ConfirmModal from './ConfirmModal';
 import InfoTooltip from './InfoTooltip';
+import ScrollToTop from './ScrollToTop';
 import type { TransactionRecord, TransactionType } from '../services/transactionHistory';
 import {
   getTypeLabelKey,
@@ -29,6 +30,7 @@ import { useDebounce } from '../hooks/useDebounce';
 const ALL_TX_TYPES: TransactionType[] = [
   'create-listing', 'remove-listing', 'place-bid', 'cancel-bid',
   'accept-bid', 'cancel-pending', 'complete-sale',
+  'send', 'receive',
 ];
 
 type DateRange = 'all' | '24h' | '7d' | '30d';
@@ -76,17 +78,27 @@ function HistoryTab({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [recovering, setRecovering] = useState(false);
   const hasRecoveredRef = useRef(false);
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const hasDataRef = useRef(false);
 
-  // Recover historical transactions from Koios (on-demand or auto-triggered)
+  // Recover historical transactions from Koios (on-demand or auto-triggered).
+  // Fetches protocol-related txs and plain wallet activity (send/receive) in parallel,
+  // then merges them — dedupe by txHash so a tx can never appear twice.
   const recoverHistory = useCallback(async () => {
     if (!userPkh || recovering) return;
     setRecovering(true);
     try {
-      const recovered = await chainApi.getHistory(userPkh);
-      if (recovered.length > 0) {
-        const asRecords: TransactionRecord[] = recovered.map(r => ({
+      const [protocol, activity] = await Promise.all([
+        chainApi.getHistory(userPkh),
+        chainApi.getWalletActivity(userPkh),
+      ]);
+      const seen = new Set<string>();
+      const merged: TransactionRecord[] = [];
+      for (const r of [...protocol, ...activity]) {
+        if (seen.has(r.txHash)) continue;
+        seen.add(r.txHash);
+        merged.push({
           txHash: r.txHash,
           type: (r.type as TransactionRecord['type']) || 'create-listing',
           tokenName: r.tokenName,
@@ -96,8 +108,10 @@ function HistoryTab({
           amountLovelace: r.amountLovelace,
           counterparty: r.counterparty,
           confirmedAtBlock: r.confirmedAtBlock,
-        }));
-        const { records } = reconcileWithOnChain(userPkh, asRecords);
+        });
+      }
+      if (merged.length > 0) {
+        const { records } = reconcileWithOnChain(userPkh, merged);
         setAllRecords(records);
         onHistoryUpdated?.(records);
       }
@@ -118,13 +132,17 @@ function HistoryTab({
     }
     if (!hasDataRef.current) setLoading(true);
     try {
-      // 1. Fetch on-chain data (current UTxOs owned by user)
-      const [encryptions, bids] = await Promise.all([
+      // 1. Fetch on-chain data (current UTxOs owned by user) + wallet activity in parallel.
+      // Activity is cached server-side for 60s so calling it on every refresh is cheap and
+      // surfaces incoming sends/receives without requiring the Recover button.
+      const [encryptions, bids, activity] = await Promise.all([
         encryptionsApi.getAll(),
         bidsApi.getAll(),
+        chainApi.getWalletActivity(userPkh),
       ]);
 
       const onChainRecords: TransactionRecord[] = [];
+      const seenHashes = new Set<string>();
       for (const e of encryptions) {
         if (e.sellerPkh === userPkh) {
           onChainRecords.push({
@@ -135,6 +153,7 @@ function HistoryTab({
             status: 'confirmed',
             description: e.description || t('history.listingDescription', { tokenName: e.tokenName }),
           });
+          seenHashes.add(e.utxo.txHash);
         }
       }
       for (const b of bids) {
@@ -147,7 +166,23 @@ function HistoryTab({
             status: 'confirmed',
             description: t('history.bidDescription', { amount: (b.amount / 1_000_000).toLocaleString() }),
           });
+          seenHashes.add(b.utxo.txHash);
         }
+      }
+      for (const a of activity) {
+        if (seenHashes.has(a.txHash)) continue;
+        seenHashes.add(a.txHash);
+        onChainRecords.push({
+          txHash: a.txHash,
+          type: (a.type as TransactionRecord['type']) || 'receive',
+          tokenName: a.tokenName,
+          timestamp: a.timestamp,
+          status: 'confirmed',
+          description: a.description,
+          amountLovelace: a.amountLovelace,
+          counterparty: a.counterparty,
+          confirmedAtBlock: a.confirmedAtBlock,
+        });
       }
 
       // 2. Reconcile: persist on-chain records + promote matching pending/failed -> confirmed
@@ -280,6 +315,7 @@ function HistoryTab({
         (tx.tokenName && tx.tokenName.toLowerCase().includes(query))
       );
     }
+
 
     return result;
   }, [allRecords, statusFilter, typeFilter, dateRange, debouncedSearch]);
@@ -566,8 +602,10 @@ function HistoryTab({
           searchQuery={searchQuery}
           confirmations={confirmations}
           onRetryListing={onRetryListing}
+          parentRef={listScrollRef}
         />
       )}
+      <ScrollToTop scrollContainer={listScrollRef} />
     </div>
     <ConfirmModal
       isOpen={showClearConfirm}
@@ -587,14 +625,15 @@ function VirtualizedHistoryList({
   searchQuery,
   confirmations,
   onRetryListing,
+  parentRef,
 }: {
   items: TransactionRecord[];
   searchQuery: string;
   confirmations: Map<string, number>;
   onRetryListing?: (draftId: string) => void;
+  parentRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useTranslation('dashboard');
-  const parentRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: items.length,

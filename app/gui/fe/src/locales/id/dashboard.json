@@ -302,7 +302,9 @@
       "create-collateral": "Atur jaminan",
       "optimize-wallet": "Optimalkan dompet",
       "update-price": "Perbarui harga",
-      "update-bid": "Perbarui tawaran"
+      "update-bid": "Perbarui tawaran",
+      "send": "ADA terkirim",
+      "receive": "ADA diterima"
     }
   },
   "library": {

@@ -60,4 +60,35 @@ describe('ScrollToTop', () => {
     fireEvent.click(screen.getByLabelText('Scroll to top'));
     expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
   });
+
+  it('listens to a custom scroll container when scrollContainer ref is provided', () => {
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'scrollTop', { value: 0, writable: true, configurable: true });
+    const scrollToOnContainer = vi.fn();
+    container.scrollTo = scrollToOnContainer;
+    document.body.appendChild(container);
+
+    const ref = { current: container };
+    render(
+      React.createElement(ModalProvider, null,
+        React.createElement(ScrollToTop, { scrollContainer: ref, threshold: 100 }),
+      ),
+    );
+
+    // Below threshold — hidden
+    expect(screen.queryByLabelText('Scroll to top')).not.toBeInTheDocument();
+
+    // Simulate inner-container scroll past threshold
+    Object.defineProperty(container, 'scrollTop', { value: 250, writable: true, configurable: true });
+    act(() => {
+      container.dispatchEvent(new Event('scroll'));
+    });
+
+    expect(screen.getByLabelText('Scroll to top')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Scroll to top'));
+    expect(scrollToOnContainer).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+
+    document.body.removeChild(container);
+  });
 });

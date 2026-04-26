@@ -302,7 +302,9 @@
       "create-collateral": "Onderpand instellen",
       "optimize-wallet": "Wallet optimaliseren",
       "update-price": "Prijs bijwerken",
-      "update-bid": "Bod bijwerken"
+      "update-bid": "Bod bijwerken",
+      "send": "ADA verzonden",
+      "receive": "ADA ontvangen"
     }
   },
   "library": {

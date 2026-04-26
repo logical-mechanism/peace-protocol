@@ -406,6 +406,19 @@ export const chainApi = {
       return [];
     }
   },
+
+  /**
+   * Get plain wallet activity (non-protocol ADA send/receive) for a payment credential.
+   * Backend caches for 60s. Returns records typed as `send` or `receive`.
+   */
+  async getWalletActivity(pkh: string): Promise<HistoryRecoveryRecord[]> {
+    try {
+      const response = await apiFetch<ApiResponse<HistoryRecoveryRecord[]>>(`/api/chain/activity/${pkh}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
 };
 
 export interface KoiosWalletUtxo {

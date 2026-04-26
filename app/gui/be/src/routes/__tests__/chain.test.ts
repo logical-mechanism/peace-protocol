@@ -8,6 +8,9 @@ const mockKoiosClient = {
   getTxInfo: vi.fn(),
   getTip: vi.fn(),
   getProtocolParams: vi.fn(),
+  getCredentialTxs: vi.fn(),
+  getAddressTxs: vi.fn(),
+  getTxInfoWithAssets: vi.fn(),
 };
 
 vi.mock('../../services/koios.js', () => ({
@@ -21,7 +24,14 @@ vi.mock('../../config/index.js', () => ({
     nodeEnv: 'test',
     cors: { origins: ['*'] },
   },
-  getNetworkConfig: vi.fn(),
+  getNetworkConfig: vi.fn(() => ({
+    contracts: {
+      encryptionAddress: 'addr_test_encryption',
+      biddingAddress: 'addr_test_bidding',
+      encryptionPolicyId: 'enc_policy',
+      biddingPolicyId: 'bid_policy',
+    },
+  })),
 }));
 
 vi.mock('../../stubs/index.js', () => ({
@@ -139,6 +149,185 @@ describe('GET /api/chain/confirmations/:txHash', () => {
 
     expect(res.status).toBe(503);
     expect(res.body.error.code).toBe('TIP_UNAVAILABLE');
+  });
+});
+
+describe('GET /api/chain/activity/:pkh', () => {
+  const userPkh = 'a'.repeat(56);
+  const otherPkh = 'b'.repeat(56);
+
+  it('returns 400 for an invalid pkh', async () => {
+    const res = await request(app).get('/api/chain/activity/short');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('INVALID_PARAM');
+  });
+
+  it('returns empty array when user has no credential txs', async () => {
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+
+  it('classifies a tx with user in inputs as send and records counterparty + net amount', async () => {
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: 'c'.repeat(64), block_height: 100, block_time: 1700000000 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: 'c'.repeat(64),
+        block_height: 100,
+        block_time: 1700000000,
+        inputs: [
+          { tx_hash: 'd'.repeat(64), tx_index: 0, payment_addr: { cred: userPkh }, value: '5000000' },
+        ],
+        outputs: [
+          { payment_addr: { bech32: 'addr_other', cred: otherPkh }, value: '3000000', inline_datum: null },
+          { payment_addr: { bech32: 'addr_user', cred: userPkh }, value: '1800000', inline_datum: null },
+        ],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      type: 'send',
+      counterparty: otherPkh,
+      // |outputs - inputs| = |1.8M - 5M| = 3.2M
+      amountLovelace: 3_200_000,
+      confirmedAtBlock: 100,
+      status: 'confirmed',
+    });
+  });
+
+  it('classifies a tx with user only in outputs as receive', async () => {
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: 'e'.repeat(64), block_height: 200, block_time: 1700000000 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: 'e'.repeat(64),
+        block_height: 200,
+        block_time: 1700000000,
+        inputs: [
+          { tx_hash: 'f'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '10000000' },
+        ],
+        outputs: [
+          { payment_addr: { bech32: 'addr_user', cred: userPkh }, value: '9500000', inline_datum: null },
+          { payment_addr: { bech32: 'addr_other', cred: otherPkh }, value: '300000', inline_datum: null },
+        ],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toMatchObject({
+      type: 'receive',
+      counterparty: otherPkh,
+      amountLovelace: 9_500_000,
+      confirmedAtBlock: 200,
+      status: 'confirmed',
+    });
+  });
+
+  it('excludes txs that touch protocol contract addresses', async () => {
+    const protocolHash = 'a'.repeat(64);
+    const plainHash = 'b'.repeat(64);
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: protocolHash, block_height: 100, block_time: 1700000000 },
+      { tx_hash: plainHash, block_height: 101, block_time: 1700000100 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockImplementation(async (addr: string) =>
+      addr === 'addr_test_encryption' ? [{ tx_hash: protocolHash, block_height: 100 }] : [],
+    );
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: plainHash,
+        block_height: 101,
+        block_time: 1700000100,
+        inputs: [{ tx_hash: 'd'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '2000000' }],
+        outputs: [{ payment_addr: { cred: userPkh }, value: '2000000', inline_datum: null }],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(mockKoiosClient.getTxInfoWithAssets).toHaveBeenCalledWith([plainHash]);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].txHash).toBe(plainHash);
+  });
+
+  it('sorts activity records newest first', async () => {
+    const olderHash = 'a'.repeat(64);
+    const newerHash = 'b'.repeat(64);
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: olderHash, block_height: 100, block_time: 1700000000 },
+      { tx_hash: newerHash, block_height: 200, block_time: 1700001000 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: olderHash,
+        block_height: 100,
+        block_time: 1700000000,
+        inputs: [{ tx_hash: 'c'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '1000000' }],
+        outputs: [{ payment_addr: { cred: userPkh }, value: '1000000', inline_datum: null }],
+      },
+      {
+        tx_hash: newerHash,
+        block_height: 200,
+        block_time: 1700001000,
+        inputs: [{ tx_hash: 'd'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '2000000' }],
+        outputs: [{ payment_addr: { cred: userPkh }, value: '2000000', inline_datum: null }],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].txHash).toBe(newerHash);
+    expect(res.body.data[1].txHash).toBe(olderHash);
+  });
+
+  it('reads tx_timestamp (Koios /tx_info field) for the record timestamp', async () => {
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: 'd'.repeat(64), block_height: 300, block_time: 1700000000 },
+    ]);
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([
+      {
+        tx_hash: 'd'.repeat(64),
+        block_height: 300,
+        // /tx_info uses tx_timestamp, not block_time. Verify we read it.
+        tx_timestamp: 1700000123,
+        inputs: [{ tx_hash: 'e'.repeat(64), tx_index: 0, payment_addr: { cred: otherPkh }, value: '2000000' }],
+        outputs: [{ payment_addr: { cred: userPkh }, value: '2000000', inline_datum: null }],
+      },
+    ]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].timestamp).toBe(1700000123_000);
+  });
+
+  it('returns 503 when Koios fails and no stale cache exists', async () => {
+    mockKoiosClient.getCredentialTxs.mockRejectedValue(new Error('koios down'));
+    mockKoiosClient.getAddressTxs.mockResolvedValue([]);
+
+    const res = await request(app).get(`/api/chain/activity/${userPkh}`);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('ACTIVITY_UNAVAILABLE');
   });
 });
 

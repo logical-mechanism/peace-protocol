@@ -57,9 +57,18 @@ interface TxAsset {
 interface TxInfoWithAssets {
   tx_hash: string;
   block_height: number;
-  block_time: number;
+  // Koios /tx_info uses `tx_timestamp` (UNIX seconds); some older / mocked
+  // responses use `block_time`. Read both — never assume only one is set.
+  tx_timestamp?: number;
+  block_time?: number;
   tx_block_index?: number;
-  inputs?: Array<{ tx_hash: string; tx_index: number; payment_addr?: { cred: string } }>;
+  inputs?: Array<{
+    tx_hash: string;
+    tx_index: number;
+    payment_addr?: { bech32?: string; cred: string };
+    value?: string;
+    asset_list?: TxAsset[];
+  }>;
   outputs: Array<TxOutput & { asset_list?: TxAsset[] }>;
   metadata?: Record<string, unknown> | null;
 }

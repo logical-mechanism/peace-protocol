@@ -190,6 +190,97 @@ router.get('/history/:pkh', validatePkhParam, async (req, res) => {
 });
 
 /**
+ * GET /activity/:pkh
+ *
+ * Returns the user's plain wallet activity (non-protocol ADA transfers) classified
+ * as `send` (user's PKH appears in inputs) or `receive` (user's PKH only in outputs).
+ *
+ * Complements `/history/:pkh` which surfaces protocol-related txs only. Together they
+ * give the History tab a complete view of a payment credential's on-chain activity.
+ *
+ * Cached for 60s.
+ */
+router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
+  const pkh = req.params.pkh as string;
+  const cacheKey = `activity_${pkh}`;
+
+  const cached = apiCache.get<HistoryRecord[]>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    const { contracts } = getNetworkConfig();
+
+    const [credentialTxs, encryptionAddrTxs, biddingAddrTxs] = await Promise.all([
+      koios.getCredentialTxs(pkh),
+      contracts.encryptionAddress ? koios.getAddressTxs(contracts.encryptionAddress) : Promise.resolve([]),
+      contracts.biddingAddress ? koios.getAddressTxs(contracts.biddingAddress) : Promise.resolve([]),
+    ]);
+
+    // Exclude txs that touch protocol contracts — those are surfaced by /history/:pkh.
+    const protocolHashSet = new Set<string>([
+      ...encryptionAddrTxs.map(t => t.tx_hash),
+      ...biddingAddrTxs.map(t => t.tx_hash),
+    ]);
+
+    const activityHashes = credentialTxs
+      .filter(t => !protocolHashSet.has(t.tx_hash))
+      .slice(0, 50)
+      .map(t => t.tx_hash);
+
+    logger.info('Wallet activity query', {
+      pkh,
+      credentialTxCount: credentialTxs.length,
+      protocolHashCount: protocolHashSet.size,
+      activityHashCount: activityHashes.length,
+      firstHashes: activityHashes.slice(0, 3),
+      requestId: req.requestId,
+    });
+
+    if (activityHashes.length === 0) {
+      return res.json({ data: [] });
+    }
+
+    const txInfos = await koios.getTxInfoWithAssets(activityHashes);
+
+    const records: HistoryRecord[] = [];
+    for (const tx of txInfos) {
+      const record = classifyActivityTx(tx, pkh);
+      if (record) records.push(record);
+    }
+
+    records.sort((a, b) => b.timestamp - a.timestamp);
+
+    logger.info('Wallet activity classified', {
+      pkh,
+      txInfoCount: txInfos.length,
+      recordCount: records.length,
+      sampleTypes: records.slice(0, 5).map(r => `${r.type}:${r.txHash.slice(0, 8)}`),
+      requestId: req.requestId,
+    });
+
+    if (records.length > 0) {
+      apiCache.set(cacheKey, records, CACHE_TTL_CHAIN);
+    }
+    res.set('Cache-Control', 'no-cache');
+    return res.json({ data: records });
+  } catch (error) {
+    logger.error('Failed to fetch wallet activity', { error: String(error), pkh, requestId: req.requestId });
+
+    const stale = apiCache.getStale<HistoryRecord[]>(cacheKey);
+    if (stale) {
+      return res.json({ data: stale });
+    }
+
+    return res.status(503).json({
+      error: { code: 'ACTIVITY_UNAVAILABLE', message: 'Unable to fetch wallet activity', requestId: req.requestId },
+    });
+  }
+});
+
+/**
  * GET /utxos/:address
  *
  * Returns UTxOs at an address from Koios. Used to fill the gap when Kupo
@@ -342,7 +433,8 @@ function classifyTx(
 ): HistoryRecord | null {
   const isEncryptionTx = encryptionTxSet.has(tx.tx_hash);
   const isBiddingTx = biddingTxSet.has(tx.tx_hash);
-  const timestamp = tx.block_time * 1000; // Koios returns seconds
+  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+  const timestamp = epochSeconds * 1000; // Koios returns seconds
 
   // Check outputs for contract addresses and extract token info
   let encryptionTokenName: string | undefined;
@@ -476,6 +568,68 @@ function classifyTx(
 
   // Couldn't classify
   return null;
+}
+
+/**
+ * Classify a non-protocol tx as a `send` or `receive` for the user's payment credential.
+ *
+ * - If the user's PKH appears in any input → `send` (user authorized this tx).
+ * - Otherwise the user only appears in outputs → `receive`.
+ *
+ * Net amount is the user's lovelace delta (sum of user outputs minus sum of user inputs).
+ * Counterparty is the first non-user input PKH for receives, or the first non-user output
+ * PKH for sends.
+ */
+export function classifyActivityTx(tx: TxInfoWithAssets, userPkh: string): HistoryRecord | null {
+  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+  const timestamp = epochSeconds * 1000;
+
+  let userInputLovelace = 0;
+  let userOutputLovelace = 0;
+  const userInInputs = tx.inputs?.some(inp => inp.payment_addr?.cred === userPkh) ?? false;
+
+  for (const inp of tx.inputs ?? []) {
+    if (inp.payment_addr?.cred === userPkh) {
+      userInputLovelace += parseInt(inp.value || '0', 10) || 0;
+    }
+  }
+  for (const out of tx.outputs) {
+    if (out.payment_addr?.cred === userPkh) {
+      userOutputLovelace += parseInt(out.value || '0', 10) || 0;
+    }
+  }
+
+  const net = userOutputLovelace - userInputLovelace;
+
+  if (userInInputs) {
+    // Send: prefer the first non-user output as counterparty
+    const counterpartyPkh = tx.outputs.find(
+      o => o.payment_addr?.cred && o.payment_addr.cred !== userPkh,
+    )?.payment_addr?.cred;
+    return {
+      txHash: tx.tx_hash,
+      type: 'send',
+      timestamp,
+      status: 'confirmed',
+      amountLovelace: Math.abs(net),
+      counterparty: counterpartyPkh,
+      confirmedAtBlock: tx.block_height,
+    };
+  }
+
+  // Receive: counterparty is the first non-user input
+  const counterpartyPkh = tx.inputs?.find(
+    i => i.payment_addr?.cred && i.payment_addr.cred !== userPkh,
+  )?.payment_addr?.cred;
+  return {
+    txHash: tx.tx_hash,
+    type: 'receive',
+    timestamp,
+    status: 'confirmed',
+    amountLovelace: net > 0 ? net : userOutputLovelace,
+    counterparty: counterpartyPkh,
+    confirmedAtBlock: tx.block_height,
+  };
 }
 
 export default router;

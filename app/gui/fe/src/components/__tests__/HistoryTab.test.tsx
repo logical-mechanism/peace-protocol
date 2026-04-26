@@ -15,7 +15,11 @@ vi.mock('../../contexts/NodeContext', () => ({
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
-  chainApi: { getConfirmations: vi.fn() },
+  chainApi: {
+    getConfirmations: vi.fn(),
+    getHistory: vi.fn().mockResolvedValue([]),
+    getWalletActivity: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 vi.mock('../../services/transactionHistory', () => ({
@@ -35,6 +39,8 @@ vi.mock('../../services/transactionHistory', () => ({
       'accept-bid': 'Accept Bid',
       'cancel-pending': 'Cancel Pending',
       'complete-sale': 'Complete Sale',
+      'send': 'Sent ADA',
+      'receive': 'Received ADA',
     };
     return labels[type] || type;
   }),
@@ -58,7 +64,7 @@ vi.mock('@tanstack/react-virtual', () => ({
   }),
 }));
 
-import { encryptionsApi, bidsApi } from '../../services/api';
+import { encryptionsApi, bidsApi, chainApi } from '../../services/api';
 import { resolvePendingTxs, reconcileWithOnChain, clearHistory } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
@@ -101,6 +107,8 @@ beforeEach(() => {
   (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (reconcileWithOnChain as ReturnType<typeof vi.fn>).mockReturnValue({ discrepancies: [] });
+  (chainApi.getHistory as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 describe('HistoryTab', () => {
@@ -214,6 +222,95 @@ describe('HistoryTab', () => {
     await waitFor(() => {
       expect(clearHistory).toHaveBeenCalledWith(USER_PKH);
       expect(onClearHistory).toHaveBeenCalled();
+    });
+  });
+
+  it('refresh() fetches wallet activity and shows receive records', async () => {
+    const incomingHash = 'a'.repeat(64);
+    (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        txHash: incomingHash,
+        type: 'receive',
+        timestamp: Date.now(),
+        status: 'confirmed',
+        amountLovelace: 5_000_000,
+      },
+    ]);
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        txHash: incomingHash,
+        type: 'receive',
+        timestamp: Date.now(),
+        status: 'confirmed',
+        amountLovelace: 5_000_000,
+      },
+    ]);
+
+    renderTab();
+
+    await waitFor(() => {
+      expect(chainApi.getWalletActivity).toHaveBeenCalledWith(USER_PKH);
+      expect(reconcileWithOnChain).toHaveBeenCalledWith(
+        USER_PKH,
+        expect.arrayContaining([
+          expect.objectContaining({ txHash: incomingHash, type: 'receive' }),
+        ]),
+      );
+    });
+  });
+
+  it('renders send/receive activity records merged with protocol history', async () => {
+    const sendRecord = makeRecord({
+      type: 'send',
+      description: 'Sent payment to friend',
+      status: 'confirmed',
+      tokenName: undefined,
+      amountLovelace: 5_000_000,
+    });
+    const receiveRecord = makeRecord({
+      type: 'receive',
+      description: 'Received payment',
+      status: 'confirmed',
+      tokenName: undefined,
+      amountLovelace: 7_500_000,
+    });
+    (resolvePendingTxs as ReturnType<typeof vi.fn>).mockResolvedValue([sendRecord, receiveRecord]);
+
+    renderTab({ transactions: [sendRecord, receiveRecord] });
+
+    await waitFor(() => {
+      expect(screen.getByText('Sent payment to friend')).toBeInTheDocument();
+      expect(screen.getByText('Received payment')).toBeInTheDocument();
+    });
+  });
+
+  it('dedupes by txHash when activity and protocol history overlap during recovery', async () => {
+    const sharedHash = 'a'.repeat(64);
+    (chainApi.getHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { txHash: sharedHash, type: 'create-listing', timestamp: 1000, status: 'confirmed' },
+    ]);
+    (chainApi.getWalletActivity as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { txHash: sharedHash, type: 'send', timestamp: 1000, status: 'confirmed' },
+    ]);
+    // Recovery only fires when local history is sparse (< 5)
+    const { getTransactions } = await import('../../services/transactionHistory');
+    (getTransactions as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+    renderTab();
+
+    // recoverHistory makes a reconcile call that includes BOTH endpoints' records merged.
+    // Find that specific call — the one whose record for sharedHash has type === 'create-listing'
+    // (first-wins ordering: protocol history is pushed before activity).
+    await waitFor(() => {
+      const recoverCall = (reconcileWithOnChain as ReturnType<typeof vi.fn>).mock.calls.find(
+        ([, records]) => Array.isArray(records)
+          && records.some((r: TransactionRecord) => r.txHash === sharedHash && r.type === 'create-listing'),
+      );
+      expect(recoverCall).toBeDefined();
+      const matching = recoverCall![1].filter((r: TransactionRecord) => r.txHash === sharedHash);
+      // Dedup: only one record for the shared hash, never duplicated
+      expect(matching).toHaveLength(1);
+      expect(matching[0].type).toBe('create-listing');
     });
   });
 
