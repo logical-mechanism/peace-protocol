@@ -371,10 +371,29 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
       return res.json({ data: [] });
     }
 
-    // Cap the workload — protects Koios when a heavy user has many
-    // signed txs unrelated to PEACE.
-    const recent = [...candidateHashes].slice(0, 500);
-    const txInfos = await koios.getTxInfoWithAssets(recent);
+    // Chunk the /tx_info batch fetch — Koios's POST /tx_info has a
+    // practical limit around 50 hashes per call, and a heavy user's
+    // getCredentialTxs can run into the hundreds. Cap the total
+    // candidates and split into chunks of 50 so a single large user
+    // doesn't get a 503 from Koios.
+    const CHUNK = 50;
+    const CAP = 500;
+    const recent = [...candidateHashes].slice(0, CAP);
+    const txInfos: Awaited<ReturnType<typeof koios.getTxInfoWithAssets>> = [];
+    for (let i = 0; i < recent.length; i += CHUNK) {
+      const chunk = recent.slice(i, i + CHUNK);
+      try {
+        const part = await koios.getTxInfoWithAssets(chunk);
+        txInfos.push(...part);
+      } catch (err) {
+        logger.warn('reencryption-history: getTxInfoWithAssets chunk failed', {
+          chunkStart: i,
+          chunkSize: chunk.length,
+          error: String(err),
+          requestId: req.requestId,
+        });
+      }
+    }
 
     const events: ReencryptionEvent[] = [];
     let skipNoBidInput = 0;
@@ -412,7 +431,9 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
     apiCache.set(cacheKey, events, CACHE_TTL_CHAIN);
     return res.json({ data: events });
   } catch (error) {
-    logger.error('Failed to fetch reencryption history', { error: String(error), pkh, requestId: req.requestId });
+    const detail = error instanceof Error ? `${error.message}` : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    logger.error('Failed to fetch reencryption history', { error: detail, stack, pkh, requestId: req.requestId });
 
     const stale = apiCache.getStale<ReencryptionEvent[]>(cacheKey);
     if (stale) {
@@ -420,7 +441,14 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
     }
 
     return res.status(503).json({
-      error: { code: 'REENCRYPTION_HISTORY_UNAVAILABLE', message: 'Unable to fetch re-encryption history', requestId: req.requestId },
+      error: {
+        code: 'REENCRYPTION_HISTORY_UNAVAILABLE',
+        message: 'Unable to fetch re-encryption history',
+        // Surface the underlying cause to the dev console — this is local
+        // dev only, no remote multi-tenant exposure here.
+        detail,
+        requestId: req.requestId,
+      },
     });
   }
 });

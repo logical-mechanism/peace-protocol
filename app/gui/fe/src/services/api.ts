@@ -181,7 +181,10 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
     const errorData = await response.json().catch(() => ({
       error: { code: 'UNKNOWN', message: response.statusText },
     }));
-    throw new Error(errorData.error?.detail || errorData.error?.message || 'API request failed');
+    const code = errorData.error?.code ?? 'UNKNOWN';
+    const message = errorData.error?.message ?? 'API request failed';
+    const detail = errorData.error?.detail;
+    throw new Error(detail ? `${code}: ${message} — ${detail}` : `${code}: ${message}`);
   }
 
   return response.json();
