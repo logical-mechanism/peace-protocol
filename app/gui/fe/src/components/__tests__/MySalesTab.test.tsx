@@ -38,6 +38,10 @@ vi.mock('../../services/imageCache', () => ({
   unbanImage: vi.fn(),
 }));
 
+vi.mock('../../services/bidSecretStorage', () => ({
+  listBidSecretTokens: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../services/transactionHistory', () => ({
   getTransactions: vi.fn().mockReturnValue([]),
   getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
@@ -372,7 +376,7 @@ describe('MySalesTab', () => {
       await waitFor(() => {
         expect(exportTextFile).toHaveBeenCalledTimes(1);
       });
-      expect(chainApi.getReencryptionHistory).toHaveBeenCalledWith(USER_PKH);
+      expect(chainApi.getReencryptionHistory).toHaveBeenCalledWith(USER_PKH, []);
       const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(csvArg).toBe('mock,reencryption,csv');
       expect(filenameArg).toMatch(/^veiled-tax-records-\d{4}-\d{2}-\d{2}\.csv$/);

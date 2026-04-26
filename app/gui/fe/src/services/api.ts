@@ -425,11 +425,24 @@ export const chainApi = {
    * — the canonical tax-record source. Each row corresponds to one
    * post-SNARK re-encryption tx on chain where the user was either the
    * accepted bidder (Purchase) or the listing owner (Sale).
-   * Backend caches for 60s. Throws on backend failure so the caller can
-   * distinguish "no events on chain" from "Koios was unreachable".
+   *
+   * `encryptionTokens` is the list of encryption tokens the user has
+   * bid on (from listBidSecretTokens). The backend walks each token's
+   * full asset history to find the user's purchase re-encryption,
+   * regardless of whether they still own it. The seller side uses
+   * getCredentialTxs(pkh) and needs no extra hint.
+   *
+   * Throws on backend failure so the caller can distinguish "no events"
+   * from "Koios was unreachable".
    */
-  async getReencryptionHistory(pkh: string): Promise<ReencryptionEvent[]> {
-    const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(`/api/chain/reencryption-history/${pkh}`);
+  async getReencryptionHistory(pkh: string, encryptionTokens: string[]): Promise<ReencryptionEvent[]> {
+    const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(
+      `/api/chain/reencryption-history/${pkh}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ encryptionTokens }),
+      },
+    );
     return response.data;
   },
 };

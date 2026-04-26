@@ -21,6 +21,7 @@ import { getGridClasses } from '../hooks/useTabFilterState';
 import LayoutPopover from './LayoutPopover';
 import { getTransactions, reencryptionHistoryToCSV } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
+import { listBidSecretTokens } from '../services/bidSecretStorage';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
 import Select from './Select';
@@ -310,7 +311,12 @@ function MySalesTab({
   const handleExportCsv = async () => {
     if (!userPkh) return;
     try {
-      const events = await chainApi.getReencryptionHistory(userPkh);
+      // Sellers benefit from passing bid tokens too — a seller is often
+      // also a buyer of other listings, and the unified export covers
+      // both sides for the same caller.
+      const tokens = await listBidSecretTokens().catch(() => [] as string[]);
+      console.info(`reencryption-history: querying with ${tokens.length} bid tokens`);
+      const events = await chainApi.getReencryptionHistory(userPkh, tokens);
       console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
       if (events.length === 0) {
         setExportMessage('No completed re-encryption events found on chain yet.');

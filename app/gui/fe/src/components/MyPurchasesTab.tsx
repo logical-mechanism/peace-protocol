@@ -353,7 +353,9 @@ function MyPurchasesTab({
   const handleExportCsv = async () => {
     if (!userPkh) return;
     try {
-      const events = await chainApi.getReencryptionHistory(userPkh);
+      const tokens = await listBidSecretTokens().catch(() => [] as string[]);
+      console.info(`reencryption-history: querying with ${tokens.length} bid tokens`);
+      const events = await chainApi.getReencryptionHistory(userPkh, tokens);
       console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
       if (events.length === 0) {
         setExportMessage('No completed re-encryption events found on chain yet.');

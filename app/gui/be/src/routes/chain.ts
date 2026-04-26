@@ -282,22 +282,35 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
 });
 
 /**
- * GET /reencryption-history/:pkh
+ * POST /reencryption-history/:pkh
  *
- * Returns one row per completed re-encryption transaction the user
- * participated in — either as the bidder (Purchase) or as the listing
- * owner (Sale). Re-encryption is the post-SNARK transaction where the
- * bid UTxO is consumed and the encryption is transferred to the buyer;
- * it's the canonical tax-record event since it carries both datums and
- * the actual lovelace exchanged. Re-sales by other users (where the
- * caller is not on either side) are excluded.
+ * Returns one row per completed re-encryption tx the user participated
+ * in — as bidder (Purchase) or as listing owner (Sale). Re-encryption
+ * is the post-SNARK transaction that consumes the bid UTxO and
+ * transfers the encryption to the buyer; it carries both datums and
+ * the lovelace exchanged, so it's the canonical tax event.
  *
- * Cached for 60s. Expensive — one Koios /tx_info per intersected tx,
- * gated by encryption ∩ bidding address activity.
+ * Candidate sourcing (avoids the contract-address intersection that
+ * silently dropped txs when /address_txs paginated past the user's
+ * activity):
+ *   - Buyer side: caller posts `encryptionTokens` — the encryption
+ *     tokens the user has bid on (frontend gets these from
+ *     listBidSecretTokens). Backend walks each token's full asset
+ *     history via /asset_txs; the user's purchase re-encryption is
+ *     in there regardless of whether they still own the token.
+ *   - Seller side: getCredentialTxs(pkh) returns every tx the user
+ *     signed; the seller signs the re-encryption, so this captures
+ *     all sales (including resales of previously-purchased items).
+ *
+ * Both sets feed into extractReencryptionEvent; rows where the caller
+ * is the buyer or seller are returned. Cached for 60s.
  */
-router.get('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
+router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
   const pkh = req.params.pkh as string;
-  const cacheKey = `reencryption_history_${pkh}`;
+  const requestedTokens = Array.isArray(req.body?.encryptionTokens) ? req.body.encryptionTokens : [];
+  const encryptionTokens: string[] = requestedTokens
+    .filter((t: unknown): t is string => typeof t === 'string' && /^[0-9a-f]{0,128}$/.test(t));
+  const cacheKey = `reencryption_history_${pkh}_${encryptionTokens.slice().sort().join(',')}`;
 
   const cached = apiCache.get<ReencryptionEvent[]>(cacheKey);
   if (cached) {
@@ -308,35 +321,59 @@ router.get('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
     const koios = getKoiosClient();
     const { contracts } = getNetworkConfig();
 
-    const [encryptionAddrTxs, biddingAddrTxs] = await Promise.all([
-      contracts.encryptionAddress ? koios.getAddressTxs(contracts.encryptionAddress) : Promise.resolve([]),
-      contracts.biddingAddress ? koios.getAddressTxs(contracts.biddingAddress) : Promise.resolve([]),
-    ]);
-
-    // Re-encryption candidates are txs that touch BOTH contracts.
-    const encryptionTxSet = new Set(encryptionAddrTxs.map((t) => t.tx_hash));
-    const candidates: string[] = [];
-    for (const t of biddingAddrTxs) {
-      if (encryptionTxSet.has(t.tx_hash)) candidates.push(t.tx_hash);
+    if (!contracts.encryptionPolicyId) {
+      return res.status(503).json({
+        error: { code: 'CONTRACT_CONFIG_MISSING', message: 'Encryption policy ID not configured', requestId: req.requestId },
+      });
     }
+
+    // Buyer side: every tx that ever touched a token the user bid on.
+    // Per-token fetches are sequential to keep Koios load predictable.
+    const buyerSideHashes = new Set<string>();
+    for (const tokenName of encryptionTokens) {
+      try {
+        const txs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
+        for (const t of txs) buyerSideHashes.add(t.tx_hash);
+      } catch (err) {
+        logger.warn('reencryption-history: getAssetTxs failed for token', {
+          tokenName,
+          error: String(err),
+          requestId: req.requestId,
+        });
+      }
+    }
+
+    // Seller side: every tx the user's payment credential signed.
+    let sellerSideHashes = new Set<string>();
+    try {
+      const credTxs = await koios.getCredentialTxs(pkh);
+      sellerSideHashes = new Set(credTxs.map((t) => t.tx_hash));
+    } catch (err) {
+      logger.warn('reencryption-history: getCredentialTxs failed', {
+        error: String(err),
+        requestId: req.requestId,
+      });
+    }
+
+    const candidateHashes = new Set<string>([...buyerSideHashes, ...sellerSideHashes]);
 
     logger.info('reencryption-history: candidate scan', {
       pkh,
-      encryptionTxs: encryptionAddrTxs.length,
-      biddingTxs: biddingAddrTxs.length,
-      candidates: candidates.length,
+      encryptionTokens: encryptionTokens.length,
+      buyerSideHashes: buyerSideHashes.size,
+      sellerSideHashes: sellerSideHashes.size,
+      candidates: candidateHashes.size,
       requestId: req.requestId,
     });
 
-    if (candidates.length === 0) {
+    if (candidateHashes.size === 0) {
       apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
       return res.json({ data: [] });
     }
 
-    // Cap the workload — most users won't accumulate hundreds of
-    // re-encryptions, and the upper bound protects Koios from a runaway
-    // batch query when the contracts are heavily used by other users.
-    const recent = candidates.slice(0, 200);
+    // Cap the workload — protects Koios when a heavy user has many
+    // signed txs unrelated to PEACE.
+    const recent = [...candidateHashes].slice(0, 500);
     const txInfos = await koios.getTxInfoWithAssets(recent);
 
     const events: ReencryptionEvent[] = [];

@@ -10,6 +10,7 @@ const mockKoiosClient = {
   getProtocolParams: vi.fn(),
   getCredentialTxs: vi.fn(),
   getAddressTxs: vi.fn(),
+  getAssetTxs: vi.fn(),
   getTxInfoWithAssets: vi.fn(),
 };
 
@@ -361,7 +362,7 @@ describe('GET /api/chain/tip', () => {
   });
 });
 
-describe('GET /api/chain/reencryption-history/:pkh', () => {
+describe('POST /api/chain/reencryption-history/:pkh', () => {
   const USER = 'a'.repeat(56);
   const SELLER = 'b'.repeat(56);
   const TX_HASH = 'c'.repeat(64);
@@ -462,36 +463,41 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
     };
   }
 
-  it('returns Purchase events where the user is the buyer', async () => {
+  beforeEach(() => {
+    mockKoiosClient.getAssetTxs.mockResolvedValue([]);
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([]);
+  });
+
+  it('returns Purchase events sourced from the encryption token asset history', async () => {
     const tx = makeReencryptionTxInfo({
       txHash: TX_HASH,
       bidLovelace: 25_000_000,
       sellerCred: SELLER,
       buyerVkh: USER,
       futurePrice: 60_000_000,
-      encryptionTokenName: 'enc_alpha',
+      encryptionTokenName: 'aa',
       timestamp: 1_700_000_000,
       blockHeight: 4_321_000,
     });
-    mockKoiosClient.getAddressTxs.mockResolvedValue([{ tx_hash: TX_HASH, block_height: 4_321_000, block_time: 1_700_000_000 }]);
+    // Caller passes encryptionTokens — backend walks each token's asset history.
+    mockKoiosClient.getAssetTxs.mockResolvedValue([
+      { tx_hash: TX_HASH, epoch_no: 500, block_height: 4_321_000, block_time: 1_700_000_000 },
+    ]);
     mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([tx]);
 
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: ['aa'] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
-    const ev = res.body.data[0];
-    expect(ev.txHash).toBe(TX_HASH);
-    expect(ev.encryptionTokenName).toBe('enc_alpha');
-    expect(ev.buyerPkh).toBe(USER);
-    expect(ev.sellerPkh).toBe(SELLER);
-    expect(ev.bidAmountLovelace).toBe(25_000_000);
-    expect(ev.futurePriceLovelace).toBe(60_000_000);
-    expect(ev.blockHeight).toBe(4_321_000);
-    expect(ev.timestamp).toBe(1_700_000_000_000);
+    expect(res.body.data[0].buyerPkh).toBe(USER);
+    expect(res.body.data[0].sellerPkh).toBe(SELLER);
+    expect(res.body.data[0].bidAmountLovelace).toBe(25_000_000);
+    expect(mockKoiosClient.getAssetTxs).toHaveBeenCalledWith('enc_policy', 'aa');
   });
 
-  it('returns Sale events where the user is the seller', async () => {
+  it('returns Sale events sourced from getCredentialTxs(pkh)', async () => {
     const tx = makeReencryptionTxInfo({
       txHash: TX_HASH,
       bidLovelace: 100_000_000,
@@ -502,10 +508,14 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
       timestamp: 1_700_000_500,
       blockHeight: 4_321_001,
     });
-    mockKoiosClient.getAddressTxs.mockResolvedValue([{ tx_hash: TX_HASH, block_height: 4_321_001, block_time: 1_700_000_500 }]);
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: TX_HASH, block_height: 4_321_001, block_time: 1_700_000_500 },
+    ]);
     mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([tx]);
 
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: [] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -513,34 +523,63 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
     expect(res.body.data[0].bidAmountLovelace).toBe(100_000_000);
   });
 
-  it('excludes events where the user is neither buyer nor seller (re-sales for other users)', async () => {
+  it('dedupes a tx that appears in both buyer-side and seller-side candidates', async () => {
+    const tx = makeReencryptionTxInfo({
+      txHash: TX_HASH,
+      bidLovelace: 10_000_000,
+      sellerCred: USER,
+      buyerVkh: 'd'.repeat(56),
+      futurePrice: 0,
+      encryptionTokenName: 'bb',
+      timestamp: 1_700_000_000,
+      blockHeight: 100,
+    });
+    mockKoiosClient.getAssetTxs.mockResolvedValue([
+      { tx_hash: TX_HASH, epoch_no: 1, block_height: 100, block_time: 1_700_000_000 },
+    ]);
+    mockKoiosClient.getCredentialTxs.mockResolvedValue([
+      { tx_hash: TX_HASH, block_height: 100, block_time: 1_700_000_000 },
+    ]);
+    mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([tx]);
+
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: ['bb'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    // Single fetch with the dedup'd hash
+    expect(mockKoiosClient.getTxInfoWithAssets).toHaveBeenCalledWith([TX_HASH]);
+  });
+
+  it('excludes events where the user is neither buyer nor seller', async () => {
     const tx = makeReencryptionTxInfo({
       txHash: TX_HASH,
       bidLovelace: 50_000_000,
       sellerCred: SELLER,
       buyerVkh: 'e'.repeat(56),
       futurePrice: 0,
-      encryptionTokenName: 'enc_gamma',
+      encryptionTokenName: 'cc',
       timestamp: 1_700_001_000,
       blockHeight: 4_321_002,
     });
-    mockKoiosClient.getAddressTxs.mockResolvedValue([{ tx_hash: TX_HASH, block_height: 4_321_002, block_time: 1_700_001_000 }]);
+    mockKoiosClient.getAssetTxs.mockResolvedValue([
+      { tx_hash: TX_HASH, epoch_no: 1, block_height: 4_321_002, block_time: 1_700_001_000 },
+    ]);
     mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([tx]);
 
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: ['cc'] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(0);
   });
 
-  it('returns empty list when no txs touch both contract addresses', async () => {
-    mockKoiosClient.getAddressTxs.mockImplementation((addr: string) =>
-      Promise.resolve(addr === 'addr_test_encryption'
-        ? [{ tx_hash: 'enc_only_tx', block_height: 1, block_time: 0 }]
-        : [{ tx_hash: 'bid_only_tx', block_height: 2, block_time: 0 }]),
-    );
-
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+  it('returns empty list when neither asset_txs nor credential_txs return anything', async () => {
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: [] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -548,17 +587,23 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
   });
 
   it('rejects invalid pkh with 400', async () => {
-    const res = await request(app).get('/api/chain/reencryption-history/notapkh');
+    const res = await request(app)
+      .post('/api/chain/reencryption-history/notapkh')
+      .send({ encryptionTokens: [] });
     expect(res.status).toBe(400);
   });
 
-  it('returns 503 when Koios is unreachable and no stale cache exists', async () => {
-    mockKoiosClient.getAddressTxs.mockRejectedValue(new Error('koios down'));
+  it('continues even if getAssetTxs fails for one token', async () => {
+    mockKoiosClient.getAssetTxs.mockImplementation((_policy: string, name: string) =>
+      name === 'dd' ? Promise.reject(new Error('asset_txs unavailable')) : Promise.resolve([]),
+    );
 
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: ['dd', 'ee'] });
 
-    expect(res.status).toBe(503);
-    expect(res.body.error.code).toBe('REENCRYPTION_HISTORY_UNAVAILABLE');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
   });
 
   it('sorts events newest first', async () => {
@@ -568,7 +613,7 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
       sellerCred: SELLER,
       buyerVkh: USER,
       futurePrice: 0,
-      encryptionTokenName: 'enc_old',
+      encryptionTokenName: 'aaaa',
       timestamp: 1_700_000_000,
       blockHeight: 100,
     });
@@ -578,21 +623,23 @@ describe('GET /api/chain/reencryption-history/:pkh', () => {
       sellerCred: SELLER,
       buyerVkh: USER,
       futurePrice: 0,
-      encryptionTokenName: 'enc_new',
+      encryptionTokenName: 'bbbb',
       timestamp: 1_700_001_000,
       blockHeight: 200,
     });
-    mockKoiosClient.getAddressTxs.mockResolvedValue([
-      { tx_hash: '1'.repeat(64), block_height: 100, block_time: 1_700_000_000 },
-      { tx_hash: '2'.repeat(64), block_height: 200, block_time: 1_700_001_000 },
+    mockKoiosClient.getAssetTxs.mockResolvedValue([
+      { tx_hash: '1'.repeat(64), epoch_no: 1, block_height: 100, block_time: 1_700_000_000 },
+      { tx_hash: '2'.repeat(64), epoch_no: 1, block_height: 200, block_time: 1_700_001_000 },
     ]);
     mockKoiosClient.getTxInfoWithAssets.mockResolvedValue([older, newer]);
 
-    const res = await request(app).get(`/api/chain/reencryption-history/${USER}`);
+    const res = await request(app)
+      .post(`/api/chain/reencryption-history/${USER}`)
+      .send({ encryptionTokens: ['aaaa', 'bbbb'] });
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
-    expect(res.body.data[0].encryptionTokenName).toBe('enc_new');
-    expect(res.body.data[1].encryptionTokenName).toBe('enc_old');
+    expect(res.body.data[0].encryptionTokenName).toBe('bbbb');
+    expect(res.body.data[1].encryptionTokenName).toBe('aaaa');
   });
 });
