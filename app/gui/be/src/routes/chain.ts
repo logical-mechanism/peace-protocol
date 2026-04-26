@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { getKoiosClient } from '../services/koios.js';
-import type { TxInfoWithAssets } from '../services/koios.js';
+import type { TxInfoWithAssets, KoiosUtxo } from '../services/koios.js';
 import { getNetworkConfig } from '../config/index.js';
 import { apiCache } from '../services/cache.js';
 import { logger } from '../services/logger.js';
 import { validateTxHashParam, validatePkhParam } from '../middleware/validate.js';
 import { CACHE_TTL_PENDING, CACHE_TTL_CHAIN } from '../config/cacheConstants.js';
 import { parseEncryptionDatum } from '../services/parsers.js';
+import { decodePlutusData } from '../services/cbor.js';
 
 const router = Router();
 
@@ -328,20 +329,26 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
     }
 
     // Buyer side: every tx that ever touched a token the user bid on.
-    // Per-token fetches are sequential to keep Koios load predictable.
+    // Run per-token fetches in parallel — a heavy bidder can have a
+    // dozen+ tokens and the sequential version pushed us into 30s+
+    // total wall time before /tx_info even started.
     const buyerSideHashes = new Set<string>();
-    for (const tokenName of encryptionTokens) {
-      try {
-        const txs = await koios.getAssetTxs(contracts.encryptionPolicyId, tokenName);
-        for (const t of txs) buyerSideHashes.add(t.tx_hash);
-      } catch (err) {
+    const buyerResults = await Promise.allSettled(
+      encryptionTokens.map((tokenName) =>
+        koios.getAssetTxs(contracts.encryptionPolicyId, tokenName),
+      ),
+    );
+    buyerResults.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        for (const t of r.value) buyerSideHashes.add(t.tx_hash);
+      } else {
         logger.warn('reencryption-history: getAssetTxs failed for token', {
-          tokenName,
-          error: String(err),
+          tokenName: encryptionTokens[i],
+          error: String(r.reason),
           requestId: req.requestId,
         });
       }
-    }
+    });
 
     // Seller side: every tx the user's payment credential signed.
     let sellerSideHashes = new Set<string>();
@@ -396,27 +403,130 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
     }
 
     const events: ReencryptionEvent[] = [];
+    const partials: PartialReencryptionEvent[] = [];
     let skipNoBidInput = 0;
-    let skipNoBuyerOutput = 0;
+    let skipNoEncryptionOutput = 0;
+    let skipEncOutputNoDatum = 0;
+    let skipEncOutputNoBuyerPkh = 0;
+    let skipEncOutputNoTokenName = 0;
     let skipParseFail = 0;
     let extractedNoSeller = 0;
     for (const tx of txInfos) {
       const result = extractReencryptionEvent(tx, contracts);
-      if (typeof result === 'string') {
-        if (result === 'no-bid-input') skipNoBidInput++;
-        else if (result === 'no-buyer-output') skipNoBuyerOutput++;
-        else if (result === 'parse-fail') skipParseFail++;
+      if (result.kind === 'skip') {
+        const reason = result.reason;
+        if (reason === 'no-bid-input') skipNoBidInput++;
+        else if (reason === 'no-encryption-output') skipNoEncryptionOutput++;
+        else if (reason === 'encryption-output-no-datum') skipEncOutputNoDatum++;
+        else if (reason === 'encryption-output-no-buyer-pkh') skipEncOutputNoBuyerPkh++;
+        else if (reason === 'encryption-output-no-token-name') skipEncOutputNoTokenName++;
+        else if (reason === 'parse-fail') skipParseFail++;
         continue;
       }
-      if (!result.sellerPkh) extractedNoSeller++;
-      const lowerPkh = pkh.toLowerCase();
-      if (
-        result.buyerPkh.toLowerCase() === lowerPkh ||
-        result.sellerPkh.toLowerCase() === lowerPkh
-      ) {
-        events.push(result);
+      if (result.kind === 'partial') {
+        partials.push(result.value);
+        continue;
+      }
+      const evt = result.value;
+      if (!evt.sellerPkh) extractedNoSeller++;
+      events.push(evt);
+    }
+
+    // Second pass: re-fetch encryption outputs whose inline_datum was
+    // stripped by /tx_info. /utxo_info with `_extended: true` reliably
+    // returns inline_datum.bytes for any size — same endpoint the existing
+    // /utxo-info/:txHash route uses. One batched call regardless of count.
+    let backfilled = 0;
+    let backfillNoDatum = 0;
+    let backfillParseFail = 0;
+    if (partials.length > 0) {
+      const refs = partials.map((p) => `${p.txHash}#${p.encryptionOutputIndex}`);
+      let utxos: KoiosUtxo[] = [];
+      try {
+        utxos = await koios.getUtxoInfo(refs);
+      } catch (err) {
+        logger.warn('reencryption-history: utxo_info backfill failed', {
+          refs: refs.length,
+          error: String(err),
+          requestId: req.requestId,
+        });
+      }
+      const utxoByRef = new Map<string, KoiosUtxo>();
+      for (const u of utxos) utxoByRef.set(`${u.tx_hash}#${u.tx_index}`, u);
+
+      logger.info('reencryption-history: utxo_info backfill', {
+        requestId: req.requestId,
+        sentRefs: refs.length,
+        receivedUtxos: utxos.length,
+        missingRefs: refs.filter((r) => !utxoByRef.has(r)).length,
+      });
+
+      for (const p of partials) {
+        const ref = `${p.txHash}#${p.encryptionOutputIndex}`;
+        const u = utxoByRef.get(ref);
+        const inlineBytes = u?.inline_datum?.bytes;
+        const inlineValue = u?.inline_datum?.value;
+        let datumValue: unknown = inlineValue;
+        if (!datumValue && inlineBytes) {
+          try {
+            datumValue = decodePlutusData(inlineBytes);
+          } catch (err) {
+            logger.warn('reencryption-history: backfill CBOR decode failed', {
+              ref,
+              error: String(err),
+            });
+          }
+        }
+        if (!datumValue) {
+          backfillNoDatum++;
+          skipEncOutputNoDatum++;
+          continue;
+        }
+        let buyerPkh = '';
+        let futurePriceLovelace = 0;
+        try {
+          const datum = parseEncryptionDatum(datumValue);
+          buyerPkh = datum.owner_vkh;
+          futurePriceLovelace = datum.new_price;
+        } catch (err) {
+          backfillParseFail++;
+          skipParseFail++;
+          logger.warn('reencryption-history: backfill datum parse failed', {
+            ref,
+            error: String(err),
+          });
+          continue;
+        }
+        let encryptionTokenName = p.encryptionTokenNameHint;
+        if (!encryptionTokenName && u?.asset_list) {
+          const encAsset = u.asset_list.find((a) => a.policy_id === contracts.encryptionPolicyId);
+          if (encAsset) encryptionTokenName = encAsset.asset_name;
+        }
+        if (!buyerPkh || !encryptionTokenName) {
+          if (!buyerPkh) skipEncOutputNoBuyerPkh++;
+          else skipEncOutputNoTokenName++;
+          continue;
+        }
+        backfilled++;
+        const evt: ReencryptionEvent = {
+          txHash: p.txHash,
+          blockHeight: p.blockHeight,
+          timestamp: p.timestamp,
+          encryptionTokenName,
+          buyerPkh,
+          sellerPkh: p.sellerPkh,
+          bidAmountLovelace: p.bidAmountLovelace,
+          futurePriceLovelace,
+        };
+        if (!evt.sellerPkh) extractedNoSeller++;
+        events.push(evt);
       }
     }
+
+    const lowerPkh = pkh.toLowerCase();
+    const matchedEvents = events.filter(
+      (e) => e.buyerPkh.toLowerCase() === lowerPkh || e.sellerPkh.toLowerCase() === lowerPkh,
+    );
 
     const meta = {
       encryptionTokens: encryptionTokens.length,
@@ -424,20 +534,27 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
       sellerSideHashes: sellerSideHashes.size,
       candidates: candidateHashes.size,
       fetched: txInfos.length,
-      extracted: txInfos.length - skipNoBidInput - skipNoBuyerOutput - skipParseFail,
+      extracted: events.length,
+      partials: partials.length,
+      backfilled,
+      backfillNoDatum,
+      backfillParseFail,
       skipNoBidInput,
-      skipNoBuyerOutput,
+      skipNoEncryptionOutput,
+      skipEncOutputNoDatum,
+      skipEncOutputNoBuyerPkh,
+      skipEncOutputNoTokenName,
       skipParseFail,
       extractedNoSeller,
-      matchedUser: events.length,
+      matchedUser: matchedEvents.length,
     };
 
     logger.info('reencryption-history: extraction summary', { pkh, ...meta, requestId: req.requestId });
 
-    events.sort((a, b) => b.timestamp - a.timestamp);
+    matchedEvents.sort((a, b) => b.timestamp - a.timestamp);
 
-    apiCache.set(cacheKey, events, CACHE_TTL_CHAIN);
-    return res.json({ data: events, meta });
+    apiCache.set(cacheKey, matchedEvents, CACHE_TTL_CHAIN);
+    return res.json({ data: matchedEvents, meta });
   } catch (error) {
     const detail = error instanceof Error ? `${error.message}` : String(error);
     const stack = error instanceof Error ? error.stack : undefined;
@@ -608,7 +725,35 @@ export interface ReencryptionEvent {
 /** Reason codes returned when an extraction is skipped — surfaced in the
  * route handler's summary log so empty exports can be debugged without
  * round-tripping through stored Koios responses. */
-type ExtractSkipReason = 'no-bid-input' | 'no-buyer-output' | 'parse-fail';
+type ExtractSkipReason =
+  | 'no-bid-input'
+  | 'no-encryption-output'
+  | 'encryption-output-no-datum'
+  | 'encryption-output-no-token-name'
+  | 'encryption-output-no-buyer-pkh'
+  | 'parse-fail';
+
+/** Partial event returned when the encryption output was identified but
+ * its inline_datum was stripped from the /tx_info response (Koios drops
+ * large datums on outputs). The caller fetches the datum via /utxo_info
+ * with `_extended: true` in a batched second pass. */
+interface PartialReencryptionEvent {
+  txHash: string;
+  blockHeight: number;
+  timestamp: number;
+  bidAmountLovelace: number;
+  sellerPkh: string;
+  encryptionOutputIndex: number;
+  /** Asset name from /tx_info if available; may be empty if asset_list
+   * wasn't populated, in which case the second pass can backfill it
+   * from the /utxo_info response. */
+  encryptionTokenNameHint: string;
+}
+
+type ExtractResult =
+  | { kind: 'event'; value: ReencryptionEvent }
+  | { kind: 'partial'; value: PartialReencryptionEvent }
+  | { kind: 'skip'; reason: ExtractSkipReason };
 
 /**
  * Extract a re-encryption event from a tx that touches both contracts.
@@ -630,9 +775,9 @@ type ExtractSkipReason = 'no-bid-input' | 'no-buyer-output' | 'parse-fail';
 function extractReencryptionEvent(
   tx: TxInfoWithAssets,
   contracts: ReturnType<typeof getNetworkConfig>['contracts'],
-): ReencryptionEvent | ExtractSkipReason {
-  if (!contracts.encryptionAddress || !contracts.biddingAddress) return 'no-bid-input';
-  if (!contracts.encryptionPolicyId || !contracts.biddingPolicyId) return 'no-bid-input';
+): ExtractResult {
+  if (!contracts.encryptionAddress || !contracts.biddingAddress) return { kind: 'skip', reason: 'no-bid-input' };
+  if (!contracts.encryptionPolicyId || !contracts.biddingPolicyId) return { kind: 'skip', reason: 'no-bid-input' };
 
   const isBiddingInput = (inp: NonNullable<TxInfoWithAssets['inputs']>[number]) =>
     inp.asset_list?.some((a) => a.policy_id === contracts.biddingPolicyId) ||
@@ -654,7 +799,7 @@ function extractReencryptionEvent(
       break;
     }
   }
-  if (!foundBidInput) return 'no-bid-input';
+  if (!foundBidInput) return { kind: 'skip', reason: 'no-bid-input' };
 
   // Try several strategies to find the seller's wallet PKH. None are
   // guaranteed (some PEACE re-encryption txs evidently have no wallet
@@ -693,15 +838,50 @@ function extractReencryptionEvent(
   let encryptionTokenName = '';
   let futurePriceLovelace = 0;
   let sawEncryptionOutput = false;
+  let sawDatum = false;
   let parseFailed = false;
+  let encryptionOutputIndex = -1;
+  let arrayIdx = -1;
   for (const out of tx.outputs) {
+    arrayIdx++;
     const matchesByAddress = out.payment_addr?.bech32 === contracts.encryptionAddress;
     const matchesByPolicy = out.asset_list?.some((a) => a.policy_id === contracts.encryptionPolicyId);
     if (!matchesByAddress && !matchesByPolicy) continue;
     sawEncryptionOutput = true;
-    if (!out.inline_datum?.value) continue;
+    // Prefer Koios's explicit `tx_index` field — array position can drift
+    // from on-chain tx_index for txs with collateral_outputs or when Koios
+    // omits some outputs. Fall back to array index only if tx_index isn't
+    // populated.
+    if (encryptionOutputIndex < 0) {
+      encryptionOutputIndex = typeof out.tx_index === 'number' ? out.tx_index : arrayIdx;
+    }
+    // Backfill the token name from /tx_info's asset_list when present —
+    // saves a round-trip in the second pass for rows where only the
+    // datum (not the asset list) was stripped.
+    if (!encryptionTokenName && out.asset_list) {
+      const encAsset = out.asset_list.find((a) => a.policy_id === contracts.encryptionPolicyId);
+      if (encAsset) encryptionTokenName = encAsset.asset_name;
+    }
+    // Koios `/tx_info` strips `inline_datum` from outputs whose datum
+    // exceeds its size cap (encryption datums carry BLS12-381 G1/G2
+    // points + a Capsule, well over the cap). Try `value` first, then
+    // CBOR-decode `bytes`. If neither is present, the second pass
+    // re-fetches via `/utxo_info` (`_extended: true`).
+    let datumValue = out.inline_datum?.value;
+    if (!datumValue && out.inline_datum?.bytes) {
+      try {
+        datumValue = decodePlutusData(out.inline_datum.bytes);
+      } catch (err) {
+        logger.warn('reencryption-history: inline_datum CBOR decode failed', {
+          tx: tx.tx_hash,
+          error: String(err),
+        });
+      }
+    }
+    if (!datumValue) continue;
+    sawDatum = true;
     try {
-      const datum = parseEncryptionDatum(out.inline_datum.value);
+      const datum = parseEncryptionDatum(datumValue);
       buyerPkh = datum.owner_vkh;
       futurePriceLovelace = datum.new_price;
     } catch (err) {
@@ -712,29 +892,51 @@ function extractReencryptionEvent(
       });
       continue;
     }
-    if (out.asset_list) {
-      const encAsset = out.asset_list.find((a) => a.policy_id === contracts.encryptionPolicyId);
-      if (encAsset) encryptionTokenName = encAsset.asset_name;
-    }
     break;
   }
-  if (!buyerPkh || !encryptionTokenName) {
-    if (parseFailed) return 'parse-fail';
-    if (!sawEncryptionOutput) return 'no-buyer-output';
-    return 'no-buyer-output';
+
+  if (buyerPkh && encryptionTokenName) {
+    const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+    return {
+      kind: 'event',
+      value: {
+        txHash: tx.tx_hash,
+        blockHeight: tx.block_height,
+        timestamp: epochSeconds * 1000,
+        encryptionTokenName,
+        buyerPkh,
+        sellerPkh,
+        bidAmountLovelace,
+        futurePriceLovelace,
+      },
+    };
   }
 
-  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
-  return {
-    txHash: tx.tx_hash,
-    blockHeight: tx.block_height,
-    timestamp: epochSeconds * 1000,
-    encryptionTokenName,
-    buyerPkh,
-    sellerPkh,
-    bidAmountLovelace,
-    futurePriceLovelace,
-  };
+  // Encryption output exists but its datum was stripped by Koios — emit
+  // a partial so the second pass can fetch the inline_datum via
+  // /utxo_info. The token name may still be empty if asset_list was
+  // also stripped; the second pass backfills it from utxo_info.asset_list.
+  if (sawEncryptionOutput && !sawDatum && encryptionOutputIndex >= 0) {
+    const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+    return {
+      kind: 'partial',
+      value: {
+        txHash: tx.tx_hash,
+        blockHeight: tx.block_height,
+        timestamp: epochSeconds * 1000,
+        bidAmountLovelace,
+        sellerPkh,
+        encryptionOutputIndex,
+        encryptionTokenNameHint: encryptionTokenName,
+      },
+    };
+  }
+
+  if (parseFailed) return { kind: 'skip', reason: 'parse-fail' };
+  if (!sawEncryptionOutput) return { kind: 'skip', reason: 'no-encryption-output' };
+  if (!sawDatum) return { kind: 'skip', reason: 'encryption-output-no-datum' };
+  if (!buyerPkh) return { kind: 'skip', reason: 'encryption-output-no-buyer-pkh' };
+  return { kind: 'skip', reason: 'encryption-output-no-token-name' };
 }
 
 interface HistoryRecord {
