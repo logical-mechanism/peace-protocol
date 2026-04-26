@@ -26,6 +26,7 @@ vi.mock('../../contexts/AcceptBidQueueContext', () => ({
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
+  chainApi: { getReencryptionHistory: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('../../services/imageCache', () => ({
@@ -41,16 +42,16 @@ vi.mock('../../services/transactionHistory', () => ({
   getTransactions: vi.fn().mockReturnValue([]),
   getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
   getTypeLabel: vi.fn((type: string) => type),
-  salesToCSV: vi.fn(() => 'mock,csv,header'),
+  reencryptionHistoryToCSV: vi.fn(() => 'mock,reencryption,csv'),
 }));
 
 vi.mock('../../services/fileExport', () => ({
   exportTextFile: vi.fn(),
 }));
 
-import { encryptionsApi, bidsApi } from '../../services/api';
+import { encryptionsApi, bidsApi, chainApi } from '../../services/api';
 import { exportTextFile } from '../../services/fileExport';
-import { salesToCSV } from '../../services/transactionHistory';
+import { reencryptionHistoryToCSV } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -323,22 +324,20 @@ describe('MySalesTab', () => {
     });
   });
 
-  describe('CSV export', () => {
-    it('disables the export button when there are no listings to export', async () => {
-      const otherEnc = makeEncryption({ sellerPkh: 'other_pkh_' + 'x'.repeat(46), description: 'Not mine' });
-      // User has no listings of their own — filtered array is empty even though API returned data.
-      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([otherEnc]);
+  describe('Tax CSV export', () => {
+    it('renders the export button even when the user has no current listings (historical events still relevant)', async () => {
+      // No listings of the user's own — the empty state shows but the export
+      // button must still be reachable since historical re-encryption events
+      // (sales that have since left MySales) are the canonical tax record.
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
       renderTab();
 
-      await waitFor(() => {
-        // Empty state appears, no toolbar/export button at all
-        expect(screen.getByText('No listings yet')).toBeInTheDocument();
-      });
-      expect(screen.queryByRole('button', { name: 'Export as CSV' })).not.toBeInTheDocument();
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      expect(exportBtn).toBeInTheDocument();
     });
 
-    it('renders the export button when the user has listings', async () => {
+    it('renders the export button when the user has current listings', async () => {
       const enc = makeEncryption({ description: 'Listing one' });
       (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
 
@@ -346,13 +345,24 @@ describe('MySalesTab', () => {
 
       const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
       expect(exportBtn).toBeInTheDocument();
-      expect(exportBtn).not.toBeDisabled();
     });
 
-    it('calls exportTextFile with veiled-sales-{date}.csv filename on click', async () => {
+    it('queries reencryption history and saves veiled-tax-records-{date}.csv on click', async () => {
       const enc = makeEncryption({ description: 'For export' });
       (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
-      (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-sales-2026-04-25.csv');
+      (chainApi.getReencryptionHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
+        {
+          txHash: 'd'.repeat(64),
+          blockHeight: 5_000_000,
+          timestamp: 1_700_000_000_000,
+          encryptionTokenName: 'enc_export',
+          buyerPkh: 'b'.repeat(56),
+          sellerPkh: USER_PKH,
+          bidAmountLovelace: 25_000_000,
+          futurePriceLovelace: 60_000_000,
+        },
+      ]);
+      (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-tax-records-2026-04-25.csv');
 
       renderTab();
 
@@ -362,10 +372,14 @@ describe('MySalesTab', () => {
       await waitFor(() => {
         expect(exportTextFile).toHaveBeenCalledTimes(1);
       });
+      expect(chainApi.getReencryptionHistory).toHaveBeenCalledWith(USER_PKH);
       const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(csvArg).toBe('mock,csv,header');
-      expect(filenameArg).toMatch(/^veiled-sales-\d{4}-\d{2}-\d{2}\.csv$/);
-      expect(salesToCSV).toHaveBeenCalledTimes(1);
+      expect(csvArg).toBe('mock,reencryption,csv');
+      expect(filenameArg).toMatch(/^veiled-tax-records-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(reencryptionHistoryToCSV).toHaveBeenCalledTimes(1);
+      const [eventsArg, pkhArg] = (reencryptionHistoryToCSV as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(eventsArg).toHaveLength(1);
+      expect(pkhArg).toBe(USER_PKH);
     });
   });
 });

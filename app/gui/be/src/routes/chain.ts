@@ -6,6 +6,7 @@ import { apiCache } from '../services/cache.js';
 import { logger } from '../services/logger.js';
 import { validateTxHashParam, validatePkhParam } from '../middleware/validate.js';
 import { CACHE_TTL_PENDING, CACHE_TTL_CHAIN } from '../config/cacheConstants.js';
+import { parseEncryptionDatum } from '../services/parsers.js';
 
 const router = Router();
 
@@ -281,6 +282,83 @@ router.get('/activity/:pkh', validatePkhParam, async (req, res) => {
 });
 
 /**
+ * GET /reencryption-history/:pkh
+ *
+ * Returns one row per completed re-encryption transaction the user
+ * participated in — either as the bidder (Purchase) or as the listing
+ * owner (Sale). Re-encryption is the post-SNARK transaction where the
+ * bid UTxO is consumed and the encryption is transferred to the buyer;
+ * it's the canonical tax-record event since it carries both datums and
+ * the actual lovelace exchanged. Re-sales by other users (where the
+ * caller is not on either side) are excluded.
+ *
+ * Cached for 60s. Expensive — one Koios /tx_info per intersected tx,
+ * gated by encryption ∩ bidding address activity.
+ */
+router.get('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
+  const pkh = req.params.pkh as string;
+  const cacheKey = `reencryption_history_${pkh}`;
+
+  const cached = apiCache.get<ReencryptionEvent[]>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached });
+  }
+
+  try {
+    const koios = getKoiosClient();
+    const { contracts } = getNetworkConfig();
+
+    const [encryptionAddrTxs, biddingAddrTxs] = await Promise.all([
+      contracts.encryptionAddress ? koios.getAddressTxs(contracts.encryptionAddress) : Promise.resolve([]),
+      contracts.biddingAddress ? koios.getAddressTxs(contracts.biddingAddress) : Promise.resolve([]),
+    ]);
+
+    // Re-encryption candidates are txs that touch BOTH contracts.
+    const encryptionTxSet = new Set(encryptionAddrTxs.map((t) => t.tx_hash));
+    const candidates: string[] = [];
+    for (const t of biddingAddrTxs) {
+      if (encryptionTxSet.has(t.tx_hash)) candidates.push(t.tx_hash);
+    }
+
+    if (candidates.length === 0) {
+      apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
+      return res.json({ data: [] });
+    }
+
+    // Cap the workload — most users won't accumulate hundreds of
+    // re-encryptions, and the upper bound protects Koios from a runaway
+    // batch query when the contracts are heavily used by other users.
+    const recent = candidates.slice(0, 200);
+    const txInfos = await koios.getTxInfoWithAssets(recent);
+
+    const events: ReencryptionEvent[] = [];
+    for (const tx of txInfos) {
+      const ev = extractReencryptionEvent(tx, contracts);
+      if (!ev) continue;
+      if (ev.buyerPkh === pkh || ev.sellerPkh === pkh) {
+        events.push(ev);
+      }
+    }
+
+    events.sort((a, b) => b.timestamp - a.timestamp);
+
+    apiCache.set(cacheKey, events, CACHE_TTL_CHAIN);
+    return res.json({ data: events });
+  } catch (error) {
+    logger.error('Failed to fetch reencryption history', { error: String(error), pkh, requestId: req.requestId });
+
+    const stale = apiCache.getStale<ReencryptionEvent[]>(cacheKey);
+    if (stale) {
+      return res.json({ data: stale });
+    }
+
+    return res.status(503).json({
+      error: { code: 'REENCRYPTION_HISTORY_UNAVAILABLE', message: 'Unable to fetch re-encryption history', requestId: req.requestId },
+    });
+  }
+});
+
+/**
  * GET /utxos/:address
  *
  * Returns UTxOs at an address from Koios. Used to fill the gap when Kupo
@@ -407,6 +485,96 @@ router.get('/utxo-info/:txHash', async (req, res) => {
     });
   }
 });
+
+export interface ReencryptionEvent {
+  txHash: string;
+  blockHeight: number;
+  /** Block time in milliseconds (Koios returns seconds). */
+  timestamp: number;
+  encryptionTokenName: string;
+  /** New owner of the encryption (the bidder whose bid was accepted). */
+  buyerPkh: string;
+  /** Listing owner before re-encryption (signs the tx, receives the lovelace). */
+  sellerPkh: string;
+  /** Lovelace consumed from the bid UTxO — the amount the buyer paid. */
+  bidAmountLovelace: number;
+  /** Forward price set on the new encryption datum (resale ask). */
+  futurePriceLovelace: number;
+}
+
+/**
+ * Extract a re-encryption event from a tx that touches both contracts.
+ * Re-encryption tx shape:
+ *   - inputs: bid UTxO at biddingAddress (lovelace = bid amount), listing UTxO at encryptionAddress
+ *   - outputs: new encryption UTxO at encryptionAddress (datum.owner_vkh = buyerPkh, .new_price = future price),
+ *              wallet payment to seller (lovelace = bid amount), seller's change/collateral
+ *
+ * Seller PKH is recovered from the first non-contract input — the seller
+ * is the only party who signs and provides funding for fees, so any
+ * non-contract input cred is theirs.
+ */
+function extractReencryptionEvent(
+  tx: TxInfoWithAssets,
+  contracts: ReturnType<typeof getNetworkConfig>['contracts'],
+): ReencryptionEvent | null {
+  if (!contracts.encryptionAddress || !contracts.biddingAddress) return null;
+  if (!contracts.encryptionPolicyId) return null;
+
+  let bidAmountLovelace = 0;
+  let foundBidInput = false;
+  for (const inp of tx.inputs ?? []) {
+    if (inp.payment_addr?.bech32 === contracts.biddingAddress) {
+      bidAmountLovelace = parseInt(inp.value || '0', 10) || 0;
+      foundBidInput = true;
+      break;
+    }
+  }
+  if (!foundBidInput) return null;
+
+  let sellerPkh = '';
+  for (const inp of tx.inputs ?? []) {
+    const cred = inp.payment_addr?.cred;
+    const bech = inp.payment_addr?.bech32;
+    if (!cred) continue;
+    if (bech === contracts.encryptionAddress || bech === contracts.biddingAddress) continue;
+    sellerPkh = cred;
+    break;
+  }
+  if (!sellerPkh) return null;
+
+  let buyerPkh = '';
+  let encryptionTokenName = '';
+  let futurePriceLovelace = 0;
+  for (const out of tx.outputs) {
+    if (out.payment_addr?.bech32 !== contracts.encryptionAddress) continue;
+    if (!out.inline_datum?.value) continue;
+    try {
+      const datum = parseEncryptionDatum(out.inline_datum.value);
+      buyerPkh = datum.owner_vkh;
+      futurePriceLovelace = datum.new_price;
+    } catch {
+      continue;
+    }
+    if (out.asset_list) {
+      const encAsset = out.asset_list.find((a) => a.policy_id === contracts.encryptionPolicyId);
+      if (encAsset) encryptionTokenName = encAsset.asset_name;
+    }
+    break;
+  }
+  if (!buyerPkh || !encryptionTokenName) return null;
+
+  const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
+  return {
+    txHash: tx.tx_hash,
+    blockHeight: tx.block_height,
+    timestamp: epochSeconds * 1000,
+    encryptionTokenName,
+    buyerPkh,
+    sellerPkh,
+    bidAmountLovelace,
+    futurePriceLovelace,
+  };
+}
 
 interface HistoryRecord {
   txHash: string;

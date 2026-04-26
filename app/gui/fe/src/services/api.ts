@@ -419,7 +419,35 @@ export const chainApi = {
       return [];
     }
   },
+
+  /**
+   * Get all completed re-encryption events involving a payment credential
+   * — the canonical tax-record source. Each row corresponds to one
+   * post-SNARK re-encryption tx on chain where the user was either the
+   * accepted bidder (Purchase) or the listing owner (Sale).
+   * Backend caches for 60s.
+   */
+  async getReencryptionHistory(pkh: string): Promise<ReencryptionEvent[]> {
+    try {
+      const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(`/api/chain/reencryption-history/${pkh}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
 };
+
+export interface ReencryptionEvent {
+  txHash: string;
+  blockHeight: number;
+  /** Block time in milliseconds. */
+  timestamp: number;
+  encryptionTokenName: string;
+  buyerPkh: string;
+  sellerPkh: string;
+  bidAmountLovelace: number;
+  futurePriceLovelace: number;
+}
 
 export interface KoiosWalletUtxo {
   input: { txHash: string; outputIndex: number };

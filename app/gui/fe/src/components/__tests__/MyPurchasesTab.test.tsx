@@ -15,6 +15,7 @@ vi.mock('../../contexts/NodeContext', () => ({
 vi.mock('../../services/api', () => ({
   bidsApi: { getAll: vi.fn() },
   encryptionsApi: { getAll: vi.fn() },
+  chainApi: { getReencryptionHistory: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('../../services/bidSecretStorage', () => ({
@@ -32,18 +33,17 @@ vi.mock('../../services/onboardingStorage', () => ({
 }));
 
 vi.mock('../../services/transactionHistory', () => ({
-  purchasesToCSV: vi.fn(() => 'mock,purchases,csv'),
-  getTransactions: vi.fn(() => []),
+  reencryptionHistoryToCSV: vi.fn(() => 'mock,reencryption,csv'),
 }));
 
 vi.mock('../../services/fileExport', () => ({
   exportTextFile: vi.fn(),
 }));
 
-import { bidsApi, encryptionsApi } from '../../services/api';
+import { bidsApi, encryptionsApi, chainApi } from '../../services/api';
 import { getBidSecretsForEncryption, listBidSecretTokens } from '../../services/bidSecretStorage';
 import { exportTextFile } from '../../services/fileExport';
-import { purchasesToCSV, getTransactions } from '../../services/transactionHistory';
+import { reencryptionHistoryToCSV } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -401,14 +401,15 @@ describe('MyPurchasesTab — first-decrypt tutorial banner', () => {
   });
 });
 
-describe('MyPurchasesTab — CSV export', () => {
-  it('does not render the export button when the user has no bids', async () => {
+describe('MyPurchasesTab — Tax CSV export', () => {
+  it('renders the export button even when the user has no current bids or purchases', async () => {
     renderTab();
 
     await waitFor(() => {
       expect(screen.getByText(/no purchases yet/i)).toBeInTheDocument();
     });
-    expect(screen.queryByRole('button', { name: 'Export as CSV' })).not.toBeInTheDocument();
+    const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+    expect(exportBtn).toBeInTheDocument();
   });
 
   it('renders the export button when the user has bids', async () => {
@@ -419,13 +420,24 @@ describe('MyPurchasesTab — CSV export', () => {
 
     const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
     expect(exportBtn).toBeInTheDocument();
-    expect(exportBtn).not.toBeDisabled();
   });
 
-  it('calls exportTextFile with veiled-purchases-{date}.csv filename on click', async () => {
+  it('queries reencryption history and saves veiled-tax-records-{date}.csv on click', async () => {
     const bid = makeBid({ tokenName: 'bid_export_click' });
     (bidsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([bid]);
-    (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-purchases-2026-04-25.csv');
+    (chainApi.getReencryptionHistory as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        txHash: 'd'.repeat(64),
+        blockHeight: 5_000_000,
+        timestamp: 1_700_000_000_000,
+        encryptionTokenName: 'enc_export',
+        buyerPkh: USER_PKH,
+        sellerPkh: 'b'.repeat(56),
+        bidAmountLovelace: 25_000_000,
+        futurePriceLovelace: 60_000_000,
+      },
+    ]);
+    (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-tax-records-2026-04-25.csv');
 
     renderTab();
 
@@ -435,10 +447,14 @@ describe('MyPurchasesTab — CSV export', () => {
     await waitFor(() => {
       expect(exportTextFile).toHaveBeenCalledTimes(1);
     });
+    expect(chainApi.getReencryptionHistory).toHaveBeenCalledWith(USER_PKH);
     const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(csvArg).toBe('mock,purchases,csv');
-    expect(filenameArg).toMatch(/^veiled-purchases-\d{4}-\d{2}-\d{2}\.csv$/);
-    expect(purchasesToCSV).toHaveBeenCalledTimes(1);
+    expect(csvArg).toBe('mock,reencryption,csv');
+    expect(filenameArg).toMatch(/^veiled-tax-records-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(reencryptionHistoryToCSV).toHaveBeenCalledTimes(1);
+    const [eventsArg, pkhArg] = (reencryptionHistoryToCSV as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(eventsArg).toHaveLength(1);
+    expect(pkhArg).toBe(USER_PKH);
   });
 
   it('renders the export button when the user has only purchased encryptions (no active bids)', async () => {
@@ -451,67 +467,7 @@ describe('MyPurchasesTab — CSV export', () => {
 
     renderTab();
 
-    // Top-level export button is visible even with bids.length === 0
     const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
     expect(exportBtn).toBeInTheDocument();
-  });
-
-  it('passes completed purchases with bid amounts recovered from tx history', async () => {
-    const enc = makeEncryption({ tokenName: 'enc_won', sellerPkh: USER_PKH });
-    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_won']);
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
-    (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { bidTokenName: 'bid_won_token', b: BigInt(99) },
-    ]);
-    // Simulate a place-bid record in local tx history that pays 42 ADA for the won bid
-    (getTransactions as ReturnType<typeof vi.fn>).mockReturnValue([
-      { txHash: 'h'.repeat(64), type: 'place-bid', tokenName: 'bid_won_token', timestamp: 1, status: 'confirmed', amountLovelace: 42_000_000 },
-    ]);
-    (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-purchases.csv');
-
-    renderTab();
-
-    const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
-    fireEvent.click(exportBtn);
-
-    await waitFor(() => {
-      expect(purchasesToCSV).toHaveBeenCalled();
-    });
-
-    const lastCall = (purchasesToCSV as ReturnType<typeof vi.fn>).mock.calls.at(-1)!;
-    const completedPurchases = lastCall[2] as Array<{
-      encryption: { tokenName: string };
-      resold: boolean;
-      bidAmountLovelace?: number;
-    }>;
-    expect(completedPurchases).toHaveLength(1);
-    expect(completedPurchases[0].encryption.tokenName).toBe('enc_won');
-    expect(completedPurchases[0].resold).toBe(false);
-    expect(completedPurchases[0].bidAmountLovelace).toBe(42_000_000);
-  });
-
-  it('marks purchase as resold when user is no longer the current owner', async () => {
-    const enc = makeEncryption({ tokenName: 'enc_resold', sellerPkh: 'someone_else_' + 'x'.repeat(45) });
-    (listBidSecretTokens as ReturnType<typeof vi.fn>).mockResolvedValue(['enc_resold']);
-    (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
-    (getBidSecretsForEncryption as ReturnType<typeof vi.fn>).mockResolvedValue([
-      { bidTokenName: 'bid_resold_token', b: BigInt(1) },
-    ]);
-    (getTransactions as ReturnType<typeof vi.fn>).mockReturnValue([]);
-    (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-purchases.csv');
-
-    renderTab();
-
-    const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
-    fireEvent.click(exportBtn);
-
-    await waitFor(() => {
-      expect(purchasesToCSV).toHaveBeenCalled();
-    });
-
-    const lastCall = (purchasesToCSV as ReturnType<typeof vi.fn>).mock.calls.at(-1)!;
-    const completedPurchases = lastCall[2] as Array<{ resold: boolean; bidAmountLovelace?: number }>;
-    expect(completedPurchases[0].resold).toBe(true);
-    expect(completedPurchases[0].bidAmountLovelace).toBeUndefined();
   });
 });

@@ -9,7 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import { playSound } from './notificationSound';
-import type { EncryptionDisplay, BidDisplay } from './api';
+import type { ReencryptionEvent } from './api';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid' | 'send' | 'receive';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -332,109 +332,27 @@ function lovelaceToAda(lovelace: number | undefined | null): string {
 }
 
 /**
- * Convert seller's listings to CSV for tax reporting.
- * Columns: Date, Token Name, Status, Description, Listed Price (ADA),
- * Highest Bid (ADA), Sale Amount (ADA), Buyer PKH, Tx Hash
+ * Convert on-chain re-encryption events to a unified tax-record CSV.
+ * One row per completed re-encryption tx the user participated in;
+ * the `Side` column distinguishes Sale (user was the listing owner)
+ * from Purchase (user was the accepted bidder). Both directions share
+ * the same row shape because both derive from the same on-chain tx —
+ * inputs (bid datum, encryption datum) and outputs (new encryption,
+ * lovelace to seller) carry every field needed for tax reporting.
  *
- * Status maps EncryptionDisplay.status: active→Open, pending→Pending, completed→Sold.
- * Highest Bid is the max amount across pending bids in `bidsMap`.
- * Sale Amount + Buyer PKH come from the accepted bid (when one exists).
+ * Columns: Date, Side, Token Name, Bid Amount (ADA), Future Price (ADA),
+ * Seller PKH, Buyer PKH, Tx Hash, Block Height
  */
-export function salesToCSV(
-  encryptions: EncryptionDisplay[],
-  bidsMap: Map<string, BidDisplay[]>,
+export function reencryptionHistoryToCSV(
+  events: ReencryptionEvent[],
+  userPkh: string,
 ): string {
   const header =
-    'Date,Token Name,Status,Description,Listed Price (ADA),Highest Bid (ADA),Sale Amount (ADA),Buyer PKH,Tx Hash';
-  const rows = encryptions.map((e) => {
-    const date = new Date(e.createdAt).toISOString();
-    const tokenName = e.tokenName;
-    const statusLabel =
-      e.status === 'active' ? 'Open'
-      : e.status === 'pending' ? 'Pending'
-      : 'Sold';
-    const desc = csvEscape(e.description ?? '');
-    const listed = lovelaceToAda(e.suggestedPrice ?? e.datum?.new_price);
-    const bids = bidsMap.get(e.tokenName) ?? [];
-    const pendingAmounts = bids.filter((b) => b.status === 'pending').map((b) => b.amount);
-    const highestBid = pendingAmounts.length > 0 ? lovelaceToAda(Math.max(...pendingAmounts)) : '';
-    const acceptedBid = bids.find((b) => b.status === 'accepted');
-    const saleAmount = acceptedBid ? lovelaceToAda(acceptedBid.amount) : '';
-    const buyerPkh = acceptedBid?.bidderPkh ?? '';
-    const txHash = e.utxo.txHash;
-    return `${date},${tokenName},${statusLabel},${desc},${listed},${highestBid},${saleAmount},${buyerPkh},${txHash}`;
+    'Date,Side,Token Name,Bid Amount (ADA),Future Price (ADA),Seller PKH,Buyer PKH,Tx Hash,Block Height';
+  const rows = events.map((e) => {
+    const date = new Date(e.timestamp).toISOString();
+    const side = e.buyerPkh === userPkh ? 'Purchase' : 'Sale';
+    return `${date},${side},${e.encryptionTokenName},${lovelaceToAda(e.bidAmountLovelace)},${lovelaceToAda(e.futurePriceLovelace)},${e.sellerPkh},${e.buyerPkh},${e.txHash},${e.blockHeight}`;
   });
-  return [header, ...rows].join('\n');
-}
-
-/**
- * A completed purchase row sourced from a re-encryption UTxO the buyer
- * received (or has since resold). Used by `purchasesToCSV` so the export
- * survives consumption of the original bid UTxO — without it, decrypted
- * purchases vanish from the tax record once the chain advances.
- */
-export interface CompletedPurchaseRow {
-  encryption: EncryptionDisplay;
-  /** True when the user has since resold this encryption (not the current owner). */
-  resold: boolean;
-  /** Bid amount in lovelace recovered from local tx history; undefined if unknown. */
-  bidAmountLovelace?: number;
-}
-
-/**
- * Convert buyer's bids to CSV for tax reporting.
- * Columns: Date, Token Name, Status, Bid Amount (ADA), Future Price (ADA),
- * Seller PKH, Encryption Token, Tx Hash
- *
- * Status: pending→Active (or Locked while lockedUntil>now), accepted→Won,
- * cancelled→Cancelled, rejected→Rejected. Completed purchases are emitted
- * as one row per re-encryption UTxO (Won, or Resold after subsequent sale)
- * and de-duped against bids on encryptionToken — the brief
- * accepted-but-not-yet-completed window can otherwise double-count.
- */
-export function purchasesToCSV(
-  bids: BidDisplay[],
-  encryptionsMap: Map<string, EncryptionDisplay>,
-  completedPurchases: CompletedPurchaseRow[] = [],
-): string {
-  const header =
-    'Date,Token Name,Status,Bid Amount (ADA),Future Price (ADA),Seller PKH,Encryption Token,Tx Hash';
-  const now = Date.now();
-  const rows: string[] = [];
-
-  for (const b of bids) {
-    const date = new Date(b.createdAt).toISOString();
-    let statusLabel: string;
-    if (b.status === 'pending') {
-      statusLabel = b.lockedUntil > now ? 'Locked' : 'Active';
-    } else if (b.status === 'accepted') {
-      statusLabel = 'Won';
-    } else if (b.status === 'cancelled') {
-      statusLabel = 'Cancelled';
-    } else {
-      statusLabel = 'Rejected';
-    }
-    const bidAmount = lovelaceToAda(b.amount);
-    const futurePrice = b.futurePrice !== undefined ? lovelaceToAda(b.futurePrice) : '';
-    const enc = encryptionsMap.get(b.encryptionToken);
-    const sellerPkh = enc?.sellerPkh ?? '';
-    rows.push(
-      `${date},${b.tokenName},${statusLabel},${bidAmount},${futurePrice},${sellerPkh},${b.encryptionToken},${b.utxo.txHash}`,
-    );
-  }
-
-  const bidEncTokens = new Set(bids.map((b) => b.encryptionToken));
-  for (const cp of completedPurchases) {
-    if (bidEncTokens.has(cp.encryption.tokenName)) continue;
-    const enc = cp.encryption;
-    const date = new Date(enc.createdAt).toISOString();
-    const status = cp.resold ? 'Resold' : 'Won';
-    const bidAmount = cp.bidAmountLovelace !== undefined ? lovelaceToAda(cp.bidAmountLovelace) : '';
-    // Future Price + Seller PKH columns are blank: completed purchases capture a
-    // past acquisition, not a forward bid, and the original seller's PKH is
-    // not reliably reconstructible from current chain state.
-    rows.push(`${date},${enc.tokenName},${status},${bidAmount},,,${enc.tokenName},${enc.utxo.txHash}`);
-  }
-
   return [header, ...rows].join('\n');
 }

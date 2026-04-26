@@ -21,11 +21,10 @@ import {
   resolvePendingTxs,
   getTypeLabel,
   toCSV,
-  salesToCSV,
-  purchasesToCSV,
+  reencryptionHistoryToCSV,
   type TransactionRecord,
 } from '../transactionHistory';
-import type { EncryptionDisplay, BidDisplay } from '../api';
+import type { ReencryptionEvent } from '../api';
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -505,294 +504,72 @@ describe('transactionHistory', () => {
     });
   });
 
-  describe('salesToCSV', () => {
-    const SALES_HEADER =
-      'Date,Token Name,Status,Description,Listed Price (ADA),Highest Bid (ADA),Sale Amount (ADA),Buyer PKH,Tx Hash';
+  describe('reencryptionHistoryToCSV', () => {
+    const REENC_HEADER =
+      'Date,Side,Token Name,Bid Amount (ADA),Future Price (ADA),Seller PKH,Buyer PKH,Tx Hash,Block Height';
+    const USER = 'a'.repeat(56);
+    const OTHER = 'b'.repeat(56);
 
-    function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
+    function makeEvent(overrides: Partial<ReencryptionEvent> = {}): ReencryptionEvent {
       return {
-        tokenName: 'enc_token_1',
-        sellerPkh: 's'.repeat(56),
-        status: 'active',
-        suggestedPrice: 50_000_000,
-        description: 'Test listing',
-        createdAt: '2024-06-15T10:00:00.000Z',
-        utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
-        datum: { new_price: 50_000_000 } as unknown as EncryptionDisplay['datum'],
+        txHash: 'c'.repeat(64),
+        blockHeight: 4_000_000,
+        timestamp: 1_700_000_000_000,
+        encryptionTokenName: 'enc_token_alpha',
+        buyerPkh: USER,
+        sellerPkh: OTHER,
+        bidAmountLovelace: 25_000_000,
+        futurePriceLovelace: 60_000_000,
         ...overrides,
       };
     }
 
-    function makeBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
-      return {
-        tokenName: 'bid_token_1',
-        bidder: 'addr1bidder',
-        bidderPkh: 'b'.repeat(56),
-        encryptionToken: 'enc_token_1',
-        amount: 25_000_000,
-        status: 'pending',
-        createdAt: '2024-06-16T12:00:00.000Z',
-        lockedUntil: 1_750_000_000_000,
-        utxo: { txHash: 'c'.repeat(64), outputIndex: 0 },
-        datum: {} as BidDisplay['datum'],
-        ...overrides,
-      };
-    }
-
-    it('returns header-only for empty array', () => {
-      expect(salesToCSV([], new Map())).toBe(SALES_HEADER);
+    it('returns header-only for empty input', () => {
+      expect(reencryptionHistoryToCSV([], USER)).toBe(REENC_HEADER);
     });
 
-    it('emits one row per encryption with no bids', () => {
-      const enc = makeEncryption();
-      const csv = salesToCSV([enc], new Map());
-      const lines = csv.split('\n');
-      expect(lines).toHaveLength(2);
-      expect(lines[0]).toBe(SALES_HEADER);
-      const fields = lines[1].split(',');
-      expect(fields[0]).toBe('2024-06-15T10:00:00.000Z');
-      expect(fields[1]).toBe('enc_token_1');
-      expect(fields[2]).toBe('Open');
-      expect(fields[3]).toBe('Test listing');
-      expect(fields[4]).toBe('50.000000');
-      expect(fields[5]).toBe(''); // no highest bid
-      expect(fields[6]).toBe(''); // no sale amount
-      expect(fields[7]).toBe(''); // no buyer pkh
-      expect(fields[8]).toBe('a'.repeat(64));
-    });
-
-    it('reports the highest pending bid amount', () => {
-      const enc = makeEncryption();
-      const bidsMap = new Map<string, BidDisplay[]>([
-        [
-          'enc_token_1',
-          [
-            makeBid({ amount: 10_000_000, status: 'pending' }),
-            makeBid({ amount: 30_000_000, status: 'pending' }),
-            makeBid({ amount: 20_000_000, status: 'pending' }),
-          ],
-        ],
-      ]);
-      const csv = salesToCSV([enc], bidsMap);
+    it('marks rows where the user is the buyer as Purchase', () => {
+      const csv = reencryptionHistoryToCSV([makeEvent({ buyerPkh: USER, sellerPkh: OTHER })], USER);
       const fields = csv.split('\n')[1].split(',');
-      expect(fields[5]).toBe('30.000000');
-    });
-
-    it('records sale amount + buyer pkh from accepted bid on a Pending listing', () => {
-      const enc = makeEncryption({ status: 'pending' });
-      const bidsMap = new Map<string, BidDisplay[]>([
-        [
-          'enc_token_1',
-          [
-            makeBid({ amount: 25_000_000, status: 'accepted', bidderPkh: 'd'.repeat(56) }),
-          ],
-        ],
-      ]);
-      const csv = salesToCSV([enc], bidsMap);
-      const fields = csv.split('\n')[1].split(',');
-      expect(fields[2]).toBe('Pending');
-      expect(fields[6]).toBe('25.000000');
-      expect(fields[7]).toBe('d'.repeat(56));
-    });
-
-    it('maps completed status to "Sold"', () => {
-      const enc = makeEncryption({ status: 'completed' });
-      const fields = salesToCSV([enc], new Map()).split('\n')[1].split(',');
-      expect(fields[2]).toBe('Sold');
-    });
-
-    it('escapes descriptions containing commas', () => {
-      const enc = makeEncryption({ description: 'Bid 1,000 ADA' });
-      const csv = salesToCSV([enc], new Map());
-      expect(csv).toContain('"Bid 1,000 ADA"');
-    });
-
-    it('falls back to datum.new_price when suggestedPrice is missing', () => {
-      const enc = makeEncryption({
-        suggestedPrice: undefined,
-        datum: { new_price: 12_500_000 } as unknown as EncryptionDisplay['datum'],
-      });
-      const fields = salesToCSV([enc], new Map()).split('\n')[1].split(',');
-      expect(fields[4]).toBe('12.500000');
-    });
-
-    it('emits empty Listed Price column when both suggestedPrice and datum.new_price are missing', () => {
-      const enc = makeEncryption({
-        suggestedPrice: undefined,
-        datum: {} as EncryptionDisplay['datum'],
-      });
-      const fields = salesToCSV([enc], new Map()).split('\n')[1].split(',');
-      expect(fields[4]).toBe('');
-    });
-  });
-
-  describe('purchasesToCSV', () => {
-    const PURCHASES_HEADER =
-      'Date,Token Name,Status,Bid Amount (ADA),Future Price (ADA),Seller PKH,Encryption Token,Tx Hash';
-
-    function makeEncryption(overrides: Partial<EncryptionDisplay> = {}): EncryptionDisplay {
-      return {
-        tokenName: 'enc_token_1',
-        sellerPkh: 's'.repeat(56),
-        status: 'active',
-        createdAt: '2024-06-15T10:00:00.000Z',
-        utxo: { txHash: 'a'.repeat(64), outputIndex: 0 },
-        datum: {} as EncryptionDisplay['datum'],
-        ...overrides,
-      };
-    }
-
-    function makeBid(overrides: Partial<BidDisplay> = {}): BidDisplay {
-      return {
-        tokenName: 'bid_token_1',
-        bidder: 'addr1bidder',
-        bidderPkh: 'b'.repeat(56),
-        encryptionToken: 'enc_token_1',
-        amount: 25_000_000,
-        status: 'pending',
-        createdAt: '2024-06-16T12:00:00.000Z',
-        lockedUntil: 0, // expired by default → "Active" rather than "Locked"
-        utxo: { txHash: 'c'.repeat(64), outputIndex: 0 },
-        datum: {} as BidDisplay['datum'],
-        ...overrides,
-      };
-    }
-
-    it('returns header-only for empty array', () => {
-      expect(purchasesToCSV([], new Map())).toBe(PURCHASES_HEADER);
-    });
-
-    it('emits one row per bid with seller pkh from encryption map', () => {
-      const enc = makeEncryption({ sellerPkh: 'f'.repeat(56) });
-      const bid = makeBid({ futurePrice: 60_000_000 });
-      const map = new Map<string, EncryptionDisplay>([[enc.tokenName, enc]]);
-      const csv = purchasesToCSV([bid], map);
-      const lines = csv.split('\n');
-      expect(lines).toHaveLength(2);
-      expect(lines[0]).toBe(PURCHASES_HEADER);
-      const fields = lines[1].split(',');
-      expect(fields[0]).toBe('2024-06-16T12:00:00.000Z');
-      expect(fields[1]).toBe('bid_token_1');
-      expect(fields[2]).toBe('Active');
+      expect(fields[0]).toBe('2023-11-14T22:13:20.000Z');
+      expect(fields[1]).toBe('Purchase');
+      expect(fields[2]).toBe('enc_token_alpha');
       expect(fields[3]).toBe('25.000000');
       expect(fields[4]).toBe('60.000000');
-      expect(fields[5]).toBe('f'.repeat(56));
-      expect(fields[6]).toBe('enc_token_1');
+      expect(fields[5]).toBe(OTHER); // seller
+      expect(fields[6]).toBe(USER);  // buyer
       expect(fields[7]).toBe('c'.repeat(64));
+      expect(fields[8]).toBe('4000000');
     });
 
-    it('marks pending bid as Locked when lockedUntil is in the future', () => {
-      const bid = makeBid({ lockedUntil: Date.now() + 60 * 60 * 1000 });
-      const fields = purchasesToCSV([bid], new Map()).split('\n')[1].split(',');
-      expect(fields[2]).toBe('Locked');
+    it('marks rows where the user is the seller as Sale', () => {
+      const csv = reencryptionHistoryToCSV([makeEvent({ buyerPkh: OTHER, sellerPkh: USER })], USER);
+      const fields = csv.split('\n')[1].split(',');
+      expect(fields[1]).toBe('Sale');
+      expect(fields[5]).toBe(USER);  // seller
+      expect(fields[6]).toBe(OTHER); // buyer
     });
 
-    it('maps bid statuses (accepted=Won, cancelled=Cancelled, rejected=Rejected)', () => {
-      const accepted = makeBid({ status: 'accepted', tokenName: 'a' });
-      const cancelled = makeBid({ status: 'cancelled', tokenName: 'b' });
-      const rejected = makeBid({ status: 'rejected', tokenName: 'c' });
-      const lines = purchasesToCSV([accepted, cancelled, rejected], new Map()).split('\n');
-      expect(lines[1].split(',')[2]).toBe('Won');
-      expect(lines[2].split(',')[2]).toBe('Cancelled');
-      expect(lines[3].split(',')[2]).toBe('Rejected');
+    it('emits one row per event in input order', () => {
+      const events = [
+        makeEvent({ txHash: '1'.repeat(64), buyerPkh: USER, sellerPkh: OTHER }),
+        makeEvent({ txHash: '2'.repeat(64), buyerPkh: OTHER, sellerPkh: USER }),
+      ];
+      const csv = reencryptionHistoryToCSV(events, USER);
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('Purchase');
+      expect(lines[2]).toContain('Sale');
     });
 
-    it('emits empty seller pkh when encryption is missing from map', () => {
-      const bid = makeBid({ encryptionToken: 'unknown_token' });
-      const fields = purchasesToCSV([bid], new Map()).split('\n')[1].split(',');
-      expect(fields[5]).toBe('');
-    });
-
-    it('emits empty Future Price column when not set', () => {
-      const bid = makeBid({ futurePrice: undefined });
-      const fields = purchasesToCSV([bid], new Map()).split('\n')[1].split(',');
-      expect(fields[4]).toBe('');
-    });
-
-    it('formats ADA amounts with 6 decimal places', () => {
-      const bid = makeBid({ amount: 1_500_000 });
-      const fields = purchasesToCSV([bid], new Map()).split('\n')[1].split(',');
+    it('formats ADA amounts to 6 decimal places', () => {
+      const csv = reencryptionHistoryToCSV(
+        [makeEvent({ bidAmountLovelace: 1_500_000, futurePriceLovelace: 0 })],
+        USER,
+      );
+      const fields = csv.split('\n')[1].split(',');
       expect(fields[3]).toBe('1.500000');
-    });
-
-    describe('with completedPurchases', () => {
-      it('emits a Won row per purchased encryption with bid amount from history', () => {
-        const enc = makeEncryption({
-          tokenName: 'enc_won',
-          createdAt: '2024-07-01T00:00:00.000Z',
-          utxo: { txHash: 'd'.repeat(64), outputIndex: 0 },
-        });
-        const csv = purchasesToCSV(
-          [],
-          new Map(),
-          [{ encryption: enc, resold: false, bidAmountLovelace: 75_000_000 }],
-        );
-        const lines = csv.split('\n');
-        expect(lines).toHaveLength(2);
-        const fields = lines[1].split(',');
-        expect(fields[0]).toBe('2024-07-01T00:00:00.000Z');
-        expect(fields[1]).toBe('enc_won');
-        expect(fields[2]).toBe('Won');
-        expect(fields[3]).toBe('75.000000');
-        expect(fields[4]).toBe(''); // future price blank for completed purchases
-        expect(fields[5]).toBe(''); // seller pkh blank
-        expect(fields[6]).toBe('enc_won');
-        expect(fields[7]).toBe('d'.repeat(64));
-      });
-
-      it('marks resold encryptions with Resold status', () => {
-        const enc = makeEncryption({ tokenName: 'enc_resold' });
-        const fields = purchasesToCSV(
-          [],
-          new Map(),
-          [{ encryption: enc, resold: true, bidAmountLovelace: 30_000_000 }],
-        ).split('\n')[1].split(',');
-        expect(fields[2]).toBe('Resold');
-      });
-
-      it('emits empty bid amount when not recovered from history', () => {
-        const enc = makeEncryption({ tokenName: 'enc_no_amount' });
-        const fields = purchasesToCSV(
-          [],
-          new Map(),
-          [{ encryption: enc, resold: false }],
-        ).split('\n')[1].split(',');
-        expect(fields[3]).toBe('');
-      });
-
-      it('dedupes against bids on encryptionToken to skip the accepted-but-not-completed window', () => {
-        const enc = makeEncryption({ tokenName: 'shared_enc_token' });
-        const acceptedBid = makeBid({
-          status: 'accepted',
-          encryptionToken: 'shared_enc_token',
-          tokenName: 'bid_for_shared',
-        });
-        const csv = purchasesToCSV(
-          [acceptedBid],
-          new Map(),
-          [{ encryption: enc, resold: false, bidAmountLovelace: 10_000_000 }],
-        );
-        const lines = csv.split('\n');
-        // Only one data row — the accepted bid; the duplicate completed-purchase row is suppressed.
-        expect(lines).toHaveLength(2);
-        expect(lines[1]).toContain('Won');
-        expect(lines[1]).toContain('bid_for_shared');
-      });
-
-      it('emits both bids and completed purchases when they refer to different encryptions', () => {
-        const bid = makeBid({ tokenName: 'bid_alpha', encryptionToken: 'enc_alpha' });
-        const enc = makeEncryption({ tokenName: 'enc_beta' });
-        const csv = purchasesToCSV(
-          [bid],
-          new Map(),
-          [{ encryption: enc, resold: false, bidAmountLovelace: 12_000_000 }],
-        );
-        expect(csv.split('\n')).toHaveLength(3);
-      });
-
-      it('returns header-only when both bids and completedPurchases are empty', () => {
-        expect(purchasesToCSV([], new Map(), [])).toBe(PURCHASES_HEADER);
-      });
+      expect(fields[4]).toBe('0.000000');
     });
   });
 });
