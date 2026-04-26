@@ -26,6 +26,7 @@ vi.mock('../../contexts/AcceptBidQueueContext', () => ({
 vi.mock('../../services/api', () => ({
   encryptionsApi: { getAll: vi.fn() },
   bidsApi: { getAll: vi.fn() },
+  chainApi: { getReencryptionHistory: vi.fn().mockResolvedValue({ events: [] }) },
 }));
 
 vi.mock('../../services/imageCache', () => ({
@@ -37,13 +38,24 @@ vi.mock('../../services/imageCache', () => ({
   unbanImage: vi.fn(),
 }));
 
+vi.mock('../../services/bidSecretStorage', () => ({
+  listBidSecretTokens: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../services/transactionHistory', () => ({
   getTransactions: vi.fn().mockReturnValue([]),
   getTypeLabelKey: vi.fn((type: string) => `history.txType.${type}`),
   getTypeLabel: vi.fn((type: string) => type),
+  reencryptionHistoryToCSV: vi.fn(() => 'mock,reencryption,csv'),
 }));
 
-import { encryptionsApi, bidsApi } from '../../services/api';
+vi.mock('../../services/fileExport', () => ({
+  exportTextFile: vi.fn(),
+}));
+
+import { encryptionsApi, bidsApi, chainApi } from '../../services/api';
+import { exportTextFile } from '../../services/fileExport';
+import { reencryptionHistoryToCSV } from '../../services/transactionHistory';
 
 // ── Fixtures ────────────────────────────────────────────────────────
 
@@ -313,6 +325,67 @@ describe('MySalesTab', () => {
         expect(screen.getByText('No handler')).toBeInTheDocument();
       });
       expect(screen.queryByText('Ready to accept your first bid?')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Tax CSV export', () => {
+    it('renders the export button even when the user has no current listings (historical events still relevant)', async () => {
+      // No listings of the user's own — the empty state shows but the export
+      // button must still be reachable since historical re-encryption events
+      // (sales that have since left MySales) are the canonical tax record.
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+      renderTab();
+
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      expect(exportBtn).toBeInTheDocument();
+    });
+
+    it('renders the export button when the user has current listings', async () => {
+      const enc = makeEncryption({ description: 'Listing one' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+
+      renderTab();
+
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      expect(exportBtn).toBeInTheDocument();
+    });
+
+    it('queries reencryption history and saves veiled-tax-records-{date}.csv on click', async () => {
+      const enc = makeEncryption({ description: 'For export' });
+      (encryptionsApi.getAll as ReturnType<typeof vi.fn>).mockResolvedValue([enc]);
+      (chainApi.getReencryptionHistory as ReturnType<typeof vi.fn>).mockResolvedValue({
+        events: [
+          {
+            txHash: 'd'.repeat(64),
+            blockHeight: 5_000_000,
+            timestamp: 1_700_000_000_000,
+            encryptionTokenName: 'enc_export',
+            buyerPkh: 'b'.repeat(56),
+            sellerPkh: USER_PKH,
+            bidAmountLovelace: 25_000_000,
+            futurePriceLovelace: 60_000_000,
+          },
+        ],
+      });
+      (exportTextFile as ReturnType<typeof vi.fn>).mockResolvedValue('/tmp/veiled-tax-records-2026-04-25.csv');
+
+      renderTab();
+
+      const exportBtn = await screen.findByRole('button', { name: 'Export as CSV' });
+      fireEvent.click(exportBtn);
+
+      await waitFor(() => {
+        expect(exportTextFile).toHaveBeenCalledTimes(1);
+      });
+      expect(chainApi.getReencryptionHistory).toHaveBeenCalledWith(USER_PKH, []);
+      const [csvArg, filenameArg] = (exportTextFile as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(csvArg).toBe('mock,reencryption,csv');
+      expect(filenameArg).toMatch(/^veiled-tax-records-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(reencryptionHistoryToCSV).toHaveBeenCalledTimes(1);
+      const [eventsArg, pkhArg] = (reencryptionHistoryToCSV as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(eventsArg).toHaveLength(1);
+      expect(pkhArg).toBe(USER_PKH);
     });
   });
 });

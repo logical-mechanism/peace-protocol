@@ -21,8 +21,10 @@ import {
   resolvePendingTxs,
   getTypeLabel,
   toCSV,
+  reencryptionHistoryToCSV,
   type TransactionRecord,
 } from '../transactionHistory';
+import type { ReencryptionEvent } from '../api';
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -499,6 +501,75 @@ describe('transactionHistory', () => {
       expect(fields[6]).toBe(''); // no amount
       expect(fields[7]).toBe(''); // no block
       expect(fields[8]).toBe(''); // no counterparty
+    });
+  });
+
+  describe('reencryptionHistoryToCSV', () => {
+    const REENC_HEADER =
+      'Date,Side,Token Name,Bid Amount (ADA),Future Price (ADA),Seller PKH,Buyer PKH,Tx Hash,Block Height';
+    const USER = 'a'.repeat(56);
+    const OTHER = 'b'.repeat(56);
+
+    function makeEvent(overrides: Partial<ReencryptionEvent> = {}): ReencryptionEvent {
+      return {
+        txHash: 'c'.repeat(64),
+        blockHeight: 4_000_000,
+        timestamp: 1_700_000_000_000,
+        encryptionTokenName: 'enc_token_alpha',
+        buyerPkh: USER,
+        sellerPkh: OTHER,
+        bidAmountLovelace: 25_000_000,
+        futurePriceLovelace: 60_000_000,
+        ...overrides,
+      };
+    }
+
+    it('returns header-only for empty input', () => {
+      expect(reencryptionHistoryToCSV([], USER)).toBe(REENC_HEADER);
+    });
+
+    it('marks rows where the user is the buyer as Purchase', () => {
+      const csv = reencryptionHistoryToCSV([makeEvent({ buyerPkh: USER, sellerPkh: OTHER })], USER);
+      const fields = csv.split('\n')[1].split(',');
+      expect(fields[0]).toBe('2023-11-14T22:13:20.000Z');
+      expect(fields[1]).toBe('Purchase');
+      expect(fields[2]).toBe('enc_token_alpha');
+      expect(fields[3]).toBe('25.000000');
+      expect(fields[4]).toBe('60.000000');
+      expect(fields[5]).toBe(OTHER); // seller
+      expect(fields[6]).toBe(USER);  // buyer
+      expect(fields[7]).toBe('c'.repeat(64));
+      expect(fields[8]).toBe('4000000');
+    });
+
+    it('marks rows where the user is the seller as Sale', () => {
+      const csv = reencryptionHistoryToCSV([makeEvent({ buyerPkh: OTHER, sellerPkh: USER })], USER);
+      const fields = csv.split('\n')[1].split(',');
+      expect(fields[1]).toBe('Sale');
+      expect(fields[5]).toBe(USER);  // seller
+      expect(fields[6]).toBe(OTHER); // buyer
+    });
+
+    it('emits one row per event in input order', () => {
+      const events = [
+        makeEvent({ txHash: '1'.repeat(64), buyerPkh: USER, sellerPkh: OTHER }),
+        makeEvent({ txHash: '2'.repeat(64), buyerPkh: OTHER, sellerPkh: USER }),
+      ];
+      const csv = reencryptionHistoryToCSV(events, USER);
+      const lines = csv.split('\n');
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('Purchase');
+      expect(lines[2]).toContain('Sale');
+    });
+
+    it('formats ADA amounts to 6 decimal places', () => {
+      const csv = reencryptionHistoryToCSV(
+        [makeEvent({ bidAmountLovelace: 1_500_000, futurePriceLovelace: 0 })],
+        USER,
+      );
+      const fields = csv.split('\n')[1].split(',');
+      expect(fields[3]).toBe('1.500000');
+      expect(fields[4]).toBe('0.000000');
     });
   });
 });

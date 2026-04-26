@@ -9,6 +9,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import { playSound } from './notificationSound';
+import type { ReencryptionEvent } from './api';
 
 export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid' | 'send' | 'receive';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
@@ -321,6 +322,37 @@ export function toCSV(records: TransactionRecord[]): string {
     const block = r.confirmedAtBlock !== undefined ? String(r.confirmedAtBlock) : '';
     const counterparty = r.counterparty ?? '';
     return `${date},${type},${status},${hash},${token},${desc},${amount},${block},${counterparty}`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+function lovelaceToAda(lovelace: number | undefined | null): string {
+  if (lovelace === undefined || lovelace === null) return '';
+  return (lovelace / 1_000_000).toFixed(6);
+}
+
+/**
+ * Convert on-chain re-encryption events to a unified tax-record CSV.
+ * One row per completed re-encryption tx the user participated in;
+ * the `Side` column distinguishes Sale (user was the listing owner)
+ * from Purchase (user was the accepted bidder). Both directions share
+ * the same row shape because both derive from the same on-chain tx —
+ * inputs (bid datum, encryption datum) and outputs (new encryption,
+ * lovelace to seller) carry every field needed for tax reporting.
+ *
+ * Columns: Date, Side, Token Name, Bid Amount (ADA), Future Price (ADA),
+ * Seller PKH, Buyer PKH, Tx Hash, Block Height
+ */
+export function reencryptionHistoryToCSV(
+  events: ReencryptionEvent[],
+  userPkh: string,
+): string {
+  const header =
+    'Date,Side,Token Name,Bid Amount (ADA),Future Price (ADA),Seller PKH,Buyer PKH,Tx Hash,Block Height';
+  const rows = events.map((e) => {
+    const date = new Date(e.timestamp).toISOString();
+    const side = e.buyerPkh === userPkh ? 'Purchase' : 'Sale';
+    return `${date},${side},${e.encryptionTokenName},${lovelaceToAda(e.bidAmountLovelace)},${lovelaceToAda(e.futurePriceLovelace)},${e.sellerPkh},${e.buyerPkh},${e.txHash},${e.blockHeight}`;
   });
   return [header, ...rows].join('\n');
 }

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import '../i18n';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
-import { encryptionsApi, bidsApi } from '../services/api';
+import { encryptionsApi, bidsApi, chainApi } from '../services/api';
 import type { EncryptionDisplay, BidDisplay } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import SalesListingCard from './SalesListingCard';
@@ -19,7 +19,9 @@ import AcceptBidQueuePanel from './AcceptBidQueuePanel';
 import type { MySalesFilters, MySalesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import LayoutPopover from './LayoutPopover';
-import { getTransactions } from '../services/transactionHistory';
+import { getTransactions, reencryptionHistoryToCSV } from '../services/transactionHistory';
+import { exportTextFile } from '../services/fileExport';
+import { listBidSecretTokens } from '../services/bidSecretStorage';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
 import Select from './Select';
@@ -65,6 +67,7 @@ function MySalesTab({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -305,6 +308,39 @@ function MySalesTab({
     [onCancelPending]
   );
 
+  const handleExportCsv = async () => {
+    if (!userPkh) return;
+    try {
+      // Sellers benefit from passing bid tokens too — a seller is often
+      // also a buyer of other listings, and the unified export covers
+      // both sides for the same caller.
+      const tokens = await listBidSecretTokens().catch(() => [] as string[]);
+      console.info(`reencryption-history: querying with ${tokens.length} bid tokens`);
+      const { events, meta } = await chainApi.getReencryptionHistory(userPkh, tokens);
+      if (meta) console.info('reencryption-history: meta', meta);
+      console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
+      if (events.length === 0) {
+        const summary = meta
+          ? `(${meta.candidates} candidates, ${meta.extracted} re-encryption txs found, ${meta.matchedUser} matched your wallet)`
+          : '';
+        setExportMessage(`No completed re-encryption events found on chain yet. ${summary}`);
+        setTimeout(() => setExportMessage(null), 8000);
+        return;
+      }
+      const csv = reencryptionHistoryToCSV(events, userPkh);
+      const filename = `veiled-tax-records-${new Date().toISOString().slice(0, 10)}.csv`;
+      const result = await exportTextFile(csv, filename);
+      if (result) {
+        setExportMessage(t('history.exportedTo', { path: result }));
+        setTimeout(() => setExportMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      setExportMessage(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
+      setTimeout(() => setExportMessage(null), 8000);
+    }
+  };
+
   const screenReaderMessage = loading
     ? t('mySales.loading')
     : error
@@ -346,6 +382,30 @@ function MySalesTab({
     return (
       <>
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        {userPkh && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleExportCsv}
+              className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+              title={t('history.exportTitle')}
+              aria-label={t('history.exportAria')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+        {exportMessage && (
+          <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+            {exportMessage}
+          </div>
+        )}
         <EmptyState
           illustration={<NoSalesIllustration />}
           title={t('mySales.emptyTitle')}
@@ -368,6 +428,30 @@ function MySalesTab({
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
+      {userPkh && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleExportCsv}
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+            title={t('history.exportTitle')}
+            aria-label={t('history.exportAria')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+      {exportMessage && (
+        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {exportMessage}
+        </div>
+      )}
       {/* Auto-Accept Queue Panel */}
       <AcceptBidQueuePanel />
       {/* First-bid-accepted tutorial banner — only when user actually has a pending bid to accept */}
@@ -552,6 +636,7 @@ function MySalesTab({
               />
             </svg>
           </button>
+
         </div>
       </div>
 

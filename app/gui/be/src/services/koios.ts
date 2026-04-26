@@ -34,6 +34,10 @@ interface TxOutput {
     bech32: string;
     cred: string;
   };
+  /** Position of this output in the originating tx — Koios populates this
+   * on /tx_info outputs. Don't rely on array index, which may not match
+   * tx_index for txs with collateral_outputs or other non-standard shapes. */
+  tx_index?: number;
   value: string;
   inline_datum: {
     bytes: string;
