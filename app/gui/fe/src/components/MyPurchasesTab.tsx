@@ -22,7 +22,7 @@ import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
 import { getOnboardingState } from '../services/onboardingStorage';
-import { purchasesToCSV } from '../services/transactionHistory';
+import { purchasesToCSV, getTransactions, type CompletedPurchaseRow } from '../services/transactionHistory';
 import { exportTextFile } from '../services/fileExport';
 
 export interface DecryptTutorialTarget {
@@ -83,6 +83,10 @@ function MyPurchasesTab({
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
   const [decryptBannerDismissed, setDecryptBannerDismissed] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  // Encryption token → the bid tokens the user has secrets for. Captured during
+  // fetchData so the CSV export can later resolve historical bid amounts via
+  // transactionHistory (place-bid records keyed by bid token name).
+  const [bidTokensByEncryption, setBidTokensByEncryption] = useState<Map<string, string[]>>(new Map());
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -129,6 +133,7 @@ function MyPurchasesTab({
 
         const purchased: (EncryptionDisplay & { resold?: boolean })[] = [];
         const failedTokens = new Set<string>();
+        const bidTokensMap = new Map<string, string[]>();
         for (const token of secretTokens) {
           const enc = allEncryptions.find((e) => e.tokenName === token);
           if (!enc) continue; // token no longer on-chain
@@ -139,6 +144,7 @@ function MyPurchasesTab({
             const secrets = await getBidSecretsForEncryption(enc.tokenName);
             if (secrets.length > 0) {
               purchased.push({ ...enc, resold: !isCurrentOwner });
+              bidTokensMap.set(enc.tokenName, secrets.map((s) => s.bidTokenName));
             }
           } catch (err) {
             console.warn(`Failed to load bid secrets for ${enc.tokenName}:`, err);
@@ -148,8 +154,10 @@ function MyPurchasesTab({
         }
         setPurchasedEncryptions(purchased);
         setSecretsLoadErrors(failedTokens);
+        setBidTokensByEncryption(bidTokensMap);
       } else {
         setPurchasedEncryptions([]);
+        setBidTokensByEncryption(new Map());
       }
 
       // Fetch library items to determine completed purchases
@@ -351,9 +359,37 @@ function MyPurchasesTab({
   );
 
   const handleExportCsv = async () => {
-    if (filteredAndSorted.length === 0) return;
+    if (bids.length === 0 && purchasedEncryptions.length === 0) return;
     try {
-      const csv = purchasesToCSV(filteredAndSorted, encryptionsMap);
+      // Resolve historical bid amounts: for each purchased encryption,
+      // walk its known bid tokens (captured during fetchData) and look
+      // up the matching place-bid record in local tx history. Multiple
+      // bids can exist on the same encryption (rebids); use the max
+      // since the highest is the one that actually paid out.
+      const bidAmountByEncryption = new Map<string, number>();
+      if (userPkh) {
+        const txHistory = getTransactions(userPkh);
+        for (const [encToken, bidTokens] of bidTokensByEncryption) {
+          let max: number | undefined;
+          for (const bt of bidTokens) {
+            const tx = txHistory.find((r) => r.type === 'place-bid' && r.tokenName === bt);
+            if (tx?.amountLovelace !== undefined) {
+              max = Math.max(max ?? 0, tx.amountLovelace);
+            }
+          }
+          if (max !== undefined) bidAmountByEncryption.set(encToken, max);
+        }
+      }
+
+      const completedPurchases: CompletedPurchaseRow[] = purchasedEncryptions.map((p) => ({
+        encryption: p,
+        resold: !!p.resold,
+        bidAmountLovelace: bidAmountByEncryption.get(p.tokenName),
+      }));
+
+      // Tax records need every historical row, not just what's currently
+      // filtered in the UI — pass the full bids list, not filteredAndSorted.
+      const csv = purchasesToCSV(bids, encryptionsMap, completedPurchases);
       const filename = `veiled-purchases-${new Date().toISOString().slice(0, 10)}.csv`;
       const result = await exportTextFile(csv, filename);
       if (result) {
@@ -429,6 +465,33 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      {/* Top action row — always rendered when the tab has any data so the
+          CSV export covers historical purchases (re-encryption UTxOs) even
+          after the bid UTxO has been consumed. */}
+      {(bids.length > 0 || purchasedEncryptions.length > 0) && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleExportCsv}
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+            title={t('history.exportTitle')}
+            aria-label={t('history.exportAria')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+      {exportMessage && (
+        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {exportMessage}
+        </div>
+      )}
       {showDecryptBanner && decryptTutorialTarget && (
         <div
           className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
@@ -674,33 +737,8 @@ function MyPurchasesTab({
               />
             </svg>
           </button>
-
-          {/* Export CSV */}
-          <button
-            onClick={handleExportCsv}
-            disabled={filteredAndSorted.length === 0}
-            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
-            title={t('history.exportTitle')}
-            aria-label={t('history.exportAria')}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-          </button>
         </div>
       </div>
-
-      {/* Export feedback */}
-      {exportMessage && (
-        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
-          {exportMessage}
-        </div>
-      )}
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">

@@ -714,5 +714,85 @@ describe('transactionHistory', () => {
       const fields = purchasesToCSV([bid], new Map()).split('\n')[1].split(',');
       expect(fields[3]).toBe('1.500000');
     });
+
+    describe('with completedPurchases', () => {
+      it('emits a Won row per purchased encryption with bid amount from history', () => {
+        const enc = makeEncryption({
+          tokenName: 'enc_won',
+          createdAt: '2024-07-01T00:00:00.000Z',
+          utxo: { txHash: 'd'.repeat(64), outputIndex: 0 },
+        });
+        const csv = purchasesToCSV(
+          [],
+          new Map(),
+          [{ encryption: enc, resold: false, bidAmountLovelace: 75_000_000 }],
+        );
+        const lines = csv.split('\n');
+        expect(lines).toHaveLength(2);
+        const fields = lines[1].split(',');
+        expect(fields[0]).toBe('2024-07-01T00:00:00.000Z');
+        expect(fields[1]).toBe('enc_won');
+        expect(fields[2]).toBe('Won');
+        expect(fields[3]).toBe('75.000000');
+        expect(fields[4]).toBe(''); // future price blank for completed purchases
+        expect(fields[5]).toBe(''); // seller pkh blank
+        expect(fields[6]).toBe('enc_won');
+        expect(fields[7]).toBe('d'.repeat(64));
+      });
+
+      it('marks resold encryptions with Resold status', () => {
+        const enc = makeEncryption({ tokenName: 'enc_resold' });
+        const fields = purchasesToCSV(
+          [],
+          new Map(),
+          [{ encryption: enc, resold: true, bidAmountLovelace: 30_000_000 }],
+        ).split('\n')[1].split(',');
+        expect(fields[2]).toBe('Resold');
+      });
+
+      it('emits empty bid amount when not recovered from history', () => {
+        const enc = makeEncryption({ tokenName: 'enc_no_amount' });
+        const fields = purchasesToCSV(
+          [],
+          new Map(),
+          [{ encryption: enc, resold: false }],
+        ).split('\n')[1].split(',');
+        expect(fields[3]).toBe('');
+      });
+
+      it('dedupes against bids on encryptionToken to skip the accepted-but-not-completed window', () => {
+        const enc = makeEncryption({ tokenName: 'shared_enc_token' });
+        const acceptedBid = makeBid({
+          status: 'accepted',
+          encryptionToken: 'shared_enc_token',
+          tokenName: 'bid_for_shared',
+        });
+        const csv = purchasesToCSV(
+          [acceptedBid],
+          new Map(),
+          [{ encryption: enc, resold: false, bidAmountLovelace: 10_000_000 }],
+        );
+        const lines = csv.split('\n');
+        // Only one data row — the accepted bid; the duplicate completed-purchase row is suppressed.
+        expect(lines).toHaveLength(2);
+        expect(lines[1]).toContain('Won');
+        expect(lines[1]).toContain('bid_for_shared');
+      });
+
+      it('emits both bids and completed purchases when they refer to different encryptions', () => {
+        const bid = makeBid({ tokenName: 'bid_alpha', encryptionToken: 'enc_alpha' });
+        const enc = makeEncryption({ tokenName: 'enc_beta' });
+        const csv = purchasesToCSV(
+          [bid],
+          new Map(),
+          [{ encryption: enc, resold: false, bidAmountLovelace: 12_000_000 }],
+        );
+        expect(csv.split('\n')).toHaveLength(3);
+      });
+
+      it('returns header-only when both bids and completedPurchases are empty', () => {
+        expect(purchasesToCSV([], new Map(), [])).toBe(PURCHASES_HEADER);
+      });
+    });
   });
 });

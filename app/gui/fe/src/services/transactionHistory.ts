@@ -368,21 +368,41 @@ export function salesToCSV(
 }
 
 /**
+ * A completed purchase row sourced from a re-encryption UTxO the buyer
+ * received (or has since resold). Used by `purchasesToCSV` so the export
+ * survives consumption of the original bid UTxO — without it, decrypted
+ * purchases vanish from the tax record once the chain advances.
+ */
+export interface CompletedPurchaseRow {
+  encryption: EncryptionDisplay;
+  /** True when the user has since resold this encryption (not the current owner). */
+  resold: boolean;
+  /** Bid amount in lovelace recovered from local tx history; undefined if unknown. */
+  bidAmountLovelace?: number;
+}
+
+/**
  * Convert buyer's bids to CSV for tax reporting.
  * Columns: Date, Token Name, Status, Bid Amount (ADA), Future Price (ADA),
  * Seller PKH, Encryption Token, Tx Hash
  *
  * Status: pending→Active (or Locked while lockedUntil>now), accepted→Won,
- * cancelled→Cancelled, rejected→Rejected.
+ * cancelled→Cancelled, rejected→Rejected. Completed purchases are emitted
+ * as one row per re-encryption UTxO (Won, or Resold after subsequent sale)
+ * and de-duped against bids on encryptionToken — the brief
+ * accepted-but-not-yet-completed window can otherwise double-count.
  */
 export function purchasesToCSV(
   bids: BidDisplay[],
   encryptionsMap: Map<string, EncryptionDisplay>,
+  completedPurchases: CompletedPurchaseRow[] = [],
 ): string {
   const header =
     'Date,Token Name,Status,Bid Amount (ADA),Future Price (ADA),Seller PKH,Encryption Token,Tx Hash';
   const now = Date.now();
-  const rows = bids.map((b) => {
+  const rows: string[] = [];
+
+  for (const b of bids) {
     const date = new Date(b.createdAt).toISOString();
     let statusLabel: string;
     if (b.status === 'pending') {
@@ -398,7 +418,23 @@ export function purchasesToCSV(
     const futurePrice = b.futurePrice !== undefined ? lovelaceToAda(b.futurePrice) : '';
     const enc = encryptionsMap.get(b.encryptionToken);
     const sellerPkh = enc?.sellerPkh ?? '';
-    return `${date},${b.tokenName},${statusLabel},${bidAmount},${futurePrice},${sellerPkh},${b.encryptionToken},${b.utxo.txHash}`;
-  });
+    rows.push(
+      `${date},${b.tokenName},${statusLabel},${bidAmount},${futurePrice},${sellerPkh},${b.encryptionToken},${b.utxo.txHash}`,
+    );
+  }
+
+  const bidEncTokens = new Set(bids.map((b) => b.encryptionToken));
+  for (const cp of completedPurchases) {
+    if (bidEncTokens.has(cp.encryption.tokenName)) continue;
+    const enc = cp.encryption;
+    const date = new Date(enc.createdAt).toISOString();
+    const status = cp.resold ? 'Resold' : 'Won';
+    const bidAmount = cp.bidAmountLovelace !== undefined ? lovelaceToAda(cp.bidAmountLovelace) : '';
+    // Future Price + Seller PKH columns are blank: completed purchases capture a
+    // past acquisition, not a forward bid, and the original seller's PKH is
+    // not reliably reconstructible from current chain state.
+    rows.push(`${date},${enc.tokenName},${status},${bidAmount},,,${enc.tokenName},${enc.utxo.txHash}`);
+  }
+
   return [header, ...rows].join('\n');
 }
