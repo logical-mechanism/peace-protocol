@@ -19,7 +19,8 @@ import AcceptBidQueuePanel from './AcceptBidQueuePanel';
 import type { MySalesFilters, MySalesAction, CardSize, ColumnCount } from '../hooks/useTabFilterState';
 import { getGridClasses } from '../hooks/useTabFilterState';
 import LayoutPopover from './LayoutPopover';
-import { getTransactions } from '../services/transactionHistory';
+import { getTransactions, salesToCSV } from '../services/transactionHistory';
+import { exportTextFile } from '../services/fileExport';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatAda } from '../utils/formatAda';
 import Select from './Select';
@@ -65,6 +66,7 @@ function MySalesTab({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prevDataCount, setPrevDataCount] = useState(0);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -304,6 +306,23 @@ function MySalesTab({
     },
     [onCancelPending]
   );
+
+  const handleExportCsv = async () => {
+    if (filtered.length === 0) return;
+    try {
+      const csv = salesToCSV(filtered, bidsMap);
+      const filename = `veiled-sales-${new Date().toISOString().slice(0, 10)}.csv`;
+      const result = await exportTextFile(csv, filename);
+      if (result) {
+        setExportMessage(t('history.exportedTo', { path: result }));
+        setTimeout(() => setExportMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      setExportMessage(t('history.exportFailed'));
+      setTimeout(() => setExportMessage(null), 3000);
+    }
+  };
 
   const screenReaderMessage = loading
     ? t('mySales.loading')
@@ -552,8 +571,33 @@ function MySalesTab({
               />
             </svg>
           </button>
+
+          {/* Export CSV */}
+          <button
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+            title={t('history.exportTitle')}
+            aria-label={t('history.exportAria')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
         </div>
       </div>
+
+      {/* Export feedback */}
+      {exportMessage && (
+        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {exportMessage}
+        </div>
+      )}
 
       {/* Results Count */}
       <div role="status" className="mb-4 text-sm text-[var(--text-muted)]">
