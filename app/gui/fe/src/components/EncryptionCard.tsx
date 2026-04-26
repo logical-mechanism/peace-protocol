@@ -187,23 +187,35 @@ function EncryptionCard({
     );
   }
 
-  const padClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-xl)]' : 'p-[var(--space-lg)]';
-  const mbClass = cardSize === 'small' ? 'mb-[var(--space-sm)]' : cardSize === 'large' ? 'mb-[var(--space-lg)]' : 'mb-[var(--space-md)]';
+  const innerPadClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-lg)]' : 'p-[var(--space-md)]';
   const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
-  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
-  const imgSize = 'md' as const;
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-2';
 
   return (
     <>
-      <article className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] ${padClass} hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)] transition-all duration-[var(--transition-fast)]`}>
-        {/* Header */}
-        <div className={`${mbClass} space-y-[var(--space-1)]`}>
-          {/* Row 1: Star + Status + Transaction Hash */}
-          <div className="flex items-center gap-[var(--space-2)] min-w-0">
+      <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
+        {/* Image banner with overlay controls */}
+        <div className="relative">
+          <ListingImage
+            tokenName={encryption.tokenName}
+            imageLink={encryption.imageLink}
+            size="md"
+            initialCached={initialCached}
+            initialBanned={initialBanned}
+            nsfw={encryption.nsfw}
+            nsfwEnabled={nsfwEnabled}
+          />
+          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)]">
+            <EncryptionStatusBadge status={encryption.status} />
+            {isOptimistic && (
+              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
+                {t('card.awaitingConfirmation')}
+              </span>
+            )}
             {onToggleFavorite && (
               <button
                 onClick={handleToggleFavorite}
-                className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer flex-shrink-0"
+                className="p-1 rounded-full bg-[var(--bg-card)]/80 backdrop-blur-sm text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
                 title={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-label={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-pressed={isFavorite}
@@ -213,31 +225,16 @@ function EncryptionCard({
                 </svg>
               </button>
             )}
-            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono tracking-wide truncate" />
-            <EncryptionStatusBadge status={encryption.status} />
-            {isOptimistic && (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse flex-shrink-0">
-                {t('card.awaitingConfirmation')}
-              </span>
-            )}
           </div>
-          {/* Row 2: Category (left) + Bid Count (right) */}
-          <div className="flex items-center justify-between">
-            {onFilterByCategory ? (
-              <button
-                type="button"
-                onClick={handleFilterByCategory}
-                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
-                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
-                className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
-              >
-                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
-              </button>
-            ) : (
-              <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] border bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-subtle)]">
-                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
-              </span>
-            )}
+        </div>
+
+        {/* Content */}
+        <div className={innerPadClass}>
+          {/* Hero price + bid count */}
+          <div className="flex items-baseline justify-between mb-[var(--space-2)]">
+            <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none`}>
+              {formatPrice(encryption.suggestedPrice)}
+            </p>
             {bidCount > 0 ? (
               <span
                 key={bidCount}
@@ -249,62 +246,93 @@ function EncryptionCard({
               <span className="text-xs text-[var(--text-muted)]">{t('card.noBids')}</span>
             )}
           </div>
-          {/* Row 3: Listed Date */}
-          <p className="text-xs text-[var(--text-muted)] text-center">
-            {t('card.listed', { date: formatDate(encryption.createdAt) })}
-          </p>
-        </div>
 
-        {/* Description */}
-        {encryption.description && (
-          <div
-            className={`${mbClass} p-[var(--space-3)] bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
-            onClick={() => setDescriptionModalOpen(true)}
-          >
+          {/* Description (no sub-card frame — competes with parent card) */}
+          {encryption.description && (
             <p
-              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
+              onClick={() => setDescriptionModalOpen(true)}
+              className={`text-sm text-[var(--text-secondary)] ${descClamp} mb-[var(--space-3)] cursor-pointer hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}
               title={encryption.description}
             >
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
-          </div>
-        )}
+          )}
 
-        {/* Image / Lock Icon */}
-        <ListingImage
-          tokenName={encryption.tokenName}
-          imageLink={encryption.imageLink}
-          size={imgSize}
-          initialCached={initialCached}
-          initialBanned={initialBanned}
-          nsfw={encryption.nsfw}
-          nsfwEnabled={nsfwEnabled}
-        />
+          {/* Action button + state messages */}
+          {canBid && onPlaceBid && (
+            <>
+              <button
+                id={tutorialTarget ? 'tutorial-place-bid' : undefined}
+                onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
+                disabled={hasLowBalance}
+                title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
+                className={`w-full px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
+              >
+                {hasLowBalance ? t('card.insufficientBalanceButton') : t('card.placeBid')}
+              </button>
+              {hasLowBalance && (
+                <p className="mt-[var(--space-1)] text-center text-xs text-[var(--error)]">{t('card.insufficientBalance')}</p>
+              )}
+            </>
+          )}
 
-        {/* Price */}
-        <div className={`text-center ${mbClass}`}>
-          <p className={`${priceClass} font-semibold text-[var(--accent)]`}>
-            {formatPrice(encryption.suggestedPrice)}
-          </p>
-        </div>
+          {hasBid && encryption.status === 'active' && !isOwnListing && (
+            <div className="text-center text-xs text-[var(--text-muted)]">
+              {t('card.youHaveBidOnListing')}
+            </div>
+          )}
 
-        {/* Seller Info */}
-        <div className="flex items-center justify-between py-[var(--space-3)] border-t border-[var(--border-subtle)]">
-          <span className="text-xs font-medium text-[var(--text-muted)]">{t('card.seller')}</span>
-          <div className="flex items-center gap-1.5">
+          {isOwnListing && (
+            <div className="text-center text-xs text-[var(--text-muted)]">
+              {t('card.thisIsYourListing')}
+            </div>
+          )}
+
+          {encryption.status === 'pending' && (
+            <div className="p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] text-center">
+              <p className="text-xs text-[var(--warning)]">{t('card.saleInProgress')}</p>
+            </div>
+          )}
+
+          {encryption.status === 'completed' && (
+            <div className="p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
+              <p className="text-xs text-[var(--success)]">{t('card.saleCompleted')}</p>
+            </div>
+          )}
+
+          {/* Footer meta — single quiet dot-separated row */}
+          <div className="mt-[var(--space-3)] pt-[var(--space-3)] border-t border-[var(--border-subtle)] flex items-center gap-[var(--space-2)] text-xs text-[var(--text-muted)] flex-wrap">
+            <TransactionLinkInline txHash={encryption.utxo.txHash} className="text-xs font-mono" />
+            <span aria-hidden="true">·</span>
+            {onFilterByCategory ? (
+              <button
+                type="button"
+                onClick={handleFilterByCategory}
+                title={t('card.filterByCategory', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                aria-label={t('card.filterByCategoryAria', { category: t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`) })}
+                className="hover:text-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
+              >
+                {t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}
+              </button>
+            ) : (
+              <span>{t(`common:categories.${getTopLevelCategory(encryption.category || 'text')}`)}</span>
+            )}
+            <span aria-hidden="true">·</span>
+            <span>{formatDate(encryption.createdAt)}</span>
+            <span aria-hidden="true">·</span>
             {onFilterBySeller ? (
               <button
                 type="button"
                 onClick={handleFilterBySeller}
                 title={t('card.filterBySeller')}
                 aria-label={t('card.filterBySellerAria')}
-                className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent)] hover:underline transition-colors duration-[var(--transition-fast)] cursor-pointer"
+                className="font-mono hover:text-[var(--accent)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
               >
-                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
+                <HighlightText text={truncateHex(encryption.sellerPkh, 8, 4)} query={searchQuery} />
               </button>
             ) : (
-              <span className="text-xs font-mono text-[var(--text-secondary)]">
-                <HighlightText text={truncateHex(encryption.sellerPkh, 10, 6)} query={searchQuery} />
+              <span className="font-mono">
+                <HighlightText text={truncateHex(encryption.sellerPkh, 8, 4)} query={searchQuery} />
               </span>
             )}
             <button
@@ -323,50 +351,13 @@ function EncryptionCard({
                 </svg>
               )}
             </button>
+            {encryption.nsfw && (
+              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white">
+                {t('card.nsfwBadge')}
+              </span>
+            )}
           </div>
         </div>
-
-        {/* Action Button */}
-        {canBid && onPlaceBid && (
-          <>
-            <button
-              id={tutorialTarget ? 'tutorial-place-bid' : undefined}
-              onClick={() => !hasLowBalance && onPlaceBid(encryption, bidCount)}
-              disabled={hasLowBalance}
-              title={hasLowBalance ? t('card.insufficientBalanceMinimum') : undefined}
-              className={`w-full mt-[var(--space-md)] px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base ${hasLowBalance ? 'cursor-not-allowed bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-subtle)]' : 'btn-primary'}`}
-            >
-              {hasLowBalance ? t('card.insufficientBalanceButton') : t('card.placeBid')}
-            </button>
-            {hasLowBalance && (
-              <p className="mt-[var(--space-1)] text-center text-xs text-[var(--error)]">{t('card.insufficientBalance')}</p>
-            )}
-          </>
-        )}
-
-        {hasBid && encryption.status === 'active' && !isOwnListing && (
-          <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
-            {t('card.youHaveBidOnListing')}
-          </div>
-        )}
-
-        {isOwnListing && (
-          <div className="mt-[var(--space-md)] text-center text-xs text-[var(--text-muted)]">
-            {t('card.thisIsYourListing')}
-          </div>
-        )}
-
-        {encryption.status === 'pending' && (
-          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] text-center">
-            <p className="text-xs text-[var(--warning)]">{t('card.saleInProgress')}</p>
-          </div>
-        )}
-
-        {encryption.status === 'completed' && (
-          <div className="mt-[var(--space-md)] p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center">
-            <p className="text-xs text-[var(--success)]">{t('card.saleCompleted')}</p>
-          </div>
-        )}
       </article>
 
       {/* Description Modal */}
