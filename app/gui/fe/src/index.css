@@ -704,6 +704,16 @@ select option {
   color: var(--accent);
 }
 
+/* EmptyState illustration: gentle float to suggest a "live" empty space */
+@keyframes empty-state-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.empty-state-float {
+  animation: empty-state-float 4s ease-in-out infinite;
+}
+
 /* Reduced motion: respect OS accessibility setting */
 @media (prefers-reduced-motion: reduce) {
   *,
