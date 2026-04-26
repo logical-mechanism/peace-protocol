@@ -425,15 +425,12 @@ export const chainApi = {
    * — the canonical tax-record source. Each row corresponds to one
    * post-SNARK re-encryption tx on chain where the user was either the
    * accepted bidder (Purchase) or the listing owner (Sale).
-   * Backend caches for 60s.
+   * Backend caches for 60s. Throws on backend failure so the caller can
+   * distinguish "no events on chain" from "Koios was unreachable".
    */
   async getReencryptionHistory(pkh: string): Promise<ReencryptionEvent[]> {
-    try {
-      const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(`/api/chain/reencryption-history/${pkh}`);
-      return response.data;
-    } catch {
-      return [];
-    }
+    const response = await apiFetch<ApiResponse<ReencryptionEvent[]>>(`/api/chain/reencryption-history/${pkh}`);
+    return response.data;
   },
 };
 

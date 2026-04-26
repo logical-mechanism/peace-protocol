@@ -311,6 +311,12 @@ function MySalesTab({
     if (!userPkh) return;
     try {
       const events = await chainApi.getReencryptionHistory(userPkh);
+      console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
+      if (events.length === 0) {
+        setExportMessage('No completed re-encryption events found on chain yet.');
+        setTimeout(() => setExportMessage(null), 5000);
+        return;
+      }
       const csv = reencryptionHistoryToCSV(events, userPkh);
       const filename = `veiled-tax-records-${new Date().toISOString().slice(0, 10)}.csv`;
       const result = await exportTextFile(csv, filename);
@@ -321,7 +327,7 @@ function MySalesTab({
     } catch (err) {
       console.error('Failed to export CSV:', err);
       setExportMessage(t('history.exportFailed'));
-      setTimeout(() => setExportMessage(null), 3000);
+      setTimeout(() => setExportMessage(null), 5000);
     }
   };
 

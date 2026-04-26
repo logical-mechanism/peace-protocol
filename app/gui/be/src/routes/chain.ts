@@ -320,6 +320,14 @@ router.get('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
       if (encryptionTxSet.has(t.tx_hash)) candidates.push(t.tx_hash);
     }
 
+    logger.info('reencryption-history: candidate scan', {
+      pkh,
+      encryptionTxs: encryptionAddrTxs.length,
+      biddingTxs: biddingAddrTxs.length,
+      candidates: candidates.length,
+      requestId: req.requestId,
+    });
+
     if (candidates.length === 0) {
       apiCache.set(cacheKey, [], CACHE_TTL_CHAIN);
       return res.json({ data: [] });
@@ -332,13 +340,35 @@ router.get('/reencryption-history/:pkh', validatePkhParam, async (req, res) => {
     const txInfos = await koios.getTxInfoWithAssets(recent);
 
     const events: ReencryptionEvent[] = [];
+    let skipNoBidInput = 0;
+    let skipNoSellerInput = 0;
+    let skipNoBuyerOutput = 0;
+    let skipParseFail = 0;
     for (const tx of txInfos) {
-      const ev = extractReencryptionEvent(tx, contracts);
-      if (!ev) continue;
-      if (ev.buyerPkh === pkh || ev.sellerPkh === pkh) {
-        events.push(ev);
+      const result = extractReencryptionEvent(tx, contracts);
+      if (typeof result === 'string') {
+        if (result === 'no-bid-input') skipNoBidInput++;
+        else if (result === 'no-seller-input') skipNoSellerInput++;
+        else if (result === 'no-buyer-output') skipNoBuyerOutput++;
+        else if (result === 'parse-fail') skipParseFail++;
+        continue;
+      }
+      if (result.buyerPkh === pkh || result.sellerPkh === pkh) {
+        events.push(result);
       }
     }
+
+    logger.info('reencryption-history: extraction summary', {
+      pkh,
+      fetched: txInfos.length,
+      extracted: txInfos.length - skipNoBidInput - skipNoSellerInput - skipNoBuyerOutput - skipParseFail,
+      skipNoBidInput,
+      skipNoSellerInput,
+      skipNoBuyerOutput,
+      skipParseFail,
+      matchedUser: events.length,
+      requestId: req.requestId,
+    });
 
     events.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -502,6 +532,11 @@ export interface ReencryptionEvent {
   futurePriceLovelace: number;
 }
 
+/** Reason codes returned when an extraction is skipped — surfaced in the
+ * route handler's summary log so empty exports can be debugged without
+ * round-tripping through stored Koios responses. */
+type ExtractSkipReason = 'no-bid-input' | 'no-seller-input' | 'no-buyer-output' | 'parse-fail';
+
 /**
  * Extract a re-encryption event from a tx that touches both contracts.
  * Re-encryption tx shape:
@@ -509,50 +544,76 @@ export interface ReencryptionEvent {
  *   - outputs: new encryption UTxO at encryptionAddress (datum.owner_vkh = buyerPkh, .new_price = future price),
  *              wallet payment to seller (lovelace = bid amount), seller's change/collateral
  *
+ * Contract inputs/outputs are identified primarily by **asset policy**
+ * because Koios doesn't always populate `payment_addr.bech32` on inputs
+ * — the bid UTxO carries a bidding-policy asset, the encryption UTxO
+ * carries an encryption-policy asset. `bech32` is kept as a fallback
+ * for environments where the policy carve-out is unreliable.
+ *
  * Seller PKH is recovered from the first non-contract input — the seller
  * is the only party who signs and provides funding for fees, so any
- * non-contract input cred is theirs.
+ * non-contract input cred is theirs (limitation noted in the route docs).
  */
 function extractReencryptionEvent(
   tx: TxInfoWithAssets,
   contracts: ReturnType<typeof getNetworkConfig>['contracts'],
-): ReencryptionEvent | null {
-  if (!contracts.encryptionAddress || !contracts.biddingAddress) return null;
-  if (!contracts.encryptionPolicyId) return null;
+): ReencryptionEvent | ExtractSkipReason {
+  if (!contracts.encryptionAddress || !contracts.biddingAddress) return 'no-bid-input';
+  if (!contracts.encryptionPolicyId || !contracts.biddingPolicyId) return 'no-bid-input';
+
+  const isBiddingInput = (inp: NonNullable<TxInfoWithAssets['inputs']>[number]) =>
+    inp.asset_list?.some((a) => a.policy_id === contracts.biddingPolicyId) ||
+    inp.payment_addr?.bech32 === contracts.biddingAddress;
+
+  const isContractInput = (inp: NonNullable<TxInfoWithAssets['inputs']>[number]) =>
+    inp.asset_list?.some(
+      (a) => a.policy_id === contracts.biddingPolicyId || a.policy_id === contracts.encryptionPolicyId,
+    ) ||
+    inp.payment_addr?.bech32 === contracts.biddingAddress ||
+    inp.payment_addr?.bech32 === contracts.encryptionAddress;
 
   let bidAmountLovelace = 0;
   let foundBidInput = false;
   for (const inp of tx.inputs ?? []) {
-    if (inp.payment_addr?.bech32 === contracts.biddingAddress) {
+    if (isBiddingInput(inp)) {
       bidAmountLovelace = parseInt(inp.value || '0', 10) || 0;
       foundBidInput = true;
       break;
     }
   }
-  if (!foundBidInput) return null;
+  if (!foundBidInput) return 'no-bid-input';
 
   let sellerPkh = '';
   for (const inp of tx.inputs ?? []) {
     const cred = inp.payment_addr?.cred;
-    const bech = inp.payment_addr?.bech32;
     if (!cred) continue;
-    if (bech === contracts.encryptionAddress || bech === contracts.biddingAddress) continue;
+    if (isContractInput(inp)) continue;
     sellerPkh = cred;
     break;
   }
-  if (!sellerPkh) return null;
+  if (!sellerPkh) return 'no-seller-input';
 
   let buyerPkh = '';
   let encryptionTokenName = '';
   let futurePriceLovelace = 0;
+  let sawEncryptionOutput = false;
+  let parseFailed = false;
   for (const out of tx.outputs) {
-    if (out.payment_addr?.bech32 !== contracts.encryptionAddress) continue;
+    const matchesByAddress = out.payment_addr?.bech32 === contracts.encryptionAddress;
+    const matchesByPolicy = out.asset_list?.some((a) => a.policy_id === contracts.encryptionPolicyId);
+    if (!matchesByAddress && !matchesByPolicy) continue;
+    sawEncryptionOutput = true;
     if (!out.inline_datum?.value) continue;
     try {
       const datum = parseEncryptionDatum(out.inline_datum.value);
       buyerPkh = datum.owner_vkh;
       futurePriceLovelace = datum.new_price;
-    } catch {
+    } catch (err) {
+      parseFailed = true;
+      logger.warn('reencryption-history: encryption datum parse failed', {
+        tx: tx.tx_hash,
+        error: String(err),
+      });
       continue;
     }
     if (out.asset_list) {
@@ -561,7 +622,11 @@ function extractReencryptionEvent(
     }
     break;
   }
-  if (!buyerPkh || !encryptionTokenName) return null;
+  if (!buyerPkh || !encryptionTokenName) {
+    if (parseFailed) return 'parse-fail';
+    if (!sawEncryptionOutput) return 'no-buyer-output';
+    return 'no-buyer-output';
+  }
 
   const epochSeconds = tx.tx_timestamp ?? tx.block_time ?? 0;
   return {
