@@ -463,9 +463,10 @@ export interface ReencryptionHistoryMeta {
   fetched: number;
   extracted: number;
   skipNoBidInput: number;
-  skipNoSellerInput: number;
   skipNoBuyerOutput: number;
   skipParseFail: number;
+  /** Re-encryption events successfully extracted but with no recoverable seller PKH. */
+  extractedNoSeller: number;
   matchedUser: number;
 }
 

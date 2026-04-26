@@ -397,18 +397,18 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
 
     const events: ReencryptionEvent[] = [];
     let skipNoBidInput = 0;
-    let skipNoSellerInput = 0;
     let skipNoBuyerOutput = 0;
     let skipParseFail = 0;
+    let extractedNoSeller = 0;
     for (const tx of txInfos) {
       const result = extractReencryptionEvent(tx, contracts);
       if (typeof result === 'string') {
         if (result === 'no-bid-input') skipNoBidInput++;
-        else if (result === 'no-seller-input') skipNoSellerInput++;
         else if (result === 'no-buyer-output') skipNoBuyerOutput++;
         else if (result === 'parse-fail') skipParseFail++;
         continue;
       }
+      if (!result.sellerPkh) extractedNoSeller++;
       const lowerPkh = pkh.toLowerCase();
       if (
         result.buyerPkh.toLowerCase() === lowerPkh ||
@@ -424,11 +424,11 @@ router.post('/reencryption-history/:pkh', validatePkhParam, async (req, res) => 
       sellerSideHashes: sellerSideHashes.size,
       candidates: candidateHashes.size,
       fetched: txInfos.length,
-      extracted: txInfos.length - skipNoBidInput - skipNoSellerInput - skipNoBuyerOutput - skipParseFail,
+      extracted: txInfos.length - skipNoBidInput - skipNoBuyerOutput - skipParseFail,
       skipNoBidInput,
-      skipNoSellerInput,
       skipNoBuyerOutput,
       skipParseFail,
+      extractedNoSeller,
       matchedUser: events.length,
     };
 
@@ -608,7 +608,7 @@ export interface ReencryptionEvent {
 /** Reason codes returned when an extraction is skipped — surfaced in the
  * route handler's summary log so empty exports can be debugged without
  * round-tripping through stored Koios responses. */
-type ExtractSkipReason = 'no-bid-input' | 'no-seller-input' | 'no-buyer-output' | 'parse-fail';
+type ExtractSkipReason = 'no-bid-input' | 'no-buyer-output' | 'parse-fail';
 
 /**
  * Extract a re-encryption event from a tx that touches both contracts.
@@ -656,15 +656,38 @@ function extractReencryptionEvent(
   }
   if (!foundBidInput) return 'no-bid-input';
 
+  // Try several strategies to find the seller's wallet PKH. None are
+  // guaranteed (some PEACE re-encryption txs evidently have no wallet
+  // input cred in tx_info — likely paid via collateral / aggregator
+  // pattern), so this is best-effort. A row is still emitted for the
+  // buyer's tax record even when sellerPkh stays empty.
   let sellerPkh = '';
-  for (const inp of tx.inputs ?? []) {
-    const cred = inp.payment_addr?.cred;
+  // Strategy 1: an output paying out the bid amount to a non-contract
+  // address. The seller is the only party who receives the bid lovelace
+  // in the re-encryption — locating that output is far more reliable
+  // than guessing from inputs.
+  for (const out of tx.outputs) {
+    const bech = out.payment_addr?.bech32;
+    const cred = out.payment_addr?.cred;
     if (!cred) continue;
-    if (isContractInput(inp)) continue;
-    sellerPkh = cred;
-    break;
+    if (bech === contracts.encryptionAddress || bech === contracts.biddingAddress) continue;
+    const lovelace = parseInt(out.value || '0', 10) || 0;
+    if (lovelace >= bidAmountLovelace && bidAmountLovelace > 0) {
+      sellerPkh = cred;
+      break;
+    }
   }
-  if (!sellerPkh) return 'no-seller-input';
+  // Strategy 2 (fallback): first non-contract input cred. Only useful
+  // when wallet-fee inputs are present; many PEACE txs don't have them.
+  if (!sellerPkh) {
+    for (const inp of tx.inputs ?? []) {
+      const cred = inp.payment_addr?.cred;
+      if (!cred) continue;
+      if (isContractInput(inp)) continue;
+      sellerPkh = cred;
+      break;
+    }
+  }
 
   let buyerPkh = '';
   let encryptionTokenName = '';
