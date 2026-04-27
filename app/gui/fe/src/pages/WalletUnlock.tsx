@@ -76,10 +76,19 @@ export default function WalletUnlock() {
   return (
     <main
       id="main-content"
-      className="min-h-screen flex items-center justify-center p-8"
+      className="relative min-h-screen flex items-center justify-center p-8 overflow-hidden"
       style={{ background: 'var(--bg-primary)' }}
     >
-      <div className="w-full max-w-md">
+      {/* Atmospheric backdrop — radial accent halo centered behind the card */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 50%, var(--accent-muted) 0%, transparent 50%)',
+        }}
+      />
+      <div className="relative w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <h1
