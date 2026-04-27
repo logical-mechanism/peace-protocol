@@ -403,23 +403,14 @@ export default function WalletSetup() {
               <div className="flex gap-[var(--space-3)]">
                 <button
                   onClick={handleCopyMnemonic}
-                  className="px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm cursor-pointer"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="px-[var(--space-md)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm btn-base btn-tertiary"
                 >
                   {copied ? t('setup.create.copied') : t('setup.create.copyToClipboard')}
                 </button>
                 <div className="flex-1" />
                 <button
                   onClick={() => setCreateStep('verify')}
-                  className="px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer"
-                  style={{
-                    background: 'var(--accent)',
-                    color: '#fff',
-                  }}
+                  className="px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
                 >
                   {t('setup.create.wroteItDown')}
                 </button>
@@ -457,13 +448,7 @@ export default function WalletSetup() {
               <button
                 onClick={() => setCreateStep('password')}
                 disabled={!verificationPassed}
-                className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: verificationPassed
-                    ? 'var(--accent)'
-                    : 'var(--bg-elevated)',
-                  color: '#fff',
-                }}
+                className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
               >
                 {t('setup.create.continue')}
               </button>
@@ -510,11 +495,7 @@ export default function WalletSetup() {
                 setImportStep('enter')
               }
             }}
-            className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-lg text-sm cursor-pointer"
-            style={{
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
-            }}
+            className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-[var(--radius-md)] text-sm btn-base btn-tertiary"
           >
             {t('setup.back')}
           </button>
@@ -548,12 +529,7 @@ export default function WalletSetup() {
               <button
                 type="button"
                 onClick={handleBulkPaste}
-                className="ml-[var(--space-md)] px-[var(--space-3)] py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer"
-                style={{
-                  color: 'var(--accent)',
-                  border: '1px solid var(--accent)',
-                  background: 'transparent',
-                }}
+                className="ml-[var(--space-md)] px-[var(--space-3)] py-1.5 rounded-[var(--radius-md)] text-xs whitespace-nowrap btn-base btn-secondary"
               >
                 {t('setup.import.pasteAll')}
               </button>
@@ -592,11 +568,7 @@ export default function WalletSetup() {
                 setImportStep('password')
               }}
               disabled={!importValid}
-              className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: importValid ? 'var(--accent)' : 'var(--bg-elevated)',
-                color: '#fff',
-              }}
+              className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
             >
               {t('setup.import.continue')}
             </button>
@@ -763,14 +735,8 @@ function PasswordForm({
       <button
         onClick={onSubmit}
         disabled={!passwordValid || isSubmitting}
-        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{
-          background: passwordValid && !isSubmitting
-            ? 'var(--accent)'
-            : 'var(--bg-elevated)',
-          color: '#fff',
-          transition: 'none',
-        }}
+        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium flex items-center justify-center gap-2 btn-base btn-primary"
+        style={{ transition: 'none' }}
       >
         {isSubmitting && <LoadingSpinner size="sm" className="text-white" />}
         {isSubmitting ? t('setup.password.creating') : t('setup.password.submit')}
