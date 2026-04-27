@@ -579,8 +579,8 @@ export default function Dashboard() {
     <div className="min-h-screen">
       {/* Navigation */}
       <nav className="h-16 border-b border-[var(--border-subtle)] px-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold">{t('dashboard:shell.appName')}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold mr-1">{t('dashboard:shell.appName')}</h1>
           <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
             {t('dashboard:shell.networkPreprod')}
@@ -849,7 +849,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -867,7 +867,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -880,7 +880,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
@@ -893,7 +893,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
