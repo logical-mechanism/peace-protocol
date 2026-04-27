@@ -21,6 +21,7 @@ import LayoutPopover from './LayoutPopover';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
+import { fuzzyMatch } from '../utils/fuzzySearch';
 import { getNsfwEnabled } from '../services/nsfwStorage';
 import { getOnboardingState } from '../services/onboardingStorage';
 import { truncateHex } from '../utils/truncate';
@@ -245,6 +246,24 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
 
   const activeFilterCount = useMemo(() => countActiveFilters(filterParams), [filterParams]);
   const panelFilterCount = useMemo(() => countPanelFilters(filterParams), [filterParams]);
+
+  // Fuzzy near-match suggestion — when search yields zero exact matches, find the
+  // best fuzzy match across all listing descriptions so we can offer "did you mean."
+  // Only computed when filtered is empty AND search is non-empty (cheap fallback).
+  const fuzzyNearMatch = useMemo(() => {
+    if (filteredAndSorted.length > 0) return null;
+    if (!debouncedSearch.trim()) return null;
+    let best: { description: string; score: number } | null = null;
+    for (const e of encryptions) {
+      if (!e.description) continue;
+      const { match, score } = fuzzyMatch(debouncedSearch, e.description);
+      if (match && (!best || score > best.score)) {
+        best = { description: e.description, score };
+      }
+    }
+    // Only suggest if the fuzzy score is reasonable (subsequence or better)
+    return best && best.score >= 0.4 ? best : null;
+  }, [filteredAndSorted.length, debouncedSearch, encryptions]);
 
   // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 24;
@@ -773,12 +792,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
             title={t('marketplace.noMatchingTitle')}
             description={t('marketplace.noMatchingDesc')}
             action={
-              <button
-                onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-              >
-                {t('filters.clearFilters')}
-              </button>
+              <div className="flex flex-col items-center gap-3">
+                {fuzzyNearMatch && (
+                  <button
+                    onClick={() => {
+                      // Take the first ~30 chars of the matched description as the new search seed
+                      const snippet = fuzzyNearMatch.description.slice(0, 30).trim();
+                      dispatch({ type: 'SET_SEARCH', payload: snippet });
+                    }}
+                    className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-secondary"
+                  >
+                    {t('marketplace.didYouMean', { snippet: fuzzyNearMatch.description.length > 40 ? fuzzyNearMatch.description.slice(0, 40) + '…' : fuzzyNearMatch.description })}
+                  </button>
+                )}
+                <button
+                  onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                >
+                  {t('filters.clearFilters')}
+                </button>
+              </div>
             }
           />
         ) : (

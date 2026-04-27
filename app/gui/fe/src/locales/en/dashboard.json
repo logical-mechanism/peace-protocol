@@ -150,6 +150,7 @@
     "activeFilters_other": "{{count}} filters active — Clear",
     "noMatchingTitle": "No matching listings",
     "noMatchingDesc": "Try adjusting your search or filters",
+    "didYouMean": "Did you mean: \"{{snippet}}\"?",
     "emptyTitle": "No listings available yet",
     "emptyDesc": "Be the first to create one!",
     "createListing": "Create Listing",
