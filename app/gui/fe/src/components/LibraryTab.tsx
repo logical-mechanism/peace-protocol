@@ -412,36 +412,37 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        {/* Search */}
-        <div className="flex-1 relative">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+      {/* Toolbar — single framed container (matches Marketplace) */}
+      <div className="mb-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-2)]">
+        <div className="flex flex-col md:flex-row gap-[var(--space-2)]">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder={t('library.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
+              aria-label={t('library.searchAria')}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-transparent border border-transparent rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:bg-[var(--bg-primary)] focus:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]"
             />
-          </svg>
-          <input
-            type="text"
-            placeholder={t('library.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label={t('library.searchAria')}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
-          />
-        </div>
+          </div>
 
-        {/* Filters */}
-        <div className="flex gap-3">
+          {/* Filters */}
+          <div className="flex gap-[var(--space-2)]">
           {/* Category Filter */}
           <div className="w-44">
             <Select
@@ -512,6 +513,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           >
             {selectMode ? <><span>{t('library.cancelButton')}</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">{t('library.escKey')}</kbd></> : t('library.selectButton')}
           </button>
+        </div>
         </div>
       </div>
 
