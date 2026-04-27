@@ -778,7 +778,7 @@ function MyPurchasesTab({
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((bid, index) => (
-            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={bid.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}
