@@ -27,10 +27,27 @@
   --text-secondary: #a1a1a1;
   --text-muted: #9ca3af;
 
-  /* Accent - phosphor green; cypherpunk identity, distinct from every SaaS indigo */
-  --accent: #4ade80;
-  --accent-hover: #86efac;
-  --accent-muted: rgba(74, 222, 128, 0.15);
+  /* "Dusk" palette — three-color system for richer hierarchy than a single accent.
+   *
+   *   --accent       muted lilac   primary actions, focus rings, hover borders,
+   *                                active tab indicator, anything "interactive"
+   *   --accent-text  soft mint     static values that read as "live / verified":
+   *                                prices, balance, stats counts. Never used as
+   *                                a fill color — text/icons only.
+   *   --link         warm sand     inline navigational text: "view full",
+   *                                "read more", clickable affordances. Distinct
+   *                                from --accent so links don't read as buttons.
+   *
+   * Status colors (--success/--warning/--error) keep their original roles. */
+  --accent: #9683c8;
+  --accent-hover: #b3a3d6;
+  --accent-muted: rgba(150, 131, 200, 0.15);
+
+  --accent-text: #7dd3a3;
+  --accent-text-muted: rgba(125, 211, 163, 0.15);
+
+  --link: #d4a574;
+  --link-hover: #e0b88a;
 
   /* Semantic */
   --success: #22c55e;
@@ -107,7 +124,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 24px rgba(74, 222, 128, 0.35);
+  --shadow-glow: 0 0 24px rgba(150, 131, 200, 0.35);
 
   /* Backdrop overlay (modal scrims) — replaces hardcoded bg-black/60 in modals */
   --backdrop-overlay: rgba(0, 0, 0, 0.6);
@@ -144,10 +161,17 @@
   --text-secondary: #525252;
   --text-muted: #6b7280;
 
-  /* Accent — darker green for AA contrast on light bg */
-  --accent: #16a34a;
-  --accent-hover: #15803d;
-  --accent-muted: rgba(22, 163, 74, 0.12);
+  /* Dusk palette — darker variants of the dark-theme tokens for AA contrast on
+   * light backgrounds. Same semantic roles. */
+  --accent: #6d5fa1;
+  --accent-hover: #5a4d8a;
+  --accent-muted: rgba(109, 95, 161, 0.12);
+
+  --accent-text: #16a34a;
+  --accent-text-muted: rgba(22, 163, 74, 0.12);
+
+  --link: #a86f3a;
+  --link-hover: #8c5a2c;
 
   /* Semantic — same hues, slightly adjusted for light bg */
   --success: #16a34a;
@@ -161,7 +185,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 0 24px rgba(22, 163, 74, 0.25);
+  --shadow-glow: 0 0 24px rgba(109, 95, 161, 0.25);
   --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 
   color-scheme: light;
@@ -725,18 +749,14 @@ select option {
 
 /* Transaction success celebration — single restrained beat, ~600ms.
  * Used for the moments that matter most in the protocol: bid acceptance,
- * decryption completion, first wallet creation. One memorable beat is
- * worth ten micro-interactions. */
+ * decryption completion, first wallet creation. The glow is mint
+ * (--accent-text), not lilac, because the celebration semantically belongs
+ * to the "verified / completed" color family, not the "interactive action"
+ * family. One memorable beat is worth ten micro-interactions. */
 @keyframes tx-celebration {
-  0%   { transform: scale(1);    box-shadow: var(--shadow-glow); }
-  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(74, 222, 128, 0.6); }
-  100% { transform: scale(1);    box-shadow: var(--shadow-glow); }
-}
-
-[data-theme="light"] @keyframes tx-celebration {
-  0%   { transform: scale(1);    box-shadow: var(--shadow-glow); }
-  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(22, 163, 74, 0.45); }
-  100% { transform: scale(1);    box-shadow: var(--shadow-glow); }
+  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(125, 211, 163, 0); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(125, 211, 163, 0.55); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 rgba(125, 211, 163, 0); }
 }
 
 .tx-celebration {
@@ -754,7 +774,7 @@ select option {
 
 .tx-celebration-icon {
   animation: tx-celebration-icon 500ms ease-out;
-  filter: drop-shadow(0 0 4px var(--accent));
+  filter: drop-shadow(0 0 4px var(--accent-text));
 }
 
 /* Background refresh indicator — indeterminate bar sliding left-to-right */

@@ -152,7 +152,7 @@ function EncryptionCard({
             * number on this row. text-xl + tracking-tight + tabular-nums keeps
             * the digits aligned across stacked compact cards. */}
           <div className="flex items-center justify-between">
-            <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent)]">
+            <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
               {formatPrice(encryption.suggestedPrice)}
             </span>
             {canBid && onPlaceBid && (
@@ -240,13 +240,13 @@ function EncryptionCard({
 
           {/* Hero price + bid count */}
           <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent)] leading-none whitespace-nowrap`}>
+            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent-text)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
             </p>
             {bidCount > 0 ? (
               <span
                 key={bidCount}
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium whitespace-nowrap flex-shrink-0${hasBidPulse ? ' bid-pulse' : ''}`}
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-text-muted)] text-[var(--accent-text)] font-medium whitespace-nowrap flex-shrink-0${hasBidPulse ? ' bid-pulse' : ''}`}
               >
                 {t('card.bid', { count: bidCount })}
               </span>
@@ -271,7 +271,7 @@ function EncryptionCard({
               <p className={`text-sm text-[var(--text-secondary)] ${descClamp} group-hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}>
                 <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
               </p>
-              <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--transition-fast)]">
+              <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--link)] opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--transition-fast)]">
                 {t('card.viewFull', { defaultValue: 'View full' })}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

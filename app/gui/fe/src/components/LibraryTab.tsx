@@ -618,7 +618,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           </span>
           <button
             onClick={handleSelectAll}
-            className="text-sm text-[var(--accent)] hover:underline cursor-pointer"
+            className="text-sm text-[var(--link)] hover:text-[var(--link-hover)] hover:underline cursor-pointer"
           >
             {t('library.selectAll')}
           </button>

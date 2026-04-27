@@ -134,7 +134,7 @@ function SalesListingCard({
           {/* Row 3: Price + Actions */}
           <div className="flex items-center justify-between gap-[var(--space-md)]">
             <div className="flex items-center gap-[var(--space-2)]">
-              <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent)] inline-flex items-center gap-[var(--space-1)]">
+              <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent-text)] inline-flex items-center gap-[var(--space-1)]">
                 {formatPrice(encryption.suggestedPrice)}
                 {isActive && !isOptimistic && onUpdatePrice && (
                   <button
@@ -243,7 +243,7 @@ function SalesListingCard({
 
           {/* Hero: price + storage layer */}
           <div className="flex items-center justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent)] inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap`}>
+            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent-text)] inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
               {isActive && !isOptimistic && onUpdatePrice && (
                 <button
