@@ -197,9 +197,9 @@ export default function DecryptModal({
 
       {/* Modal — overflow-hidden moved off the panel so focus outlines on
        * edge-adjacent buttons aren't clipped in WebKit. */}
-      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-lg)]">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="decrypt-modal-title" className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success'
@@ -587,7 +587,7 @@ export default function DecryptModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
+        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
           {state === 'idle' && (
             // flex-row-reverse: Decrypt Now is first in DOM so it receives
             // initial focus; Cancel stays visually on the left.
