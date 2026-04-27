@@ -19,6 +19,8 @@
     "iagonOffline": "Iagon Offline",
     "iagonOfflineTitle": "Iagon not connected - click to configure",
     "collateralSet": "Collateral Set",
+    "allSystemsReady": "All Systems Ready",
+    "allSystemsReadyTitle": "Hover to see node, prover, Iagon, and collateral status",
     "noCollateral": "No Collateral",
     "noCollateralTitle": "No collateral UTxO found — click to set up in Settings",
     "createListing": "Create Listing",

@@ -575,6 +575,16 @@ export default function Dashboard() {
   const tabPanelClass = (tabId: TabId) =>
     activeTab !== tabId ? 'hidden' : undefined
 
+  // Collapse the four healthy-state pills into a single "All Systems Ready" pill
+  // when node, prover, iagon, collateral are all good. The collapsed pill expands
+  // on hover/focus to reveal each individual status.
+  const allSystemsReady =
+    nodeStage === 'synced' &&
+    wasmReady &&
+    effects.iagonConnected &&
+    !walletHealth.isChecking &&
+    walletHealth.hasCollateral
+
   return (
     <div className="min-h-screen">
       {/* Navigation */}
@@ -585,8 +595,44 @@ export default function Dashboard() {
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
             {t('dashboard:shell.networkPreprod')}
           </span>
-          {/* Node Sync Indicator */}
-          {nodeStage === 'synced' ? (
+          {/* Collapsed "All Systems Ready" pill — shown when all four are healthy */}
+          {allSystemsReady && (
+            <div className="relative group">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full cursor-default"
+                title={t('dashboard:shell.allSystemsReadyTitle')}
+                aria-label={t('dashboard:shell.allSystemsReadyTitle')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                {t('dashboard:shell.allSystemsReady')}
+              </button>
+              {/* Hover/focus popover reveals each individual system status */}
+              <div
+                className="absolute top-full left-0 mt-2 hidden group-hover:flex group-focus-within:flex flex-col gap-1.5 p-2 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[var(--radius-md)] shadow-lg z-50 whitespace-nowrap"
+                role="tooltip"
+              >
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.nodeReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.proverReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.iagonReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.collateralSet')}
+                </span>
+              </div>
+            </div>
+          )}
+          {/* Node Sync Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : nodeStage === 'synced' ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.nodeReady')}
@@ -628,8 +674,8 @@ export default function Dashboard() {
               {t('dashboard:shell.nodeOffline')}
             </button>
           )}
-          {/* WASM Prover Indicator */}
-          {wasmReady ? (
+          {/* WASM Prover Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : wasmReady ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.proverReady')}
@@ -644,8 +690,8 @@ export default function Dashboard() {
               {t('dashboard:shell.proverProgress', { count: Math.round(wasmProgress) })}
             </button>
           ) : null}
-          {/* Iagon Connection Indicator */}
-          {effects.iagonConnected ? (
+          {/* Iagon Connection Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : effects.iagonConnected ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.iagonReady')}
@@ -660,8 +706,8 @@ export default function Dashboard() {
               {t('dashboard:shell.iagonOffline')}
             </button>
           )}
-          {/* Collateral Indicator */}
-          {nodeStage === 'synced' && !walletHealth.isChecking && (
+          {/* Collateral Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : nodeStage === 'synced' && !walletHealth.isChecking && (
             walletHealth.hasCollateral ? (
               <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
