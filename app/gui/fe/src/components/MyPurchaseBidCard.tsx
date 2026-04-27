@@ -222,7 +222,7 @@ function MyPurchaseBidCard({
         )}
 
         {/* Hero: bid amount */}
-        <div className="flex items-baseline justify-between mb-[var(--space-2)] gap-[var(--space-2)]">
+        <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
           <p className={`text-2xl font-semibold inline-flex items-center gap-[var(--space-1)] leading-none ${
             isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
           }`}>
@@ -255,7 +255,7 @@ function MyPurchaseBidCard({
 
         {/* Status Message */}
         {statusMessage && (
-          <div className={`p-[var(--space-3)] rounded-[var(--radius-md)] mb-[var(--space-2)] ${
+          <div className={`p-[var(--space-3)] rounded-[var(--radius-md)] mb-[var(--space-3)] ${
             decryptFailed && isAccepted
               ? 'bg-[var(--warning-muted)]'
               : isAccepted
@@ -280,7 +280,7 @@ function MyPurchaseBidCard({
 
         {/* Lock Status */}
         {isPending && isLocked && (
-          <div className="p-[var(--space-3)] rounded-[var(--radius-md)] bg-[var(--bg-secondary)] mb-[var(--space-2)]">
+          <div className="p-[var(--space-3)] rounded-[var(--radius-md)] bg-[var(--bg-secondary)] mb-[var(--space-3)]">
             <p className="text-xs text-[var(--text-muted)]">
               {t('card.bidLockedUntil', { date: new Date(bid.lockedUntil).toLocaleString() })}
             </p>

@@ -242,7 +242,7 @@ function SalesListingCard({
         {/* Content */}
         <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero: price + storage layer */}
-          <div className="flex items-center justify-between mb-[var(--space-2)] gap-[var(--space-2)]">
+          <div className="flex items-center justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
             <p className={`${priceClass} font-semibold text-[var(--accent)] inline-flex items-center gap-[var(--space-1)] leading-none`}>
               {formatPrice(encryption.suggestedPrice)}
               {isActive && !isOptimistic && onUpdatePrice && (
@@ -282,7 +282,7 @@ function SalesListingCard({
 
           {/* Pending Status Info (with TTL countdown) */}
           {isPending && (
-            <div className="p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] mb-[var(--space-2)]">
+            <div className="p-[var(--space-3)] bg-[var(--warning-muted)] rounded-[var(--radius-md)] mb-[var(--space-3)]">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-[var(--warning)]">{t('card.saleInProgress')}</p>
                 {pendingTTL && (
@@ -297,7 +297,7 @@ function SalesListingCard({
 
           {/* Completed Status Info */}
           {isCompleted && (
-            <div className="p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center mb-[var(--space-2)]">
+            <div className="p-[var(--space-3)] bg-[var(--success-muted)] rounded-[var(--radius-md)] text-center mb-[var(--space-3)]">
               <p className="text-xs font-medium text-[var(--success)]">{t('card.saleCompleted')}</p>
             </div>
           )}

@@ -307,7 +307,7 @@ function LibraryCard({
         {/* Content */}
         <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero: token name + file size */}
-          <div className="flex items-baseline justify-between mb-[var(--space-2)] gap-[var(--space-2)]">
+          <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
             <span
               className="font-mono text-sm text-[var(--text-primary)] truncate"
               title={item.tokenName}

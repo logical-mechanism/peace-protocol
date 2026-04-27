@@ -236,7 +236,7 @@ function EncryptionCard({
         {/* Content */}
         <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero price + bid count */}
-          <div className="flex items-baseline justify-between mb-[var(--space-2)]">
+          <div className="flex items-baseline justify-between mb-[var(--space-3)]">
             <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none`}>
               {formatPrice(encryption.suggestedPrice)}
             </p>
