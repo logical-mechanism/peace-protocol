@@ -296,7 +296,7 @@ function LibraryCard({
             </div>
           )}
           {/* Top-right: category + missing badges */}
-          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)]">
+          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
             <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
             {item.contentMissing && (
               <Badge variant="warning">{t('library.missingBadge')}</Badge>

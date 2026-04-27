@@ -229,7 +229,7 @@ function SalesListingCard({
             nsfw={encryption.nsfw}
             nsfwEnabled={nsfwEnabled}
           />
-          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)]">
+          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">

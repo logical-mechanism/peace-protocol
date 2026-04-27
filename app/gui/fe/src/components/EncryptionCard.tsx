@@ -205,7 +205,12 @@ function EncryptionCard({
             nsfw={encryption.nsfw}
             nsfwEnabled={nsfwEnabled}
           />
-          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)]">
+          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
+            {encryption.nsfw && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white">
+                {t('card.nsfwBadge')}
+              </span>
+            )}
             <EncryptionStatusBadge status={encryption.status} />
             {isOptimistic && (
               <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
@@ -215,7 +220,7 @@ function EncryptionCard({
             {onToggleFavorite && (
               <button
                 onClick={handleToggleFavorite}
-                className="p-1 rounded-full bg-[var(--bg-card)]/80 backdrop-blur-sm text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
                 title={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-label={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-pressed={isFavorite}
@@ -351,11 +356,6 @@ function EncryptionCard({
                 </svg>
               )}
             </button>
-            {encryption.nsfw && (
-              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white">
-                {t('card.nsfwBadge')}
-              </span>
-            )}
           </div>
         </div>
       </article>
