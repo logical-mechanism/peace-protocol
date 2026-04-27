@@ -661,7 +661,7 @@ export default function CreateListingModal({
           <div className="p-6 space-y-5">
             {/* Draft restoration prompt */}
             {showDraftPrompt && (
-              <div className="p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
+              <div className="p-3 bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
                 <p className="text-sm text-[var(--text-primary)] mb-2">
                   {t('modals:createListing.draftPrompt')}
                 </p>
@@ -1162,7 +1162,7 @@ export default function CreateListingModal({
           {/* Footer */}
           <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             {/* Info box about what happens next */}
-            <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
+            <div className="mb-4 p-3 bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
                 <strong>{t('modals:createListing.infoNoteLabel')}</strong> {t('modals:createListing.infoNoteCore')}
                 {' '}{isFileMode
