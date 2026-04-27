@@ -325,8 +325,8 @@ function LibraryCard({
           </p>
         </div>
 
-        {/* Description */}
-        {item.description ? (
+        {/* Description (omit entirely when absent — equal-height fix from L3 will absorb the gap) */}
+        {item.description && (
           <div
             className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
             onClick={() => setDescriptionModalOpen(true)}
@@ -340,12 +340,6 @@ function LibraryCard({
               ) : (
                 truncateDescription(item.description)
               )}
-            </p>
-          </div>
-        ) : (
-          <div className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]`}>
-            <p className={`text-sm font-medium text-[var(--text-muted)] ${descClamp}`}>
-              {t('library.noDescription')}
             </p>
           </div>
         )}
