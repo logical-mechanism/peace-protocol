@@ -258,46 +258,46 @@ export default function WalletSetup() {
         className="min-h-screen flex items-center justify-center p-[var(--space-xl)]"
         style={{ background: 'var(--bg-primary)' }}
       >
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-[var(--space-12)]">
-            <h1
-              className="text-4xl font-bold mb-[var(--space-3)]"
-              style={{ color: 'var(--text-primary)' }}
-            >
+        <div className="relative w-full max-w-lg">
+          {/* Soft accent halo behind the welcome heading */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-48 pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse at 50% 0%, var(--accent-muted) 0%, transparent 60%)',
+            }}
+          />
+          <div className="relative text-center mb-[var(--space-lg)]">
+            <h1 className="text-4xl font-bold mb-[var(--space-2)] text-[var(--text-primary)]">
               {t('appName')}
             </h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              {t('setup.tagline')}
-            </p>
+            <p className="text-[var(--text-secondary)]">{t('setup.tagline')}</p>
           </div>
 
-          <div className="space-y-[var(--space-md)]">
+          <div className="relative space-y-[var(--space-md)]">
+            {/* Primary: Create new wallet */}
             <button
               onClick={() => setMode('create')}
-              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-[var(--radius-lg)] text-left btn-base btn-primary"
             >
-              <div
-                className="text-lg font-semibold mb-[var(--space-1)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <div className="text-lg font-semibold mb-[var(--space-1)] text-white">
                 {t('setup.chooseCreateTitle')}
               </div>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm text-white/80">
                 {t('setup.chooseCreateSubtitle')}
               </div>
             </button>
 
+            {/* Secondary: Import existing */}
             <button
               onClick={() => setMode('import')}
-              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-[var(--radius-lg)] text-left bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent)] hover:bg-[var(--bg-card-hover)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
             >
-              <div
-                className="text-lg font-semibold mb-[var(--space-1)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <div className="text-lg font-semibold mb-[var(--space-1)] text-[var(--text-primary)]">
                 {t('setup.chooseImportTitle')}
               </div>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm text-[var(--text-secondary)]">
                 {t('setup.chooseImportSubtitle')}
               </div>
             </button>
