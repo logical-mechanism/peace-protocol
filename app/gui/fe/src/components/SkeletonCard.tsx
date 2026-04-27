@@ -3,6 +3,8 @@
  * Uses skeleton-shimmer CSS class for a sweeping gradient animation.
  */
 
+import { DelayedSpinner } from './LoadingSpinner';
+
 interface SkeletonCardProps {
   compact?: boolean;
 }
@@ -79,22 +81,27 @@ interface SkeletonGridProps {
 
 /** Grid of skeleton cards matching the standard tab grid layout. */
 export function SkeletonGrid({ count = 8, compact = false }: SkeletonGridProps) {
-  if (compact) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: count }, (_, i) => (
-          <SkeletonCard key={i} compact />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard key={i} />
-      ))}
-    </div>
+    <>
+      {/* Subtle delayed spinner — appears only when the load takes >600ms,
+          giving silent visual feedback without spamming "Loading..." text. */}
+      <div className="flex justify-center mb-4 opacity-60" aria-hidden="true">
+        <DelayedSpinner size="sm" delay={600} label="" />
+      </div>
+      {compact ? (
+        <div className="space-y-3">
+          {Array.from({ length: count }, (_, i) => (
+            <SkeletonCard key={i} compact />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: count }, (_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
