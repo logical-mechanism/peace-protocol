@@ -298,7 +298,7 @@ export default function Dashboard() {
   const effects = useDashboardEffects({
     userPkh, tipSlot, tipHeight, nodeStage, expressReady,
     refreshSignal, historySignal, triggerSoftRefresh, refreshBalance,
-    activeTab, toast, wallet, address,
+    toast, wallet, address,
     marketplaceFilters, marketplaceDispatch,
   })
 
