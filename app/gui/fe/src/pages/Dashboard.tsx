@@ -601,8 +601,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full cursor-default"
-                title={t('dashboard:shell.allSystemsReadyTitle')}
-                aria-label={t('dashboard:shell.allSystemsReadyTitle')}
+                aria-label={t('dashboard:shell.allSystemsReady')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
                 {t('dashboard:shell.allSystemsReady')}
