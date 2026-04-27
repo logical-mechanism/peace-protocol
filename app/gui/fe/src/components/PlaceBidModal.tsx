@@ -309,7 +309,7 @@ export default function PlaceBidModal({
 
             {/* Restored from draft indicator */}
             {restoredFromDraft && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)] text-xs text-[var(--accent)]">
+              <div className="flex items-center gap-2 px-3 py-2 bg-[var(--accent-muted)] rounded-[var(--radius-md)] text-xs text-[var(--accent)]">
                 <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
@@ -575,7 +575,7 @@ export default function PlaceBidModal({
           {/* Footer */}
           <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
             {/* Info box about what happens next */}
-            <div className="mb-4 p-3 bg-[var(--accent-muted)] border border-[var(--accent)]/30 rounded-[var(--radius-md)]">
+            <div className="mb-4 p-3 bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
               <p className="text-xs text-[var(--accent)]">
                 <strong>{t('modals:placeBid.infoNoteLabel')}</strong> {t('modals:placeBid.infoNote')}
               </p>
