@@ -12,6 +12,7 @@ import { formatAda } from '../utils/formatAda';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { getOnboardingState } from '../services/onboardingStorage';
 
 interface DecryptModalProps {
   isOpen: boolean;
@@ -284,57 +285,67 @@ export default function DecryptModal({
                 </div>
               )}
 
-              {/* How it works — state-driven, localized copy. */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:decrypt.howItWorks')}</h3>
-                {(() => {
-                  const explanation = getDecryptionExplanationState();
-                  if (explanation.mode === 'stub') {
+              {/* How it works — collapses to a disclosure once the user has done their first decrypt */}
+              <details
+                className="group [&_summary]:list-none"
+                open={!getOnboardingState().firstDecryptCompleted}
+              >
+                <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
+                  <svg className="w-3.5 h-3.5 text-[var(--text-muted)] transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  {t('modals:decrypt.howItWorks')}
+                </summary>
+                <div className="space-y-3 mt-3">
+                  {(() => {
+                    const explanation = getDecryptionExplanationState();
+                    if (explanation.mode === 'stub') {
+                      return (
+                        <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                      );
+                    }
+                    const wasmStatusKey = explanation.wasmReady
+                      ? 'modals:decrypt.explanationWasmReady'
+                      : 'modals:decrypt.explanationWasmMissing';
                     return (
-                      <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                      <div className="text-sm text-[var(--text-muted)] space-y-2">
+                        <p>{t('modals:decrypt.explanationIntro')}</p>
+                        <ol className="list-decimal pl-5 space-y-1">
+                          <li>{t('modals:decrypt.explanationStep1')}</li>
+                          <li>{t('modals:decrypt.explanationStep2')}</li>
+                          <li>{t('modals:decrypt.explanationStep3')}</li>
+                          <li>{t('modals:decrypt.explanationStep4')}</li>
+                        </ol>
+                        <p>{t(wasmStatusKey)}</p>
+                      </div>
                     );
-                  }
-                  const wasmStatusKey = explanation.wasmReady
-                    ? 'modals:decrypt.explanationWasmReady'
-                    : 'modals:decrypt.explanationWasmMissing';
-                  return (
-                    <div className="text-sm text-[var(--text-muted)] space-y-2">
-                      <p>{t('modals:decrypt.explanationIntro')}</p>
-                      <ol className="list-decimal pl-5 space-y-1">
-                        <li>{t('modals:decrypt.explanationStep1')}</li>
-                        <li>{t('modals:decrypt.explanationStep2')}</li>
-                        <li>{t('modals:decrypt.explanationStep3')}</li>
-                        <li>{t('modals:decrypt.explanationStep4')}</li>
-                      </ol>
-                      <p>{t(wasmStatusKey)}</p>
-                    </div>
-                  );
-                })()}
+                  })()}
 
-                {isStubMode() && (
-                  <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
-                    <svg
-                      className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <div className="text-sm">
-                      <span className="font-medium text-[var(--warning)]">{t('modals:decrypt.devModeTitle')}</span>
-                      <p className="text-[var(--text-secondary)] mt-0.5">
-                        {t('modals:decrypt.devModeBody')}
-                      </p>
+                  {isStubMode() && (
+                    <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
+                      <svg
+                        className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                      <div className="text-sm">
+                        <span className="font-medium text-[var(--warning)]">{t('modals:decrypt.devModeTitle')}</span>
+                        <p className="text-[var(--text-secondary)] mt-0.5">
+                          {t('modals:decrypt.devModeBody')}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </details>
 
               {/* Security note */}
               <div className="flex items-start gap-3 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
