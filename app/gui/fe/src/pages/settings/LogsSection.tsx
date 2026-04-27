@@ -154,7 +154,7 @@ export default function LogsSection({
           </div>
           <button
             onClick={() => handleToggleDebug(!debugMode)}
-            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer ${
+            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
               debugMode ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
             }`}
             role="switch"
@@ -162,7 +162,7 @@ export default function LogsSection({
             aria-label={t('logs.toggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-              debugMode ? 'translate-x-6' : 'translate-x-0'
+              debugMode ? 'translate-x-5' : 'translate-x-0'
             }`} />
           </button>
         </div>

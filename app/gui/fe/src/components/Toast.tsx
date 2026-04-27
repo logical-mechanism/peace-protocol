@@ -161,7 +161,7 @@ function Toast({ toast, onClose, index = 0 }: ToastProps) {
       role="alert"
       aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
     >
-      <div className={`flex-shrink-0 ${colors.icon}${toast.variant === 'transaction' ? ' tx-celebration' : ''}`}>{getIcon()}</div>
+      <div className={`flex-shrink-0 ${colors.icon}${toast.variant === 'transaction' ? ' tx-celebration-icon' : ''}`}>{getIcon()}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)]">{toast.title}</p>
         {toast.message && (
@@ -261,6 +261,14 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
 
   return (
     <div className="fixed top-4 right-4 z-[80] flex flex-col gap-2 max-w-sm w-full" aria-live="polite" role="status">
+      {/* Queue overflow indicator — surfaces hidden toasts so they're not silently
+        * dropped from the user's awareness. Renders above the visible stack. */}
+      {queuedCount > 0 && (
+        <div className="self-end inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-[var(--shadow-sm)]" aria-hidden="true">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+          {t('toast.queueOverflow', { count: queuedCount, defaultValue: '+{{count}} more' })}
+        </div>
+      )}
       {toasts.length >= 2 && onDismissAll && (
         <button
           onClick={onDismissAll}

@@ -92,8 +92,8 @@ export default function WalletUnlock() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1
-            className="text-3xl font-bold mb-2"
-            style={{ color: 'var(--text-primary)' }}
+            className="text-3xl font-bold mb-2 tracking-tight"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
           >
             {t('appName')}
           </h1>
@@ -263,7 +263,7 @@ export default function WalletUnlock() {
             aria-labelledby="delete-wallet-title"
           >
             <div
-              className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${deleteAnim === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+              className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${deleteAnim === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
               onClick={onCloseDelete}
               aria-hidden="true"
             />

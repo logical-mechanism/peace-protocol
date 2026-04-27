@@ -16,15 +16,21 @@
   --border-default: #333333;
   --border-focus: #444444;
 
-  /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces) */
+  /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces).
+   * Token roles (audit before introducing a new use):
+   *   --text-primary    body text, headings, primary content
+   *   --text-secondary  supporting prose, descriptions, sub-titles
+   *   --text-muted      de-emphasized metadata only — labels, timestamps,
+   *                     hint text, badge captions. Should never be used for
+   *                     content the user must read to complete a task. */
   --text-primary: #fafafa;
   --text-secondary: #a1a1a1;
   --text-muted: #9ca3af;
 
-  /* Accent - single accent color, used sparingly */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: rgba(99, 102, 241, 0.15);
+  /* Accent - phosphor green; cypherpunk identity, distinct from every SaaS indigo */
+  --accent: #4ade80;
+  --accent-hover: #86efac;
+  --accent-muted: rgba(74, 222, 128, 0.15);
 
   /* Semantic */
   --success: #22c55e;
@@ -37,9 +43,32 @@
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  /* Display face for hero moments (wordmark, onboarding step titles, EmptyState
+   * titles, .t-display class). Falls back to Inter when Bricolage Grotesque
+   * .woff2 files are not yet present in /public/fonts/. */
+  --font-display: 'Bricolage Grotesque', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
+
+  /* Semantic type scale — pair with .t-display, .t-heading, .t-body, .t-caption,
+   * .t-mono utility classes (defined below). New components should reach for
+   * these instead of ad-hoc Tailwind text-* utilities. */
+  --text-display-size:   2rem;        /* 32px */
+  --text-display-leading: 1.1;
+  --text-display-weight: 600;
+  --text-heading-size:   1.25rem;     /* 20px */
+  --text-heading-leading: 1.2;
+  --text-heading-weight: 600;
+  --text-body-size:      0.9375rem;   /* 15px */
+  --text-body-leading:   1.5;
+  --text-body-weight:    400;
+  --text-caption-size:   0.8125rem;   /* 13px */
+  --text-caption-leading: 1.4;
+  --text-caption-weight: 500;
+  --text-mono-size:      0.875rem;    /* 14px */
+  --text-mono-leading:   1.4;
+  --text-mono-weight:    400;
 
   /* Spacing (4px baseline) */
   --space-1: 0.25rem;
@@ -78,7 +107,10 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --shadow-glow: 0 0 24px rgba(74, 222, 128, 0.35);
+
+  /* Backdrop overlay (modal scrims) — replaces hardcoded bg-black/60 in modals */
+  --backdrop-overlay: rgba(0, 0, 0, 0.6);
   /* Layered focus ring: 2px dark page-bg spacer (creates a visible gap on
    * any button surface, including bg-[var(--accent)]), then a 2px accent
    * ring on top. Used by components that opt in via Tailwind, e.g.
@@ -112,10 +144,10 @@
   --text-secondary: #525252;
   --text-muted: #6b7280;
 
-  /* Accent — slightly darker indigo for light bg contrast */
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-muted: rgba(79, 70, 229, 0.12);
+  /* Accent — darker green for AA contrast on light bg */
+  --accent: #16a34a;
+  --accent-hover: #15803d;
+  --accent-muted: rgba(22, 163, 74, 0.12);
 
   /* Semantic — same hues, slightly adjusted for light bg */
   --success: #16a34a;
@@ -129,7 +161,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.1);
+  --shadow-glow: 0 0 24px rgba(22, 163, 74, 0.25);
   --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 
   color-scheme: light;
@@ -184,6 +216,14 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 3px var(--accent-muted), 0 0 0 1px var(--accent);
 }
 
+/* role="switch" toggles — pill-shaped buttons need an outline that hugs the
+ * shape. The global :focus-visible outline is square and may clip against the
+ * pill curve, so use the layered focus ring shadow instead. */
+[role="switch"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 :focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
@@ -235,6 +275,99 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   overflow: hidden;
 }
 
+/* Semantic typography classes — prefer these over ad-hoc Tailwind text-*
+ * utilities in new components. .t-display uses the display face for hero
+ * moments; everything else stays on the body face (Inter). */
+.t-display {
+  font-family: var(--font-display);
+  font-size: var(--text-display-size);
+  line-height: var(--text-display-leading);
+  font-weight: var(--text-display-weight);
+  letter-spacing: -0.02em;  /* tracking-tight */
+}
+
+.t-heading {
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-leading);
+  font-weight: var(--text-heading-weight);
+  letter-spacing: -0.01em;
+}
+
+.t-body {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-leading);
+  font-weight: var(--text-body-weight);
+}
+
+.t-caption {
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+}
+
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-size);
+  line-height: var(--text-mono-leading);
+  font-weight: var(--text-mono-weight);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Tabular numerals — fixed-width digits so price columns and timestamps stop
+ * "wiggling" between adjacent rows. Apply to any element where digits change
+ * but the layout should not. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Form field invalid state — apply to <input>, <textarea>, or <select> when
+ * the field has a validation error. Pairs with a helper message below the
+ * field (use text-[var(--error)] text-xs).
+ *
+ * The wash background + tinted border + leading icon space keeps the error
+ * visually distinct from the surrounding field group, instead of relying on
+ * a bare red text below. */
+.field-invalid {
+  border-color: var(--error) !important;
+  background-color: var(--error-muted) !important;
+  color: var(--text-primary);
+}
+
+.field-invalid:focus,
+.field-invalid:focus-visible {
+  outline-color: var(--error) !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15) !important;
+}
+
+[data-theme="light"] .field-invalid:focus,
+[data-theme="light"] .field-invalid:focus-visible {
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
+}
+
+/* Helper text below an invalid field — pair with .field-invalid above. */
+.field-invalid-helper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;       /* 6px */
+  margin-top: 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--error);
+}
+
+.field-invalid-helper::before {
+  content: "";
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  background-color: var(--error);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>") center / contain no-repeat;
+}
+
 /* Shared button interactive states */
 .btn-base {
   cursor: pointer;
@@ -264,7 +397,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 /* Secondary: accent text with accent border */
 .btn-secondary {
   color: var(--accent);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  border: 1px solid var(--accent-muted);
 }
 
 .btn-secondary:hover:not(:disabled) {
@@ -320,6 +453,32 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 .btn-icon:hover:not(:disabled) {
   color: var(--text-primary);
   background-color: var(--bg-secondary);
+}
+
+/* Button size modifiers — pair with .btn-base + a variant class.
+ * Use these instead of overriding padding/text-size at the call site so
+ * the design system stays the source of truth. Apply alongside any
+ * variant: `btn-base btn-primary btn-md`, `btn-base btn-tertiary btn-sm`. */
+.btn-sm {
+  padding: 0.25rem 0.625rem;  /* 4px 10px */
+  font-size: 0.75rem;          /* text-xs */
+  line-height: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.btn-md {
+  padding: 0.5rem 0.875rem;    /* 8px 14px */
+  font-size: 0.875rem;         /* text-sm */
+  line-height: 1.25rem;
+  border-radius: var(--radius-md);
+}
+
+.btn-lg {
+  padding: 0.625rem 1rem;      /* 10px 16px */
+  font-size: 0.9375rem;        /* between text-sm and text-base */
+  line-height: 1.375rem;
+  border-radius: var(--radius-md);
+  font-weight: 500;
 }
 
 /* Force color scheme for form controls (WebKit in Tauri ignores CSS color on <select>) */
@@ -564,17 +723,38 @@ select option {
   animation: tooltip-enter 150ms ease-out;
 }
 
-/* Transaction success celebration — subtle bounce on checkmark icon */
+/* Transaction success celebration — single restrained beat, ~600ms.
+ * Used for the moments that matter most in the protocol: bid acceptance,
+ * decryption completion, first wallet creation. One memorable beat is
+ * worth ten micro-interactions. */
 @keyframes tx-celebration {
+  0%   { transform: scale(1);    box-shadow: var(--shadow-glow); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(74, 222, 128, 0.6); }
+  100% { transform: scale(1);    box-shadow: var(--shadow-glow); }
+}
+
+[data-theme="light"] @keyframes tx-celebration {
+  0%   { transform: scale(1);    box-shadow: var(--shadow-glow); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(22, 163, 74, 0.45); }
+  100% { transform: scale(1);    box-shadow: var(--shadow-glow); }
+}
+
+.tx-celebration {
+  animation: tx-celebration 600ms ease-out;
+}
+
+/* Compact icon-only variant: scale beat without box-shadow halo, for inline
+ * checkmark glyphs where a glow ring would clip outside the icon bounds. */
+@keyframes tx-celebration-icon {
   0%   { transform: scale(1); }
   35%  { transform: scale(1.2); }
   55%  { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 
-.tx-celebration {
-  animation: tx-celebration 500ms ease-out;
-  filter: drop-shadow(0 0 4px var(--success));
+.tx-celebration-icon {
+  animation: tx-celebration-icon 500ms ease-out;
+  filter: drop-shadow(0 0 4px var(--accent));
 }
 
 /* Background refresh indicator — indeterminate bar sliding left-to-right */
@@ -712,6 +892,25 @@ select option {
 
 .empty-state-float {
   animation: empty-state-float 4s ease-in-out infinite;
+}
+
+/* Atmospheric noise overlay — depth without breaking minimalism.
+ * Slightly more visible on light theme so the texture reads against
+ * a brighter surface. Disabled in high-contrast mode where any
+ * texture works against legibility. */
+.app-noise-overlay {
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+}
+
+[data-theme="light"] .app-noise-overlay {
+  opacity: 0.04;
+}
+
+@media (prefers-contrast: more) {
+  .app-noise-overlay {
+    display: none;
+  }
 }
 
 /* Reduced motion: respect OS accessibility setting */

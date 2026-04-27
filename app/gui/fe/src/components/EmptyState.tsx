@@ -39,7 +39,12 @@ export default function EmptyState({
           {icon}
         </div>
       ) : null}
-      <p className="relative text-[var(--text-primary)] font-medium">{title}</p>
+      <p
+        className="relative text-[var(--text-primary)] font-semibold text-lg tracking-tight"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {title}
+      </p>
       {description && (
         <p className="relative text-sm text-[var(--text-muted)] mt-2">{description}</p>
       )}

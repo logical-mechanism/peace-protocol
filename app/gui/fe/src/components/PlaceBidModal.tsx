@@ -225,7 +225,7 @@ export default function PlaceBidModal({
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />
@@ -409,8 +409,8 @@ export default function PlaceBidModal({
                   step="0.1"
                   aria-invalid={!!errors.bidAmount}
                   aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
-                  className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
-                    errors.bidAmount ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
+                  className={`w-full px-3 py-2.5 text-sm tnum bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
+                    errors.bidAmount ? 'field-invalid' : 'border-[var(--border-subtle)]'
                   }`}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-muted)]">
@@ -418,7 +418,7 @@ export default function PlaceBidModal({
                 </span>
               </div>
               {errors.bidAmount && (
-                <p id="bidAmount-error" role="alert" className="mt-1 text-xs text-[var(--error)]">{errors.bidAmount}</p>
+                <p id="bidAmount-error" role="alert" className="field-invalid-helper">{errors.bidAmount}</p>
               )}
               {!errors.bidAmount && isBelowSuggested && (
                 <p className="mt-1 text-xs text-[var(--warning)]">

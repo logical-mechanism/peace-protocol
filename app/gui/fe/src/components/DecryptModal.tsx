@@ -12,6 +12,7 @@ import { formatAda } from '../utils/formatAda';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCelebrationFlag } from '../hooks/useTxCelebration';
 import { getOnboardingState } from '../services/onboardingStorage';
 
 interface DecryptModalProps {
@@ -51,6 +52,9 @@ export default function DecryptModal({
 
   // Stack-aware Escape key + body scroll lock + animation
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
+
+  // Signature motion: one restrained beat when decryption completes successfully.
+  const isCelebrating = useCelebrationFlag(state === 'success');
   const modalRef = useRef<HTMLDivElement>(null);
   // Decrypt Now is first in DOM order below (flex-row-reverse keeps Cancel
   // visually on the left), so useFocusTrap's natural "first focusable"
@@ -191,7 +195,7 @@ export default function DecryptModal({
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={state !== 'decrypting' ? handleClose : undefined}
         aria-hidden="true"
       />
@@ -520,7 +524,7 @@ export default function DecryptModal({
               {/* Success message */}
               <div className="flex items-center gap-3 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)]">
                 <svg
-                  className="w-5 h-5 text-[var(--success)] flex-shrink-0"
+                  className={`w-5 h-5 text-[var(--success)] flex-shrink-0 ${isCelebrating ? 'tx-celebration-icon' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

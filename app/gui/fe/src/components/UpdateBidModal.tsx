@@ -178,7 +178,7 @@ export default function UpdateBidModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm"
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />

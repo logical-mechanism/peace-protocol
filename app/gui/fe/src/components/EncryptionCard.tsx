@@ -96,8 +96,9 @@ function EncryptionCard({
     return (
       <>
         <article className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-md)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] transition-all duration-[var(--transition-fast)] relative z-0">
-          {/* Row 1: Star + Tx Hash + Category + Status */}
-          <div className="flex items-center gap-[var(--space-2)] mb-[var(--space-2)] min-w-0">
+          {/* Row 1: Star + Tx Hash + Category + Status — gap-3 (12px) keeps the
+            * trailing pills (category, NSFW, status) breathing instead of crowding. */}
+          <div className="flex items-center gap-[var(--space-3)] mb-[var(--space-2)] min-w-0">
             {onToggleFavorite && (
               <button
                 onClick={handleToggleFavorite}
@@ -147,9 +148,11 @@ function EncryptionCard({
               <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
             </p>
           )}
-          {/* Row 3: Price + Action */}
+          {/* Row 3: Price + Action — even compressed, the price is the hero
+            * number on this row. text-xl + tracking-tight + tabular-nums keeps
+            * the digits aligned across stacked compact cards. */}
           <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold text-[var(--accent)]">
+            <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent)]">
               {formatPrice(encryption.suggestedPrice)}
             </span>
             {canBid && onPlaceBid && (
@@ -237,7 +240,7 @@ function EncryptionCard({
 
           {/* Hero price + bid count */}
           <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-            <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none whitespace-nowrap`}>
+            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
             </p>
             {bidCount > 0 ? (
@@ -252,15 +255,29 @@ function EncryptionCard({
             )}
           </div>
 
-          {/* Description (no sub-card frame — competes with parent card) */}
+          {/* Description (no sub-card frame — competes with parent card).
+            * `group` wrapper enables an inline "View" caret that appears on hover,
+            * signaling the otherwise-hidden click affordance. */}
           {encryption.description && (
-            <p
+            <div
               onClick={() => setDescriptionModalOpen(true)}
-              className={`text-sm text-[var(--text-secondary)] ${descClamp} mb-[var(--space-3)] cursor-pointer hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}
+              className="group relative mb-[var(--space-3)] cursor-pointer"
               title={encryption.description}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDescriptionModalOpen(true); } }}
+              aria-label={t('card.openDescription', { defaultValue: 'View full description' })}
             >
-              <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
-            </p>
+              <p className={`text-sm text-[var(--text-secondary)] ${descClamp} group-hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}>
+                <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
+              </p>
+              <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--transition-fast)]">
+                {t('card.viewFull', { defaultValue: 'View full' })}
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </span>
+            </div>
           )}
 
           {/* Action button + state messages */}

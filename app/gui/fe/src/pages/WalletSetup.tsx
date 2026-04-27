@@ -269,7 +269,10 @@ export default function WalletSetup() {
             }}
           />
           <div className="relative text-center mb-[var(--space-lg)]">
-            <h1 className="text-4xl font-bold mb-[var(--space-2)] text-[var(--text-primary)]">
+            <h1
+              className="text-4xl font-bold mb-[var(--space-2)] text-[var(--text-primary)] tracking-tight"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
               {t('appName')}
             </h1>
             <p className="text-[var(--text-secondary)]">{t('setup.tagline')}</p>

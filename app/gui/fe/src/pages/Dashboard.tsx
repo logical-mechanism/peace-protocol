@@ -740,7 +740,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setCreateListingDropdownOpen((prev) => !prev)}
-                className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-white/20 btn-base btn-primary"
+                className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-black/20 btn-base btn-primary"
                 aria-label={t('dashboard:shell.moreListingOptionsAria')}
                 aria-expanded={createListingDropdownOpen}
                 aria-haspopup="true"
@@ -776,12 +776,12 @@ export default function Dashboard() {
 
           {/* ADA Balance */}
           {lovelace ? (
-            <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
+            <div className="px-3 py-1.5 text-sm font-medium tnum text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
               {formatAdaDisplay(lovelace)} ADA
             </div>
           ) : (
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
               title={t('dashboard:shell.balanceUnavailableTitle')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -897,7 +897,7 @@ export default function Dashboard() {
             className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
@@ -915,7 +915,7 @@ export default function Dashboard() {
             className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
@@ -928,7 +928,7 @@ export default function Dashboard() {
             className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
@@ -941,7 +941,7 @@ export default function Dashboard() {
             className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
                 ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
@@ -965,15 +965,22 @@ export default function Dashboard() {
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 title={t('dashboard:shell.tabShortcutTitle', { label: t(`dashboard:${tab.labelKey}`), number: index + 1 })}
-                className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
+                /* border-b-2 always present so tab height does not jump on
+                 * activation. Only the border color animates between
+                 * accent (active) and transparent (inactive). */
+                className={`pb-3 border-b-2 transition-colors duration-[var(--transition-base)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                    ? 'text-[var(--text-primary)] border-[var(--accent)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] border-transparent'
                 }`}
               >
                 {t(`dashboard:${tab.labelKey}`)}
+                {/* Tab badge color rule:
+                 *   warning (amber) — "needs your action": pending tx, new bids on your listings
+                 *   success (green) — "ready / done": accepted bids ready to decrypt
+                 *   accent / neutral — count-only, no implied urgency */}
                 {tab.id === 'my-sales' && effects.bidNotifications.unseenBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
                     {effects.bidNotifications.unseenBidCount}
                   </span>
                 )}

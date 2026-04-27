@@ -112,7 +112,7 @@ function MyPurchaseBidCard({
         {/* Row 3: Price + Seller + Actions */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <span className={`text-lg font-semibold inline-flex items-center gap-[var(--space-1)] ${
+            <span className={`text-lg font-semibold tracking-tight tnum inline-flex items-center gap-[var(--space-1)] ${
               isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
             }`}>
               {formatAda(bid.amount)} ADA
@@ -225,7 +225,7 @@ function MyPurchaseBidCard({
 
         {/* Hero: bid amount */}
         <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-          <p className={`text-2xl font-semibold inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap ${
+          <p className={`text-2xl font-semibold tracking-tight tnum inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap ${
             isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
           }`}>
             {formatAda(bid.amount)} ADA
