@@ -152,7 +152,7 @@ function EncryptionCard({
             * number on this row. text-xl + tracking-tight + tabular-nums keeps
             * the digits aligned across stacked compact cards. */}
           <div className="flex items-center justify-between">
-            <span className="text-xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
+            <span className="text-xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
               {formatPrice(encryption.suggestedPrice)}
             </span>
             {canBid && onPlaceBid && (
@@ -240,13 +240,13 @@ function EncryptionCard({
 
           {/* Hero price + bid count */}
           <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--accent-text)] leading-none whitespace-nowrap`}>
+            <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--text-primary)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
             </p>
             {bidCount > 0 ? (
               <span
                 key={bidCount}
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-text-muted)] text-[var(--accent-text)] font-medium whitespace-nowrap flex-shrink-0${hasBidPulse ? ' bid-pulse' : ''}`}
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium whitespace-nowrap flex-shrink-0${hasBidPulse ? ' bid-pulse' : ''}`}
               >
                 {t('card.bid', { count: bidCount })}
               </span>

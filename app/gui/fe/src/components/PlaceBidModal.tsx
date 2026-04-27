@@ -288,7 +288,7 @@ export default function PlaceBidModal({
                 {encryption.suggestedPrice !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-xs text-[var(--text-muted)]">{t('modals:placeBid.suggestedPrice')}</span>
-                    <span className="text-xs font-medium tnum text-[var(--accent-text)]">
+                    <span className="text-xs font-medium tnum text-[var(--text-primary)]">
                       {formatAda(encryption.suggestedPrice)} ADA
                     </span>
                   </div>

@@ -105,7 +105,7 @@ export default function BidsModal({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-[var(--text-muted)]">{t('modals:bids.suggestedPrice')}</p>
-              <p className="text-sm font-medium tnum text-[var(--accent-text)]">
+              <p className="text-sm font-medium tnum text-[var(--text-primary)]">
                 {encryption.suggestedPrice
                   ? `${formatAda(encryption.suggestedPrice)} ADA`
                   : t('modals:bids.noPriceSet')}
@@ -229,7 +229,7 @@ function BidCard({
           </div>
 
           {/* Bid Amount */}
-          <p className="text-lg font-semibold tnum text-[var(--accent-text)]">
+          <p className="text-lg font-semibold tnum text-[var(--text-primary)]">
             {formatLovelace(bid.amount)}
           </p>
 

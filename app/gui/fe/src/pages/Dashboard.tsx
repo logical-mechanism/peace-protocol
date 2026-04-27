@@ -776,7 +776,7 @@ export default function Dashboard() {
 
           {/* ADA Balance */}
           {lovelace ? (
-            <div className="px-3 py-1.5 text-sm font-medium tnum text-[var(--accent-text)] bg-[var(--accent-text-muted)] rounded-[var(--radius-md)]">
+            <div className="px-3 py-1.5 text-sm font-medium tnum text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
               {formatAdaDisplay(lovelace)} ADA
             </div>
           ) : (
@@ -901,7 +901,7 @@ export default function Dashboard() {
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
+            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
               {effects.myListingsCount === null ? '...' : t('dashboard:shell.statActiveCount', { count: effects.myListingsCount })}
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
@@ -919,7 +919,7 @@ export default function Dashboard() {
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
+            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
               {effects.myBidsCount === null ? '...' : t('dashboard:shell.statPendingCount', { count: effects.myBidsCount })}
             </p>
           </button>
@@ -932,7 +932,7 @@ export default function Dashboard() {
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
+            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
               {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
           </button>
@@ -945,7 +945,7 @@ export default function Dashboard() {
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--accent-text)]">
+            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
               {effects.pendingTxCount > 0 ? t('dashboard:shell.statPendingCount', { count: effects.pendingTxCount }) : t('dashboard:shell.statNonePending')}
             </p>
           </button>

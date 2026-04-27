@@ -27,24 +27,24 @@
   --text-secondary: #a1a1a1;
   --text-muted: #9ca3af;
 
-  /* "Dusk" palette — three-color system for richer hierarchy than a single accent.
+  /* "Dusk" palette — two-color system. Static values (prices, balance, counts)
+   * get no special color — typography weight (font-semibold + tracking-tight +
+   * tnum) carries the "this is a hero number" hierarchy. Color is reserved for
+   * interactive affordances only.
    *
-   *   --accent       muted lilac   primary actions, focus rings, hover borders,
-   *                                active tab indicator, anything "interactive"
-   *   --accent-text  soft mint     static values that read as "live / verified":
-   *                                prices, balance, stats counts. Never used as
-   *                                a fill color — text/icons only.
-   *   --link         warm sand     inline navigational text: "view full",
-   *                                "read more", clickable affordances. Distinct
-   *                                from --accent so links don't read as buttons.
+   *   --accent  bolder lilac  primary actions, focus rings, hover borders,
+   *                           active tab indicator, brand-emphasis pills
+   *                           (wallet balance), anything "interactive"
+   *   --link    warm sand     inline navigational text: URLs, "view full",
+   *                           "read more". Distinct from --accent so links
+   *                           don't read as buttons.
    *
-   * Status colors (--success/--warning/--error) keep their original roles. */
-  --accent: #9683c8;
-  --accent-hover: #b3a3d6;
-  --accent-muted: rgba(150, 131, 200, 0.15);
-
-  --accent-text: #7dd3a3;
-  --accent-text-muted: rgba(125, 211, 163, 0.15);
+   * Status colors (--success/--warning/--error) keep their semantic roles.
+   * The success green also powers the tx-celebration glow — used briefly,
+   * never crowded next to the lilac, so no Halloween conflict. */
+  --accent: #8b6dd6;
+  --accent-hover: #a78bfa;
+  --accent-muted: rgba(139, 109, 214, 0.16);
 
   --link: #d4a574;
   --link-hover: #e0b88a;
@@ -124,7 +124,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
-  --shadow-glow: 0 0 24px rgba(150, 131, 200, 0.35);
+  --shadow-glow: 0 0 24px rgba(139, 109, 214, 0.4);
 
   /* Backdrop overlay (modal scrims) — replaces hardcoded bg-black/60 in modals */
   --backdrop-overlay: rgba(0, 0, 0, 0.6);
@@ -163,12 +163,9 @@
 
   /* Dusk palette — darker variants of the dark-theme tokens for AA contrast on
    * light backgrounds. Same semantic roles. */
-  --accent: #6d5fa1;
-  --accent-hover: #5a4d8a;
-  --accent-muted: rgba(109, 95, 161, 0.12);
-
-  --accent-text: #16a34a;
-  --accent-text-muted: rgba(22, 163, 74, 0.12);
+  --accent: #6d4cc7;
+  --accent-hover: #5a3eb2;
+  --accent-muted: rgba(109, 76, 199, 0.13);
 
   --link: #a86f3a;
   --link-hover: #8c5a2c;
@@ -185,7 +182,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 0 24px rgba(109, 95, 161, 0.25);
+  --shadow-glow: 0 0 24px rgba(109, 76, 199, 0.3);
   --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
 
   color-scheme: light;
@@ -408,7 +405,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   transform: none;
 }
 
-/* Primary: solid accent background */
+/* Primary: solid accent background. Hover gets a clearly brighter fill plus
+ * a soft glow so the affordance reads even on dense screens. */
 .btn-primary {
   background-color: var(--accent);
   color: white;
@@ -416,6 +414,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .btn-primary:hover:not(:disabled) {
   background-color: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
 }
 
 /* Secondary: accent text with accent border */
@@ -749,14 +748,14 @@ select option {
 
 /* Transaction success celebration — single restrained beat, ~600ms.
  * Used for the moments that matter most in the protocol: bid acceptance,
- * decryption completion, first wallet creation. The glow is mint
- * (--accent-text), not lilac, because the celebration semantically belongs
- * to the "verified / completed" color family, not the "interactive action"
- * family. One memorable beat is worth ten micro-interactions. */
+ * decryption completion, first wallet creation. The glow uses --success
+ * (semantic green) because the celebration belongs to the "completed" family.
+ * Used briefly and never crowded next to the lilac accent, so it doesn't
+ * read as "Halloween palette." One memorable beat. */
 @keyframes tx-celebration {
-  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(125, 211, 163, 0); }
-  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(125, 211, 163, 0.55); }
-  100% { transform: scale(1);    box-shadow: 0 0 0 rgba(125, 211, 163, 0); }
+  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(34, 197, 94, 0.55); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
 }
 
 .tx-celebration {
@@ -774,7 +773,7 @@ select option {
 
 .tx-celebration-icon {
   animation: tx-celebration-icon 500ms ease-out;
-  filter: drop-shadow(0 0 4px var(--accent-text));
+  filter: drop-shadow(0 0 4px var(--success));
 }
 
 /* Background refresh indicator — indeterminate bar sliding left-to-right */
