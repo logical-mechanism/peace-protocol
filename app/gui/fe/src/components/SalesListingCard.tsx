@@ -259,7 +259,7 @@ function SalesListingCard({
               )}
             </p>
             <span
-              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] flex-shrink-0 ${
+              className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] flex-shrink-0 whitespace-nowrap ${
                 isUnknownStorageLayer(encryption.storageLayer)
                   ? 'bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)]'

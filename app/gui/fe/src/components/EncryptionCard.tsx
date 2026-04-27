@@ -243,12 +243,12 @@ function EncryptionCard({
             {bidCount > 0 ? (
               <span
                 key={bidCount}
-                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium${hasBidPulse ? ' bid-pulse' : ''}`}
+                className={`text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] text-[var(--accent)] font-medium whitespace-nowrap flex-shrink-0${hasBidPulse ? ' bid-pulse' : ''}`}
               >
                 {t('card.bid', { count: bidCount })}
               </span>
             ) : (
-              <span className="text-xs text-[var(--text-muted)]">{t('card.noBids')}</span>
+              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap flex-shrink-0">{t('card.noBids')}</span>
             )}
           </div>
 
