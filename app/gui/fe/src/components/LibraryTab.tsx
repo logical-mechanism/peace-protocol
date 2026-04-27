@@ -380,35 +380,26 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
-      {/* Storage Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalItems')}</p>
-          <p className="text-xl font-semibold text-[var(--text-primary)]">
-            {libraryStats.totalCount}
-          </p>
-        </div>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalSize')}</p>
-          <p className="text-xl font-semibold text-[var(--accent)]">
-            {formatBytes(libraryStats.totalSize)}
-          </p>
-        </div>
+      {/* Storage Summary — single quiet horizontal banner */}
+      <div className="mb-6 px-[var(--space-md)] py-[var(--space-3)] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] flex items-center gap-[var(--space-3)] text-sm flex-wrap">
+        <span className="flex items-baseline gap-[var(--space-2)]">
+          <span className="text-[var(--text-muted)]">{t('library.totalItems')}</span>
+          <span className="font-semibold text-[var(--text-primary)]">{libraryStats.totalCount}</span>
+        </span>
+        <span aria-hidden="true" className="text-[var(--border-default)]">·</span>
+        <span className="flex items-baseline gap-[var(--space-2)]">
+          <span className="text-[var(--text-muted)]">{t('library.totalSize')}</span>
+          <span className="font-semibold text-[var(--accent)]">{formatBytes(libraryStats.totalSize)}</span>
+        </span>
         {Object.entries(libraryStats.byCategory)
           .sort(([, a], [, b]) => b.size - a.size)
-          .slice(0, 2)
+          .slice(0, 3)
           .map(([cat, stats]) => (
-            <div key={cat} className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-              <p className="text-xs text-[var(--text-muted)] mb-1">
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">
-                {stats.count}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {formatBytes(stats.size)}
-              </p>
-            </div>
+            <span key={cat} className="flex items-baseline gap-[var(--space-2)]">
+              <span aria-hidden="true" className="text-[var(--border-default)]">·</span>
+              <span className="text-[var(--text-muted)]">{t(`common:categories.${cat}`)}</span>
+              <span className="text-[var(--text-secondary)]">{stats.count} ({formatBytes(stats.size)})</span>
+            </span>
           ))}
       </div>
 
