@@ -374,26 +374,19 @@ export default function WalletSetup() {
                 {t('setup.create.warning')}
               </div>
 
-              <div className="grid grid-cols-4 gap-[var(--space-3)] mb-[var(--space-lg)]">
+              <div
+                className="grid grid-cols-4 gap-[var(--space-2)] mb-[var(--space-lg)] p-[var(--space-3)] rounded-[var(--radius-lg)] bg-[var(--bg-secondary)]"
+                style={{ boxShadow: 'var(--shadow-glow)' }}
+              >
                 {mnemonic.map((word, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] rounded-lg text-sm"
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
+                    className="flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)]"
                   >
-                    <span
-                      className="text-xs w-5 text-right"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                    <span className="text-xs w-5 text-right text-[var(--text-muted)]">
                       {i + 1}
                     </span>
-                    <span
-                      className="font-mono"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
+                    <span className="font-mono text-base text-[var(--text-primary)] tracking-wide">
                       {word}
                     </span>
                   </div>
