@@ -262,10 +262,10 @@ export default function WalletSetup() {
           {/* Soft accent halo behind the welcome heading */}
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-48 pointer-events-none"
+            className="absolute inset-x-0 top-0 h-48 pointer-events-none opacity-60"
             style={{
               background:
-                'radial-gradient(ellipse at 50% 0%, var(--accent-muted) 0%, transparent 60%)',
+                'radial-gradient(ellipse at 50% 0%, var(--accent-muted) 0%, transparent 45%)',
             }}
           />
           <div className="relative text-center mb-[var(--space-lg)]">

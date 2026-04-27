@@ -82,10 +82,10 @@ export default function WalletUnlock() {
       {/* Atmospheric backdrop — radial accent halo centered behind the card */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-60"
         style={{
           background:
-            'radial-gradient(circle at 50% 50%, var(--accent-muted) 0%, transparent 50%)',
+            'radial-gradient(circle at 50% 50%, var(--accent-muted) 0%, transparent 35%)',
         }}
       />
       <div className="relative w-full max-w-md">
