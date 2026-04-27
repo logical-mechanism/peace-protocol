@@ -267,45 +267,41 @@ function LibraryCard({
         } ${selectMode ? 'cursor-pointer' : ''}`}
         onClick={selectMode ? () => onToggleSelect?.(item.tokenName) : undefined}
       >
-        {/* Image banner (or category-icon panel) with overlays */}
-        <div className="relative">
-          {item.imageLink ? (
-            <ListingImage
-              tokenName={item.tokenName}
-              imageLink={item.imageLink}
-              size="md"
-            />
-          ) : (
-            <div className={`w-full ${imgHeight} flex items-center justify-center bg-[var(--bg-secondary)]`}>
-              <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
-                <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
-              </div>
+        {/* Image banner (or category-icon panel) — pure visual, no overlays */}
+        {item.imageLink ? (
+          <ListingImage
+            tokenName={item.tokenName}
+            imageLink={item.imageLink}
+            size="md"
+          />
+        ) : (
+          <div className={`w-full ${imgHeight} flex items-center justify-center bg-[var(--bg-secondary)]`}>
+            <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
+              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
             </div>
-          )}
-          {/* Top-left: select checkbox */}
-          {selectMode && (
-            <div className="absolute top-[var(--space-2)] left-[var(--space-2)]">
+          </div>
+        )}
+
+        {/* Content */}
+        <div className={`${innerPadClass} flex-1 flex flex-col`}>
+          {/* Status row: badges (left) + select checkbox (right, when in selectMode) */}
+          <div className="flex items-center gap-[var(--space-1)] mb-[var(--space-3)] min-w-0">
+            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
+            {item.contentMissing && (
+              <Badge variant="warning">{t('library.missingBadge')}</Badge>
+            )}
+            {selectMode && (
               <input
                 type="checkbox"
                 checked={selected}
                 onChange={() => onToggleSelect?.(item.tokenName)}
                 onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4 accent-[var(--accent)] cursor-pointer"
+                className="ml-auto w-4 h-4 accent-[var(--accent)] cursor-pointer"
                 aria-label={t('library.selectItem', { name: item.tokenName })}
               />
-            </div>
-          )}
-          {/* Top-right: category + missing badges */}
-          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
-            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
-            {item.contentMissing && (
-              <Badge variant="warning">{t('library.missingBadge')}</Badge>
             )}
           </div>
-        </div>
 
-        {/* Content */}
-        <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero: token name + file size */}
           <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
             <span
@@ -319,7 +315,7 @@ function LibraryCard({
               )}
             </span>
             {item.fileSize != null && (
-              <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
+              <span className="text-xs text-[var(--text-muted)] flex-shrink-0 whitespace-nowrap">
                 {formatBytes(item.fileSize)}
               </span>
             )}

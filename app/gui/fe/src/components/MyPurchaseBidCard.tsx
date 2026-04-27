@@ -194,26 +194,28 @@ function MyPurchaseBidCard({
   return (
     <>
     <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
-      {/* Image banner with status overlay */}
-      <div className="relative">
-        <ListingImage
-          tokenName={encryption?.tokenName ?? bid.encryptionToken}
-          imageLink={encryption?.imageLink}
-          size="md"
-        />
-        <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
+      {/* Image banner — pure visual, no overlays */}
+      <ListingImage
+        tokenName={encryption?.tokenName ?? bid.encryptionToken}
+        imageLink={encryption?.imageLink}
+        size="md"
+      />
+
+      {/* Content */}
+      <div className="p-[var(--space-md)] flex-1 flex flex-col">
+        {/* Status row: badge + optimistic + info tooltip */}
+        <div className="flex items-center gap-[var(--space-1)] mb-[var(--space-3)] min-w-0">
           <BidStatusBadge status={bid.status} />
           {isOptimistic && (
             <span className="text-xs px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--warning-muted)] text-[var(--warning)] border border-[var(--warning)]/20 animate-pulse">
               {t('card.awaitingConfirmation')}
             </span>
           )}
-          <InfoTooltip text={getStatusTooltip()} position="bottom" />
+          <span className="ml-auto">
+            <InfoTooltip text={getStatusTooltip()} position="bottom" />
+          </span>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="p-[var(--space-md)] flex-1 flex flex-col">
         {/* Bid Status Timeline */}
         {purchaseStage && (
           <div className="mb-[var(--space-3)] px-2">
@@ -223,7 +225,7 @@ function MyPurchaseBidCard({
 
         {/* Hero: bid amount */}
         <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-          <p className={`text-2xl font-semibold inline-flex items-center gap-[var(--space-1)] leading-none ${
+          <p className={`text-2xl font-semibold inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap ${
             isAccepted ? 'text-[var(--success)]' : 'text-[var(--accent)]'
           }`}>
             {formatAda(bid.amount)} ADA

@@ -194,18 +194,21 @@ function EncryptionCard({
   return (
     <>
       <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
-        {/* Image banner with overlay controls */}
-        <div className="relative">
-          <ListingImage
-            tokenName={encryption.tokenName}
-            imageLink={encryption.imageLink}
-            size="md"
-            initialCached={initialCached}
-            initialBanned={initialBanned}
-            nsfw={encryption.nsfw}
-            nsfwEnabled={nsfwEnabled}
-          />
-          <div className="absolute top-[var(--space-2)] right-[var(--space-2)] flex items-center gap-[var(--space-1)] px-1 py-0.5 bg-[var(--bg-card)]/70 backdrop-blur-sm rounded-[var(--radius-md)]">
+        {/* Image banner — pure visual, no overlays */}
+        <ListingImage
+          tokenName={encryption.tokenName}
+          imageLink={encryption.imageLink}
+          size="md"
+          initialCached={initialCached}
+          initialBanned={initialBanned}
+          nsfw={encryption.nsfw}
+          nsfwEnabled={nsfwEnabled}
+        />
+
+        {/* Content */}
+        <div className={`${innerPadClass} flex-1 flex flex-col`}>
+          {/* Status row: badges (left) + favorite star (right) */}
+          <div className="flex items-center gap-[var(--space-1)] mb-[var(--space-3)] min-w-0">
             {encryption.nsfw && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[var(--radius-sm)] bg-[var(--error)] text-white">
                 {t('card.nsfwBadge')}
@@ -220,7 +223,7 @@ function EncryptionCard({
             {onToggleFavorite && (
               <button
                 onClick={handleToggleFavorite}
-                className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                className="ml-auto p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
                 title={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-label={isFavorite ? t('card.removeFromFavorites') : t('card.addToFavorites')}
                 aria-pressed={isFavorite}
@@ -231,13 +234,10 @@ function EncryptionCard({
               </button>
             )}
           </div>
-        </div>
 
-        {/* Content */}
-        <div className={`${innerPadClass} flex-1 flex flex-col`}>
           {/* Hero price + bid count */}
-          <div className="flex items-baseline justify-between mb-[var(--space-3)]">
-            <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none`}>
+          <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
+            <p className={`${priceClass} font-semibold text-[var(--accent)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
             </p>
             {bidCount > 0 ? (
