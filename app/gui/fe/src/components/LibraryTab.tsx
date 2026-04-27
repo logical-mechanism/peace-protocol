@@ -545,7 +545,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((item, index) => (
-            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={item.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
                 onView={handleView}
