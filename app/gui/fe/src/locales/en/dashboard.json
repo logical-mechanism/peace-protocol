@@ -68,6 +68,9 @@
   "filters": {
     "filtersLabel": "Filters",
     "toggleFilters": "Toggle filters",
+    "sectionFilter": "Filter",
+    "sectionSort": "Sort",
+    "sectionDisplay": "Display",
     "clearSearch": "Clear search",
     "clearFilters": "Clear Filters",
     "clearAllFilters": "Clear all filters",
