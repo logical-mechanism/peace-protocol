@@ -326,46 +326,70 @@ export default function PlaceBidModal({
                 >
                   {t('modals:placeBid.bidAmountLabel')} <span className="text-[var(--error)]">*</span>
                 </label>
-                {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({ ...prev, bidAmount: suggestedPriceAda!.toString() }))
-                      }
-                      disabled={isSubmitting}
-                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
-                    >
-                      {t('modals:placeBid.suggestedButton', { amount: formatAda(encryption.suggestedPrice!) })}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          bidAmount: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
-                        }))
-                      }
-                      disabled={isSubmitting}
-                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
-                    >
-                      {t('modals:placeBid.plusTen')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          bidAmount: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
-                        }))
-                      }
-                      disabled={isSubmitting}
-                      className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
-                    >
-                      {t('modals:placeBid.plusTwentyFive')}
-                    </button>
+                {(suggestedPriceAda !== undefined && suggestedPriceAda > 0) || balanceAda !== undefined ? (
+                  <div className="inline-flex rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-secondary)]">
+                    {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({ ...prev, bidAmount: suggestedPriceAda!.toString() }))
+                          }
+                          disabled={isSubmitting}
+                          className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
+                        >
+                          {t('modals:placeBid.suggestedButton', { amount: formatAda(encryption.suggestedPrice!) })}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              bidAmount: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
+                            }))
+                          }
+                          disabled={isSubmitting}
+                          className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
+                        >
+                          {t('modals:placeBid.plusTen')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              bidAmount: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
+                            }))
+                          }
+                          disabled={isSubmitting}
+                          className={`px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)] ${balanceAda !== undefined ? 'border-r border-[var(--border-subtle)]' : ''}`}
+                        >
+                          {t('modals:placeBid.plusTwentyFive')}
+                        </button>
+                      </>
+                    )}
+                    {balanceAda !== undefined && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const maxBid = Math.max(
+                            Math.floor(balanceAda - FEE_RESERVE_ADA),
+                            MIN_BID_ADA
+                          );
+                          setFormData((prev) => ({ ...prev, bidAmount: maxBid.toString() }));
+                          if (errors.bidAmount) {
+                            setErrors((prev) => ({ ...prev, bidAmount: undefined }));
+                          }
+                          setSubmitError(null);
+                        }}
+                        disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
+                        className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
+                      >
+                        {t('modals:placeBid.maxButton')}
+                      </button>
+                    )}
                   </div>
-                )}
+                ) : null}
               </div>
               <p className="text-xs text-[var(--text-muted)] mb-1.5">{t('modals:placeBid.minimumBidHint', { amount: MIN_BID_ADA })}</p>
               <div className="relative">
@@ -407,29 +431,9 @@ export default function PlaceBidModal({
                   <InfoTooltip text={t('modals:placeBid.minimumTooltip')} />
                 </p>
                 {balanceAda !== undefined ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {t('modals:placeBid.balance', { amount: balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const maxBid = Math.max(
-                          Math.floor(balanceAda - FEE_RESERVE_ADA),
-                          MIN_BID_ADA
-                        );
-                        setFormData((prev) => ({ ...prev, bidAmount: maxBid.toString() }));
-                        if (errors.bidAmount) {
-                          setErrors((prev) => ({ ...prev, bidAmount: undefined }));
-                        }
-                        setSubmitError(null);
-                      }}
-                      disabled={isSubmitting || balanceAda <= FEE_RESERVE_ADA}
-                      className="px-1.5 py-0.5 text-xs rounded-[var(--radius-sm)] btn-base btn-tertiary"
-                    >
-                      {t('modals:placeBid.maxButton')}
-                    </button>
-                  </div>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    {t('modals:placeBid.balance', { amount: balanceAda.toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
+                  </span>
                 ) : (
                   <span className="text-xs text-[var(--text-muted)]">
                     {t('modals:placeBid.balanceLoading')}
@@ -468,14 +472,14 @@ export default function PlaceBidModal({
                       <InfoTooltip text={t('modals:placeBid.futurePriceTooltip')} />
                     </label>
                     {suggestedPriceAda !== undefined && suggestedPriceAda > 0 && (
-                      <div className="flex gap-1.5">
+                      <div className="inline-flex rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-secondary)]">
                         <button
                           type="button"
                           onClick={() =>
                             setFormData((prev) => ({ ...prev, futurePrice: suggestedPriceAda!.toString() }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
+                          className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
                         >
                           {t('modals:placeBid.samePrice')}
                         </button>
@@ -488,7 +492,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
+                          className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
                         >
                           +10%
                         </button>
@@ -501,7 +505,7 @@ export default function PlaceBidModal({
                             }))
                           }
                           disabled={isSubmitting}
-                          className="px-2 py-1 text-xs rounded-[var(--radius-md)] btn-base btn-tertiary"
+                          className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
                         >
                           +25%
                         </button>
