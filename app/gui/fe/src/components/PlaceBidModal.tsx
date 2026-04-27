@@ -425,7 +425,7 @@ export default function PlaceBidModal({
                   {t('modals:placeBid.belowSuggested', { amount: formatAda(encryption.suggestedPrice!) })}
                 </p>
               )}
-              <div className="mt-1 space-y-1">
+              <div className="mt-3 space-y-1">
                 <p id="bidAmount-hint" className="text-xs text-[var(--text-muted)]">
                   {t('modals:placeBid.bidHint', { amount: MIN_BID_ADA })}
                   <InfoTooltip text={t('modals:placeBid.minimumTooltip')} />
