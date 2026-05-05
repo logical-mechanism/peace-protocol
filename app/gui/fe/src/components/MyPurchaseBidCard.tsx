@@ -193,7 +193,10 @@ function MyPurchaseBidCard({
 
   return (
     <>
-    <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
+    {/* @container so the bid-amount font ramp below scales with the card's
+      * actual width (column-count + viewport). MyPurchaseBidCard doesn't
+      * accept a cardSize prop, so the ramp uses the medium-tier defaults. */}
+    <article className="@container h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
       {/* Image banner — pure visual, no overlays */}
       <ListingImage
         tokenName={encryption?.tokenName ?? bid.encryptionToken}
@@ -225,7 +228,7 @@ function MyPurchaseBidCard({
 
         {/* Hero: bid amount */}
         <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
-          <p className={`text-2xl font-semibold tracking-tight tnum inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap ${
+          <p className={`text-base @sm:text-lg @md:text-xl @lg:text-2xl font-semibold tracking-tight tnum inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap ${
             isAccepted ? 'text-[var(--success)]' : 'text-[var(--text-primary)]'
           }`}>
             {formatAda(bid.amount)} ADA

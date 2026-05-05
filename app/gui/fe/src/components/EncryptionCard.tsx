@@ -12,7 +12,7 @@ import HighlightText from './HighlightText';
 import { formatDate } from '../utils/formatDate';
 import { formatPrice } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
-import type { CardSize } from '../hooks/useTabFilterState';
+import { getPriceFontClass, type CardSize } from '../hooks/useTabFilterState';
 
 
 interface EncryptionCardProps {
@@ -191,12 +191,15 @@ function EncryptionCard({
   }
 
   const innerPadClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-lg)]' : 'p-[var(--space-md)]';
-  const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
+  const priceClass = getPriceFontClass(cardSize);
   const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-2';
 
   return (
     <>
-      <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
+      {/* @container makes this card a container query root so the price font
+        * below scales with the card's actual width (which depends on the
+        * column-count + viewport), not just the user's cardSize preference. */}
+      <article className="@container h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
         {/* Image banner — pure visual, no overlays */}
         <ListingImage
           tokenName={encryption.tokenName}

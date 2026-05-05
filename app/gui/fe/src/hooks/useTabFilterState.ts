@@ -234,3 +234,23 @@ export function getGridClasses(columnCount: ColumnCount): string {
     case 4: return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
   }
 }
+
+// ── Card price font ramp ─────────────────────────────────────────
+//
+// Currency-style prices on listing cards can run up to 21 characters at the
+// Cardano max supply (45,000,000,000.00 ADA), which doesn't fit at the larger
+// font tiers when the card is squeezed into a 4-column grid. Container queries
+// drive the font off the *card's* width instead of the viewport so picking a
+// narrower grid automatically shrinks the price to fit.
+//
+// `cardSize` still acts as the user's preferred tier — it caps the maximum
+// font reached on a wide card. Each ramp starts at text-base on a narrow card
+// (where 21 chars at base fits in ~190px) and steps up as the container grows.
+export function getPriceFontClass(cardSize: CardSize): string {
+  switch (cardSize) {
+    case 'small': return 'text-base @sm:text-lg'
+    case 'large': return 'text-base @sm:text-lg @md:text-xl @lg:text-2xl @xl:text-3xl'
+    case 'medium':
+    default: return 'text-base @sm:text-lg @md:text-xl @lg:text-2xl'
+  }
+}
