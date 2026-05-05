@@ -677,7 +677,7 @@ function MySalesTab({
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((encryption, index) => (
-            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={encryption.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <SalesListingCard
                 encryption={encryption}
                 bidCount={getBidCount(encryption.tokenName)}

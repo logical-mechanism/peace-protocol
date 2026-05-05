@@ -3,6 +3,8 @@
  * Uses skeleton-shimmer CSS class for a sweeping gradient animation.
  */
 
+import { DelayedSpinner } from './LoadingSpinner';
+
 interface SkeletonCardProps {
   compact?: boolean;
 }
@@ -25,21 +27,31 @@ export function SkeletonCard({ compact = false }: SkeletonCardProps) {
   }
 
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-6">
-      {/* Header row: icon + badge */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="w-10 h-10 rounded-[var(--radius-md)] skeleton-shimmer" />
-        <div className="h-5 w-16 rounded-full skeleton-shimmer" />
-      </div>
-      {/* Title */}
-      <div className="h-4 w-3/4 rounded skeleton-shimmer mb-3" />
-      {/* Description lines */}
-      <div className="h-3 w-full rounded skeleton-shimmer mb-2" />
-      <div className="h-3 w-2/3 rounded skeleton-shimmer mb-4" />
-      {/* Footer row */}
-      <div className="flex items-center justify-between">
-        <div className="h-3 w-1/4 rounded skeleton-shimmer" />
-        <div className="h-8 w-20 rounded-[var(--radius-md)] skeleton-shimmer" />
+    <div className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden">
+      {/* Image banner placeholder — matches the new card's flush top banner */}
+      <div className="w-full h-40 skeleton-shimmer" />
+
+      {/* Content */}
+      <div className="p-[var(--space-md)] flex-1 flex flex-col">
+        {/* Hero row: price + badge */}
+        <div className="flex items-center justify-between mb-[var(--space-2)]">
+          <div className="h-7 w-24 rounded skeleton-shimmer" />
+          <div className="h-4 w-12 rounded-[var(--radius-sm)] skeleton-shimmer" />
+        </div>
+
+        {/* Description lines */}
+        <div className="h-3 w-full rounded skeleton-shimmer mb-[var(--space-1)]" />
+        <div className="h-3 w-2/3 rounded skeleton-shimmer mb-[var(--space-3)]" />
+
+        {/* Action button */}
+        <div className="h-10 w-full rounded-[var(--radius-md)] skeleton-shimmer" />
+
+        {/* Footer placeholder — pinned to bottom for equal-height grid */}
+        <div className="mt-auto pt-[var(--space-3)] border-t border-[var(--border-subtle)] flex items-center gap-[var(--space-2)]">
+          <div className="h-3 w-16 rounded skeleton-shimmer" />
+          <div className="h-3 w-20 rounded skeleton-shimmer" />
+          <div className="h-3 w-14 rounded skeleton-shimmer" />
+        </div>
       </div>
     </div>
   );
@@ -69,22 +81,27 @@ interface SkeletonGridProps {
 
 /** Grid of skeleton cards matching the standard tab grid layout. */
 export function SkeletonGrid({ count = 8, compact = false }: SkeletonGridProps) {
-  if (compact) {
-    return (
-      <div className="space-y-3">
-        {Array.from({ length: count }, (_, i) => (
-          <SkeletonCard key={i} compact />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {Array.from({ length: count }, (_, i) => (
-        <SkeletonCard key={i} />
-      ))}
-    </div>
+    <>
+      {/* Subtle delayed spinner — appears only when the load takes >600ms,
+          giving silent visual feedback without spamming "Loading..." text. */}
+      <div className="flex justify-center mb-4 opacity-60" aria-hidden="true">
+        <DelayedSpinner size="sm" delay={600} label="" />
+      </div>
+      {compact ? (
+        <div className="space-y-3">
+          {Array.from({ length: count }, (_, i) => (
+            <SkeletonCard key={i} compact />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: count }, (_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

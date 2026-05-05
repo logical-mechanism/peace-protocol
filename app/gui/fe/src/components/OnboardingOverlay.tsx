@@ -94,7 +94,7 @@ export default function OnboardingOverlay() {
           {TOUR_STEPS.map((_, i) => (
             <div
               key={i}
-              className="h-1.5 rounded-full transition-all"
+              className="h-1.5 rounded-full transition-all duration-[var(--transition-base)] ease-out"
               style={{
                 width: i === stepNumber ? '1.5rem' : '0.375rem',
                 background: i === stepNumber
@@ -113,7 +113,7 @@ export default function OnboardingOverlay() {
 
         <h3
           id="onboarding-step-title"
-          className="text-sm font-semibold mb-1.5"
+          className="t-display text-base mb-1.5"
           style={{ color: 'var(--text-primary)' }}
         >
           {t(step.titleKey)}
@@ -126,7 +126,7 @@ export default function OnboardingOverlay() {
           <button
             onClick={handleSkip}
             aria-label={t('skipAria')}
-            className="text-xs cursor-pointer px-2 py-1 rounded"
+            className="text-xs cursor-pointer px-2 py-1 rounded-[var(--radius-sm)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors duration-[var(--transition-fast)] focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
             style={{ color: 'var(--text-muted)' }}
           >
             {t('skip')}

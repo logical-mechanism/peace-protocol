@@ -134,14 +134,14 @@ describe('EncryptionCard', () => {
       expect(screen.getByTestId('listing-image')).toBeInTheDocument();
     });
 
-    it('renders seller info', () => {
-      renderCard();
-      expect(screen.getByText('Seller')).toBeInTheDocument();
+    it('renders seller pkh in footer', () => {
+      renderCard({ sellerPkh: 'sellerXX12345' });
+      expect(screen.getByText('sellerXX...')).toBeInTheDocument();
     });
 
-    it('renders "Listed" date', () => {
+    it('renders listing date in footer', () => {
       renderCard();
-      expect(screen.getByText('Listed 2 days ago')).toBeInTheDocument();
+      expect(screen.getByText('2 days ago')).toBeInTheDocument();
     });
   });
 

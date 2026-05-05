@@ -109,15 +109,15 @@ export default function PreferencesSection() {
               setShowNsfw(next)
               setNsfwEnabled(next)
             }}
-            className={`relative w-10 h-6 rounded-full transition-colors duration-[var(--transition-fast)] cursor-pointer ${
+            className={`relative w-11 h-6 rounded-full transition-colors duration-[var(--transition-fast)] cursor-pointer ${
               showNsfw ? 'bg-[var(--accent)]' : 'bg-[var(--bg-elevated)]'
             }`}
             role="switch"
             aria-checked={showNsfw}
             aria-label={t('preferences.nsfwToggleAria')}
           >
-            <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform duration-[var(--transition-fast)] ${
-              showNsfw ? 'translate-x-4' : ''
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-[var(--transition-fast)] ${
+              showNsfw ? 'translate-x-5' : ''
             }`} />
           </button>
           <span className="text-sm text-[var(--text-primary)]">{t('preferences.nsfwLabel')}</span>
@@ -162,7 +162,7 @@ export default function PreferencesSection() {
                 sendDesktopNotification(t('preferences.desktopNotifTestTitle'), t('preferences.desktopNotifTestBody'))
               }
             }}
-            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
               desktopNotifEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
             }`}
             role="switch"
@@ -170,7 +170,7 @@ export default function PreferencesSection() {
             aria-label={t('preferences.desktopNotifToggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-              desktopNotifEnabled ? 'translate-x-6' : 'translate-x-0'
+              desktopNotifEnabled ? 'translate-x-5' : 'translate-x-0'
             }`} />
           </button>
         </div>
@@ -192,7 +192,7 @@ export default function PreferencesSection() {
               setMasterSoundEnabled(next)
               if (next) previewSound('new_bid')
             }}
-            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+            className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
               masterSoundEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--bg-secondary)] border border-[var(--border-subtle)]'
             }`}
             role="switch"
@@ -200,7 +200,7 @@ export default function PreferencesSection() {
             aria-label={t('preferences.notifSoundsToggleAria')}
           >
             <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-              masterSoundEnabled ? 'translate-x-6' : 'translate-x-0'
+              masterSoundEnabled ? 'translate-x-5' : 'translate-x-0'
             }`} />
           </button>
         </div>

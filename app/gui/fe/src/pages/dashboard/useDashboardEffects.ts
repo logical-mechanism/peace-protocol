@@ -12,7 +12,6 @@ import { getPersistedFilters, persistFilters } from '../../services/filterStorag
 import type { TransactionRecord } from '../../services/transactionHistory'
 import type { IWallet } from '@meshsdk/core'
 import type { useToast } from '../../components/Toast'
-import type { TabId } from './dashboardTypes'
 import type { MarketplaceFilters, MarketplaceAction } from '../../hooks/useTabFilterState'
 import type { NodeStage } from '../../contexts/NodeContext'
 
@@ -26,7 +25,6 @@ interface UseDashboardEffectsParams {
   historySignal: number
   triggerSoftRefresh: () => void
   refreshBalance: () => void
-  activeTab: TabId
   toast: ReturnType<typeof useToast>
   wallet: IWallet | null
   address: string | undefined
@@ -37,7 +35,7 @@ interface UseDashboardEffectsParams {
 export function useDashboardEffects({
   userPkh, tipSlot, tipHeight, nodeStage, expressReady,
   refreshSignal, historySignal, triggerSoftRefresh, refreshBalance,
-  activeTab, toast, wallet, address,
+  toast, wallet, address,
   marketplaceFilters, marketplaceDispatch,
 }: UseDashboardEffectsParams) {
   const { t } = useTranslation('notifications')
@@ -125,13 +123,12 @@ export function useDashboardEffects({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acceptedBidCount])
 
-  // Mark bids as seen when user switches to My Sales tab
-  const { markAllSeen } = bidNotifications
-  useEffect(() => {
-    if (activeTab === 'my-sales') {
-      markAllSeen()
-    }
-  }, [activeTab, markAllSeen])
+  // Bid notifications are marked seen per-listing as the user views each listing's bids
+  // (MySalesTab calls onBidsViewed={markListingSeen} when the bids modal opens).
+  // Previously this effect called markAllSeen() on tab activation, which cleared the
+  // badge even if the user scrolled past new listings without opening them — that
+  // hid notifications they hadn't actually seen. Now the badge only decrements as
+  // individual listings are inspected, matching the seen-per-listing storage model.
 
   // Load transaction history when PKH changes
   useEffect(() => {

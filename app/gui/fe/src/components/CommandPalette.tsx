@@ -107,7 +107,7 @@ export default function CommandPalette({ isOpen, onClose, onExecute }: CommandPa
       role="presentation"
     >
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm modal-backdrop-enter"
+        className="absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm modal-backdrop-enter"
         onClick={onClose}
         aria-hidden="true"
       />

@@ -253,86 +253,82 @@ function LibraryCard({
     );
   }
 
-  const padClass = cardSize === 'small' ? 'p-3' : cardSize === 'large' ? 'p-8' : 'p-6';
-  const mbNum = cardSize === 'small' ? 'mb-2' : cardSize === 'large' ? 'mb-6' : 'mb-4';
-  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-1';
-  const imgHeight = cardSize === 'small' ? 'h-28' : cardSize === 'large' ? 'h-52' : 'h-40';
+  const innerPadClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-lg)]' : 'p-[var(--space-md)]';
+  const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-2';
+  // Image height/margin must match ListingImage size="md" (h-40 + my-4 + rounded-md)
+  // exactly, otherwise cards-with-images render 32px taller than cards-without
+  // and the grid loses equal-height rows. cardSize only controls inner content
+  // density (padding, line-clamp), never the banner height.
 
   return (
     <>
       <article
-        className={`relative bg-[var(--bg-card)] border rounded-[var(--radius-lg)] ${padClass} transition-all duration-[var(--transition-fast)] ${
+        className={`h-full flex flex-col bg-[var(--bg-card)] border rounded-[var(--radius-lg)] overflow-hidden transition-all duration-[var(--transition-base)] ${
           selected
             ? 'border-[var(--accent)] bg-[var(--accent-muted)]'
-            : 'border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)] hover:border-[var(--border-default)] hover:translate-y-[-1px] hover:shadow-[var(--shadow-md)]'
+            : 'border-[var(--border-subtle)] hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)]'
         } ${selectMode ? 'cursor-pointer' : ''}`}
         onClick={selectMode ? () => onToggleSelect?.(item.tokenName) : undefined}
       >
-        {/* Select checkbox */}
-        {selectMode && (
-          <div className="absolute top-3 left-3">
-            <input
-              type="checkbox"
-              checked={selected}
-              onChange={() => onToggleSelect?.(item.tokenName)}
-              onClick={(e) => e.stopPropagation()}
-              className="w-4 h-4 accent-[var(--accent)] cursor-pointer"
-              aria-label={t('library.selectItem', { name: item.tokenName })}
-            />
+        {/* Image banner (or category-icon panel) — pure visual, no overlays */}
+        {item.imageLink ? (
+          <ListingImage
+            tokenName={item.tokenName}
+            imageLink={item.imageLink}
+            size="md"
+          />
+        ) : (
+          <div className="w-full h-40 my-4 rounded-[var(--radius-md)] flex items-center justify-center bg-[var(--bg-secondary)]">
+            <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
+              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
+            </div>
           </div>
         )}
 
-        {/* Header */}
-        <div className={`${mbNum} space-y-1`}>
-          {/* Row 1: Category Icon + Token Name + Category Badge */}
-          <div className="flex items-center gap-[var(--space-2)] min-w-0">
-            <div className="w-5 h-5 flex items-center justify-center text-[var(--text-muted)] flex-shrink-0">
-              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="sm" />
-            </div>
-            <span className="text-xs font-mono text-[var(--text-muted)] tracking-wide truncate" title={item.tokenName}>
+        {/* Content */}
+        <div className={`${innerPadClass} flex-1 flex flex-col`}>
+          {/* Status row: badges (left) + select checkbox (right, when in selectMode) */}
+          <div className="flex items-center gap-[var(--space-1)] mb-[var(--space-3)] min-w-0">
+            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
+            {item.contentMissing && (
+              <Badge variant="warning">{t('library.missingBadge')}</Badge>
+            )}
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect?.(item.tokenName)}
+                onClick={(e) => e.stopPropagation()}
+                className="ml-auto w-4 h-4 accent-[var(--accent)] cursor-pointer"
+                aria-label={t('library.selectItem', { name: item.tokenName })}
+              />
+            )}
+          </div>
+
+          {/* Hero: token name + file size */}
+          <div className="flex items-baseline justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
+            <span
+              className="font-mono text-sm text-[var(--text-primary)] truncate"
+              title={item.tokenName}
+            >
               {searchQuery ? (
                 <HighlightText text={truncateHex(item.tokenName, 12, 8)} query={searchQuery} />
               ) : (
                 truncateHex(item.tokenName, 12, 8)
               )}
             </span>
-            <Badge variant="neutral">{t(`common:categories.${getTopLevelCategory(item.category || 'text')}`)}</Badge>
-            {item.contentMissing && (
-              <Badge variant="warning">{t('library.missingBadge')}</Badge>
+            {item.fileSize != null && (
+              <span className="text-xs text-[var(--text-muted)] flex-shrink-0 whitespace-nowrap">
+                {formatBytes(item.fileSize)}
+              </span>
             )}
           </div>
-          {/* Row 2: File Size (left) + Relist button (right) */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-[var(--text-muted)]">
-              {item.fileSize != null ? formatBytes(item.fileSize) : '\u00A0'}
-            </span>
-            {onRelist && !item.contentMissing && !selectMode && (
-              <button
-                onClick={() => onRelist(item)}
-                className="p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
-                title={t('library.createListingFromItem')}
-                aria-label={t('library.createListingFromItem')}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              </button>
-            )}
-          </div>
-          {/* Row 3: Date (centered) */}
-          <p className="text-xs text-[var(--text-muted)] text-center">
-            {t('card.decrypted', { date: formatDate(item.decryptedAt) })}
-          </p>
-        </div>
 
-        {/* Description */}
-        {item.description ? (
-          <div
-            className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-default)]`}
-            onClick={() => setDescriptionModalOpen(true)}
-          >
+          {/* Description (no sub-card frame) */}
+          {item.description && (
             <p
-              className={`text-sm font-medium text-[var(--text-secondary)] ${descClamp}`}
+              onClick={() => setDescriptionModalOpen(true)}
+              className={`text-sm text-[var(--text-secondary)] ${descClamp} mb-[var(--space-3)] cursor-pointer hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}
               title={item.description}
             >
               {searchQuery ? (
@@ -341,71 +337,71 @@ function LibraryCard({
                 truncateDescription(item.description)
               )}
             </p>
-          </div>
-        ) : (
-          <div className={`${mbNum} p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]`}>
-            <p className={`text-sm font-medium text-[var(--text-muted)] ${descClamp}`}>
-              {t('library.noDescription')}
-            </p>
-          </div>
-        )}
+          )}
 
-        {/* Image / Category Icon */}
-        {item.imageLink ? (
-          <ListingImage
-            tokenName={item.tokenName}
-            imageLink={item.imageLink}
-            size="md"
-          />
-        ) : (
-          <div className={`w-full ${imgHeight} rounded-[var(--radius-md)] flex items-center justify-center my-4 bg-[var(--bg-secondary)]`}>
-            <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
-              <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
-            </div>
-          </div>
-        )}
-
-        {/* Seller Info */}
-        {sellerPkh && (
-          <div className="flex items-center justify-between py-3 border-t border-[var(--border-subtle)]">
-            <span className="text-xs font-medium text-[var(--text-muted)]">{t('card.seller')}</span>
-            <span className="text-xs font-mono text-[var(--text-secondary)] flex items-center gap-1" title={sellerPkh}>
-              {truncateHex(sellerPkh, 12, 8)}
+          {/* Action row — View hero + relist + delete icons */}
+          {!selectMode && (
+            <div className="flex items-center gap-[var(--space-2)]">
               <button
-                onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
-                className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                title={t('card.copySellerAddress')}
-                aria-label={t('card.copySellerAddress')}
+                onClick={() => onView(item)}
+                className="flex-1 px-[var(--space-md)] py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
               >
-                <svg className={`w-3 h-3${copiedSeller ? ' copy-check-animate' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {copiedSeller ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  )}
+                {t('library.viewContent')}
+              </button>
+              {onRelist && !item.contentMissing && (
+                <button
+                  onClick={() => onRelist(item)}
+                  className="p-2 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent-muted)] btn-base"
+                  title={t('library.createListingFromItem')}
+                  aria-label={t('library.createListingFromItem')}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={() => onDelete(item)}
+                className="p-2 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-muted)] btn-base"
+                title={t('library.deleteFromLibrary')}
+                aria-label={t('library.deleteFromLibrary')}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-            </span>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Action Buttons */}
-        {!selectMode && (
-          <div className={`mt-${cardSize === 'small' ? '2' : cardSize === 'large' ? '6' : '4'} space-y-2`}>
-            <button
-              onClick={() => onView(item)}
-              className="w-full px-4 py-2.5 text-sm font-medium rounded-[var(--radius-md)] btn-base btn-primary"
-            >
-              {t('library.viewContent')}
-            </button>
-            <button
-              onClick={() => onDelete(item)}
-              className="w-full px-4 py-2 text-sm rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--error-muted)] hover:text-[var(--error)] hover:border-[var(--error)] btn-base btn-tertiary"
-            >
-              {t('library.delete')}
-            </button>
+          {/* Footer — dot-separated meta, pinned to card bottom for equal-height grid */}
+          <div className="mt-auto pt-[var(--space-3)] border-t border-[var(--border-subtle)] flex items-center gap-[var(--space-2)] text-xs text-[var(--text-muted)] flex-wrap">
+            <span>{t('card.decrypted', { date: formatDate(item.decryptedAt) })}</span>
+            {sellerPkh && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="font-mono" title={sellerPkh}>
+                  {truncateHex(sellerPkh, 8, 4)}
+                </span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleCopySeller(); }}
+                  className="p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--accent)] transition-all duration-[var(--transition-fast)] cursor-pointer"
+                  title={t('card.copySellerAddress')}
+                  aria-label={t('card.copySellerAddress')}
+                >
+                  {copiedSeller ? (
+                    <svg className="w-3.5 h-3.5 text-[var(--success)] copy-check-animate" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </button>
+              </>
+            )}
           </div>
-        )}
+        </div>
       </article>
 
       <DescriptionModal

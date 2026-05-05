@@ -37,16 +37,18 @@ describe('SkeletonGrid', () => {
 
   it('renders specified count of cards', () => {
     const { container } = render(<SkeletonGrid count={3} />);
-    // Grid layout has direct children that are card containers
-    const grid = container.firstElementChild!;
+    // SkeletonGrid renders [DelayedSpinner wrapper, grid container] in a Fragment.
+    // The grid is the second top-level element.
+    const grid = container.querySelector('.grid')!;
+    expect(grid).not.toBeNull();
     expect(grid.children).toHaveLength(3);
   });
 
   it('renders compact variant in vertical stack', () => {
     const { container } = render(<SkeletonGrid count={4} compact />);
-    const stack = container.firstElementChild!;
+    const stack = container.querySelector('.space-y-3')!;
+    expect(stack).not.toBeNull();
     expect(stack.children).toHaveLength(4);
-    expect(stack.className).toContain('space-y-3');
   });
 });
 

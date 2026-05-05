@@ -137,7 +137,7 @@ describe('SalesListingCard', () => {
 
     it('shows Remove Listing button', () => {
       renderCard({ status: 'active' }, { onRemove: vi.fn() });
-      expect(screen.getByText('Remove Listing')).toBeInTheDocument();
+      expect(screen.getByLabelText('Remove Listing')).toBeInTheDocument();
     });
 
     it('shows bid count in View Bids button badge', () => {
@@ -156,7 +156,7 @@ describe('SalesListingCard', () => {
     it('calls onRemove when clicked', () => {
       const onRemove = vi.fn();
       renderCard({ status: 'active' }, { onRemove });
-      fireEvent.click(screen.getByText('Remove Listing'));
+      fireEvent.click(screen.getByLabelText('Remove Listing'));
       expect(onRemove).toHaveBeenCalledOnce();
     });
   });
@@ -169,7 +169,7 @@ describe('SalesListingCard', () => {
 
     it('shows Cancel Pending Sale button', () => {
       renderCard({ status: 'pending' }, { onCancelPending: vi.fn() });
-      expect(screen.getByText('Cancel Pending Sale')).toBeInTheDocument();
+      expect(screen.getByLabelText('Cancel Pending Sale')).toBeInTheDocument();
     });
 
     it('shows sale in progress message', () => {
@@ -187,7 +187,7 @@ describe('SalesListingCard', () => {
     it('calls onCancelPending when clicked', () => {
       const onCancelPending = vi.fn();
       renderCard({ status: 'pending' }, { onCancelPending });
-      fireEvent.click(screen.getByText('Cancel Pending Sale'));
+      fireEvent.click(screen.getByLabelText('Cancel Pending Sale'));
       expect(onCancelPending).toHaveBeenCalledOnce();
     });
   });

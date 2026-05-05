@@ -312,7 +312,7 @@ export default function DataLayerSection({
                   href="https://app.iagon.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[var(--accent)] hover:underline"
+                  className="text-[var(--link)] hover:text-[var(--link-hover)] hover:underline"
                 >
                   app.iagon.com
                 </a>
@@ -400,7 +400,7 @@ export default function DataLayerSection({
                 href="https://app.iagon.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--accent)] hover:underline"
+                className="text-[var(--link)] hover:text-[var(--link-hover)] hover:underline"
               >
                 app.iagon.com
               </a>
@@ -554,7 +554,7 @@ export default function DataLayerSection({
               href="https://app.iagon.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--accent)] hover:underline"
+              className="text-[var(--link)] hover:text-[var(--link-hover)] hover:underline"
             >
               app.iagon.com
             </a>

@@ -76,14 +76,23 @@ export default function WalletUnlock() {
   return (
     <main
       id="main-content"
-      className="min-h-screen flex items-center justify-center p-8"
+      className="relative min-h-screen flex items-center justify-center p-8 overflow-hidden"
       style={{ background: 'var(--bg-primary)' }}
     >
-      <div className="w-full max-w-md">
+      {/* Atmospheric backdrop — radial accent halo centered behind the card */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none opacity-60"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 50%, var(--accent-muted) 0%, transparent 35%)',
+        }}
+      />
+      <div className="relative w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <h1
-            className="text-3xl font-bold mb-2"
+            className="t-display text-3xl mb-2"
             style={{ color: 'var(--text-primary)' }}
           >
             {t('appName')}
@@ -254,7 +263,7 @@ export default function WalletUnlock() {
             aria-labelledby="delete-wallet-title"
           >
             <div
-              className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${deleteAnim === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+              className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${deleteAnim === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
               onClick={onCloseDelete}
               aria-hidden="true"
             />
