@@ -245,6 +245,7 @@
     "snarkSetup": "SNARK Setup",
     "walletLabel": "Wallet",
     "other": "Other",
+    "segmentTooltip": "{{label}}: {{size}} ({{percent}}%)",
     "refresh": "Refresh",
     "loading": "Loading...",
     "imageCacheTitle": "Image Cache",

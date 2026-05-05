@@ -317,7 +317,12 @@
     "gridView": "Grid view",
     "listView": "List view",
     "cardSize": "Card size",
-    "columns": "Columns"
+    "columns": "Columns",
+    "cardSizeSmall": "Small cards",
+    "cardSizeMedium": "Medium cards",
+    "cardSizeLarge": "Large cards",
+    "columnsCount_one": "{{count}} column",
+    "columnsCount_other": "{{count}} columns"
   },
   "ui": {
     "loading": "Loading",

@@ -16,6 +16,12 @@ interface LayoutPopoverProps {
 const SIZE_OPTIONS: CardSize[] = ['small', 'medium', 'large'];
 const COLUMN_OPTIONS: ColumnCount[] = [2, 3, 4];
 
+const SIZE_LABEL_KEY: Record<CardSize, string> = {
+  small: 'layoutPopover.cardSizeSmall',
+  medium: 'layoutPopover.cardSizeMedium',
+  large: 'layoutPopover.cardSizeLarge',
+};
+
 export default function LayoutPopover({
   viewMode,
   cardSize,
@@ -139,8 +145,8 @@ export default function LayoutPopover({
                       ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                       : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                   }`}
-                  title={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
-                  aria-label={`${size.charAt(0).toUpperCase() + size.slice(1)} cards`}
+                  title={t(SIZE_LABEL_KEY[size])}
+                  aria-label={t(SIZE_LABEL_KEY[size])}
                   aria-pressed={cardSize === size}
                 >
                   {size === 'small' && (
@@ -182,8 +188,8 @@ export default function LayoutPopover({
                       ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
                       : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                   }`}
-                  title={`${cols} columns`}
-                  aria-label={`${cols} columns`}
+                  title={t('layoutPopover.columnsCount', { count: cols })}
+                  aria-label={t('layoutPopover.columnsCount', { count: cols })}
                   aria-pressed={columnCount === cols}
                 >
                   {cols === 2 && (
