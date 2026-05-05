@@ -255,7 +255,10 @@ function LibraryCard({
 
   const innerPadClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-lg)]' : 'p-[var(--space-md)]';
   const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-2';
-  const imgHeight = cardSize === 'small' ? 'h-28' : cardSize === 'large' ? 'h-52' : 'h-40';
+  // Image height/margin must match ListingImage size="md" (h-40 + my-4 + rounded-md)
+  // exactly, otherwise cards-with-images render 32px taller than cards-without
+  // and the grid loses equal-height rows. cardSize only controls inner content
+  // density (padding, line-clamp), never the banner height.
 
   return (
     <>
@@ -275,7 +278,7 @@ function LibraryCard({
             size="md"
           />
         ) : (
-          <div className={`w-full ${imgHeight} flex items-center justify-center bg-[var(--bg-secondary)]`}>
+          <div className="w-full h-40 my-4 rounded-[var(--radius-md)] flex items-center justify-center bg-[var(--bg-secondary)]">
             <div className="w-14 h-14 rounded-full bg-[var(--accent-muted)] flex items-center justify-center text-[var(--accent)]">
               <CategoryIcon category={item.category} fileExtension={item.fileExtension} size="md" />
             </div>
