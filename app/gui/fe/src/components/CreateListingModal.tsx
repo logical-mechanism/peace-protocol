@@ -11,6 +11,7 @@ import { useToast } from './Toast';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
+import { formatWithCommas } from '../utils/formatAda';
 import { getCategoryConfig, detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
@@ -91,15 +92,11 @@ const STEP_ORDER: Record<ListingCreationStep, number> = {
   submitting: 5,
 };
 
-function formatPrice(raw: string): string {
-  if (!raw || raw.endsWith('.')) return raw;
-  const num = parseFloat(raw);
-  if (isNaN(num)) return raw;
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  }).format(num);
-}
+// Wraps the shared formatWithCommas helper so the existing call sites below
+// keep their local name. Behavior matches the bid modals: thousands separators
+// on the integer part, decimal portion preserved verbatim (so trailing zeros
+// the user typed stay visible at rest).
+const formatPrice = formatWithCommas;
 
 const INITIAL_FORM_DATA: CreateListingFormData = {
   category: 'text',
@@ -509,8 +506,11 @@ export default function CreateListingModal({
     setIsDirty(true);
   };
 
-  const handlePriceFocus = () => {
+  const handlePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setDisplayPrice(formData.suggestedPrice);
+    // Select-all on focus so the user can immediately overwrite the value,
+    // matching PlaceBid / UpdateBid / UpdatePrice modals.
+    e.target.select();
   };
 
   const handlePriceBlur = () => {

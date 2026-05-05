@@ -28,3 +28,31 @@ export function formatAdaDisplay(lovelaceAmount: string | undefined): string {
   const ada = parseInt(lovelaceAmount) / 1_000_000;
   return ada.toLocaleString(activeLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+/**
+ * Format a numeric input string with thousands separators on the integer part,
+ * preserving the user's decimal portion verbatim (so trailing zeros and a bare
+ * trailing dot survive). Returns the input unchanged if the integer part isn't
+ * a finite number — keeps partial input like ".5" usable while typing.
+ *
+ * Always uses en-US grouping so the parsed display round-trips with parseFloat,
+ * which only understands period-decimals + ASCII digits regardless of locale.
+ */
+export function formatWithCommas(raw: string): string {
+  if (!raw) return '';
+  const dotIdx = raw.indexOf('.');
+  const intPart = dotIdx === -1 ? raw : raw.slice(0, dotIdx);
+  const decPart = dotIdx === -1 ? undefined : raw.slice(dotIdx + 1);
+  const intNum = parseInt(intPart, 10);
+  if (isNaN(intNum)) return raw;
+  const formatted = intNum.toLocaleString('en-US');
+  return decPart !== undefined ? `${formatted}.${decPart}` : formatted;
+}
+
+/**
+ * Strip thousands-separator commas from a formatted numeric string so it can be
+ * passed to parseFloat / parseInt. Inverse of {@link formatWithCommas}.
+ */
+export function stripCommas(formatted: string): string {
+  return formatted.replace(/,/g, '');
+}

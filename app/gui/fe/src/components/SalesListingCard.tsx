@@ -8,7 +8,7 @@ import { truncateDescription } from './descriptionUtils';
 import { formatRelativeTime } from '../utils/time';
 import { formatPrice } from '../utils/formatListing';
 import TransactionLink, { TransactionLinkInline } from './TransactionLink';
-import type { CardSize } from '../hooks/useTabFilterState';
+import { getPriceFontClass, type CardSize } from '../hooks/useTabFilterState';
 
 interface SalesListingCardProps {
   encryption: EncryptionDisplay;
@@ -212,12 +212,15 @@ function SalesListingCard({
   }
 
   const innerPadClass = cardSize === 'small' ? 'p-[var(--space-sm)]' : cardSize === 'large' ? 'p-[var(--space-lg)]' : 'p-[var(--space-md)]';
-  const priceClass = cardSize === 'small' ? 'text-lg' : cardSize === 'large' ? 'text-3xl' : 'text-2xl';
+  const priceClass = getPriceFontClass(cardSize);
   const descClamp = cardSize === 'small' ? 'line-clamp-1' : cardSize === 'large' ? 'line-clamp-3' : 'line-clamp-2';
 
   return (
     <>
-      <article className="h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
+      {/* @container so the price font ramp below scales with the card's
+        * actual width (column-count + viewport), not the user's cardSize
+        * preference alone. */}
+      <article className="@container h-full flex flex-col bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] overflow-hidden hover:border-[var(--accent)] hover:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-base)]">
         {/* Image banner — pure visual, no overlays */}
         <ListingImage
           tokenName={encryption.tokenName}
@@ -241,8 +244,12 @@ function SalesListingCard({
             )}
           </div>
 
-          {/* Hero: price + storage layer */}
-          <div className="flex items-center justify-between mb-[var(--space-3)] gap-[var(--space-2)]">
+          {/* Hero: price + storage layer.
+            * On a very narrow card (large + 4 cols at xl viewport ≈ 280px
+            * wide) the price + inline edit pencil + storage-layer badge
+            * don't all fit on one row, so stack them below @xs and revert
+            * to the horizontal layout once the card is wide enough. */}
+          <div className="flex flex-col items-start gap-1 mb-[var(--space-3)] @xs:flex-row @xs:items-center @xs:justify-between @xs:gap-[var(--space-2)]">
             <p className={`${priceClass} font-semibold tracking-tight tnum text-[var(--text-primary)] inline-flex items-center gap-[var(--space-1)] leading-none whitespace-nowrap`}>
               {formatPrice(encryption.suggestedPrice)}
               {isActive && !isOptimistic && onUpdatePrice && (

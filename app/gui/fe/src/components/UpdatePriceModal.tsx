@@ -5,7 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
-import { formatAda } from '../utils/formatAda';
+import { formatAda, formatWithCommas, stripCommas } from '../utils/formatAda';
 
 interface UpdatePriceModalProps {
   isOpen: boolean;
@@ -22,6 +22,9 @@ export default function UpdatePriceModal({
 }: UpdatePriceModalProps) {
   const { t } = useTranslation(['modals', 'common']);
   const [priceAda, setPriceAda] = useState('');
+  // Display string carries thousands-separator commas at rest; priceAda stays
+  // comma-free so existing parseFloat callsites keep working.
+  const [displayPrice, setDisplayPrice] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<FriendlyError | null>(null);
@@ -37,6 +40,7 @@ export default function UpdatePriceModal({
         ? (encryption.suggestedPrice / 1_000_000).toString()
         : '';
       setPriceAda(currentAda);
+      setDisplayPrice(formatWithCommas(currentAda));
       setTimeout(() => priceInputRef.current?.focus(), 50);
     }
   }, [isOpen, encryption]);
@@ -79,16 +83,32 @@ export default function UpdatePriceModal({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/,/g, '');
+    let raw = stripCommas(e.target.value);
+    let display = e.target.value;
     // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
-    const dotIndex = value.indexOf('.');
-    if (dotIndex !== -1 && value.length - dotIndex - 1 > 6) return;
+    const dotIndex = raw.indexOf('.');
+    if (dotIndex !== -1 && raw.length - dotIndex - 1 > 6) return;
+    if (raw && !/^[0-9]*\.?[0-9]*$/.test(raw)) return;
     // Clamp to Cardano max supply (45 billion ADA)
-    const parsed = parseFloat(value);
-    if (!isNaN(parsed) && parsed > 45_000_000_000) value = '45000000000';
-    setPriceAda(value);
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed) && parsed > 45_000_000_000) {
+      raw = '45000000000';
+      display = '45000000000';
+    }
+    setPriceAda(raw);
+    setDisplayPrice(display);
     if (error) setError(null);
     if (submitError) setSubmitError(null);
+  };
+
+  const handlePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayPrice(priceAda);
+    e.target.select();
+  };
+
+  const handlePriceBlur = () => {
+    setDisplayPrice(formatWithCommas(priceAda));
+    if (priceAda.trim()) validateForm();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,9 +189,11 @@ export default function UpdatePriceModal({
                 id="update-price-input"
                 type="text"
                 inputMode="decimal"
-                value={priceAda}
+                autoComplete="off"
+                value={displayPrice}
                 onChange={handleInputChange}
-                onBlur={() => { if (priceAda.trim()) validateForm(); }}
+                onFocus={handlePriceFocus}
+                onBlur={handlePriceBlur}
                 disabled={isSubmitting}
                 placeholder="0"
                 aria-invalid={!!error}

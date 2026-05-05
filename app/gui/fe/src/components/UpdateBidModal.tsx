@@ -5,7 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
-import { formatAda } from '../utils/formatAda';
+import { formatAda, formatWithCommas, stripCommas } from '../utils/formatAda';
 
 interface UpdateBidModalProps {
   isOpen: boolean;
@@ -23,6 +23,10 @@ export default function UpdateBidModal({
   const { t } = useTranslation(['modals', 'common']);
   const [amountAda, setAmountAda] = useState('');
   const [futurePriceAda, setFuturePriceAda] = useState('');
+  // Display strings carry thousands-separator commas at rest; the *Ada state
+  // values stay comma-free so existing parseFloat calls keep working.
+  const [displayAmount, setDisplayAmount] = useState('');
+  const [displayFuturePrice, setDisplayFuturePrice] = useState('');
   const [futurePriceManuallyEdited, setFuturePriceManuallyEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +43,12 @@ export default function UpdateBidModal({
         ? (bid.amount / 1_000_000).toString()
         : '';
       setAmountAda(currentAmountAda);
+      setDisplayAmount(formatWithCommas(currentAmountAda));
       const currentFuturePrice = bid?.datum.new_price != null
         ? (bid.datum.new_price / 1_000_000).toString()
         : '';
       setFuturePriceAda(currentFuturePrice);
+      setDisplayFuturePrice(formatWithCommas(currentFuturePrice));
       setTimeout(() => amountInputRef.current?.focus(), 50);
     }
   }, [isOpen, bid]);
@@ -111,35 +117,62 @@ export default function UpdateBidModal({
     return true;
   };
 
-  const capDecimals = (value: string): string | null => {
-    const cleaned = value.replace(/,/g, '');
+  // Returns { raw, display } with raw stripped of commas and clamped to the
+  // 6-decimal / 45B-ADA caps; null when the value should be rejected outright.
+  const sanitize = (value: string): { raw: string; display: string } | null => {
+    const cleaned = stripCommas(value);
     const dotIndex = cleaned.indexOf('.');
     if (dotIndex !== -1 && cleaned.length - dotIndex - 1 > 6) return null;
-    // Clamp to Cardano max supply (45 billion ADA)
+    if (cleaned && !/^[0-9]*\.?[0-9]*$/.test(cleaned)) return null;
     const parsed = parseFloat(cleaned);
-    if (!isNaN(parsed) && parsed > 45_000_000_000) return '45000000000';
-    return value;
+    if (!isNaN(parsed) && parsed > 45_000_000_000) {
+      return { raw: '45000000000', display: '45000000000' };
+    }
+    return { raw: cleaned, display: value };
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = capDecimals(e.target.value);
-    if (value === null) return;
-    setAmountAda(value);
+    const next = sanitize(e.target.value);
+    if (next === null) return;
+    setAmountAda(next.raw);
+    setDisplayAmount(next.display);
     // Auto-sync future price if not manually edited
     if (!futurePriceManuallyEdited) {
-      setFuturePriceAda(value);
+      setFuturePriceAda(next.raw);
+      setDisplayFuturePrice(next.display);
     }
     if (error) setError(null);
     if (submitError) setSubmitError(null);
   };
 
+  const handleAmountFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayAmount(amountAda);
+    e.target.select();
+  };
+
+  const handleAmountBlur = () => {
+    setDisplayAmount(formatWithCommas(amountAda));
+    if (amountAda.trim()) validateForm();
+  };
+
   const handleFuturePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = capDecimals(e.target.value);
-    if (value === null) return;
-    setFuturePriceAda(value);
+    const next = sanitize(e.target.value);
+    if (next === null) return;
+    setFuturePriceAda(next.raw);
+    setDisplayFuturePrice(next.display);
     setFuturePriceManuallyEdited(true);
     if (error) setError(null);
     if (submitError) setSubmitError(null);
+  };
+
+  const handleFuturePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayFuturePrice(futurePriceAda);
+    e.target.select();
+  };
+
+  const handleFuturePriceBlur = () => {
+    setDisplayFuturePrice(formatWithCommas(futurePriceAda));
+    if (futurePriceAda.trim()) validateForm();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,9 +264,11 @@ export default function UpdateBidModal({
                 id="update-bid-amount-input"
                 type="text"
                 inputMode="decimal"
-                value={amountAda}
+                autoComplete="off"
+                value={displayAmount}
                 onChange={handleAmountChange}
-                onBlur={() => { if (amountAda.trim()) validateForm(); }}
+                onFocus={handleAmountFocus}
+                onBlur={handleAmountBlur}
                 disabled={isSubmitting}
                 placeholder="0"
                 aria-invalid={!!error}
@@ -260,9 +295,11 @@ export default function UpdateBidModal({
                 id="update-bid-price-input"
                 type="text"
                 inputMode="decimal"
-                value={futurePriceAda}
+                autoComplete="off"
+                value={displayFuturePrice}
                 onChange={handleFuturePriceChange}
-                onBlur={() => { if (futurePriceAda.trim()) validateForm(); }}
+                onFocus={handleFuturePriceFocus}
+                onBlur={handleFuturePriceBlur}
                 disabled={isSubmitting}
                 placeholder="0"
                 aria-invalid={!!error}
