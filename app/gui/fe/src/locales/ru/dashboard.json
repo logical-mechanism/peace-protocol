@@ -302,7 +302,9 @@
       "create-collateral": "Установить залог",
       "optimize-wallet": "Оптимизировать кошелёк",
       "update-price": "Обновить цену",
-      "update-bid": "Обновить ставку"
+      "update-bid": "Обновить ставку",
+      "send": "ADA отправлено",
+      "receive": "ADA получено"
     }
   },
   "library": {

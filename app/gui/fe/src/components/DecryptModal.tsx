@@ -12,6 +12,8 @@ import { formatAda } from '../utils/formatAda';
 import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCelebrationFlag } from '../hooks/useTxCelebration';
+import { getOnboardingState } from '../services/onboardingStorage';
 
 interface DecryptModalProps {
   isOpen: boolean;
@@ -50,6 +52,9 @@ export default function DecryptModal({
 
   // Stack-aware Escape key + body scroll lock + animation
   const { zIndex, shouldRender, animationState, isTopmost } = useModalStack('decrypt', isOpen, onClose, state === 'decrypting');
+
+  // Signature motion: one restrained beat when decryption completes successfully.
+  const isCelebrating = useCelebrationFlag(state === 'success');
   const modalRef = useRef<HTMLDivElement>(null);
   // Decrypt Now is first in DOM order below (flex-row-reverse keeps Cancel
   // visually on the left), so useFocusTrap's natural "first focusable"
@@ -190,16 +195,16 @@ export default function DecryptModal({
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={state !== 'decrypting' ? handleClose : undefined}
         aria-hidden="true"
       />
 
       {/* Modal — overflow-hidden moved off the panel so focus outlines on
        * edge-adjacent buttons aren't clipped in WebKit. */}
-      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
+      <div className={`relative bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-lg)]">
+        <div className="flex items-center justify-between p-6 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
             <h2 id="decrypt-modal-title" className="text-xl font-semibold text-[var(--text-primary)]">
               {state === 'success'
@@ -284,57 +289,67 @@ export default function DecryptModal({
                 </div>
               )}
 
-              {/* How it works — state-driven, localized copy. */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-[var(--text-primary)]">{t('modals:decrypt.howItWorks')}</h3>
-                {(() => {
-                  const explanation = getDecryptionExplanationState();
-                  if (explanation.mode === 'stub') {
+              {/* How it works — collapses to a disclosure once the user has done their first decrypt */}
+              <details
+                className="group [&_summary]:list-none"
+                open={!getOnboardingState().firstDecryptCompleted}
+              >
+                <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors">
+                  <svg className="w-3.5 h-3.5 text-[var(--text-muted)] transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  {t('modals:decrypt.howItWorks')}
+                </summary>
+                <div className="space-y-3 mt-3">
+                  {(() => {
+                    const explanation = getDecryptionExplanationState();
+                    if (explanation.mode === 'stub') {
+                      return (
+                        <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                      );
+                    }
+                    const wasmStatusKey = explanation.wasmReady
+                      ? 'modals:decrypt.explanationWasmReady'
+                      : 'modals:decrypt.explanationWasmMissing';
                     return (
-                      <p className="text-sm text-[var(--text-muted)]">{t('modals:decrypt.explanationStub')}</p>
+                      <div className="text-sm text-[var(--text-muted)] space-y-2">
+                        <p>{t('modals:decrypt.explanationIntro')}</p>
+                        <ol className="list-decimal pl-5 space-y-1">
+                          <li>{t('modals:decrypt.explanationStep1')}</li>
+                          <li>{t('modals:decrypt.explanationStep2')}</li>
+                          <li>{t('modals:decrypt.explanationStep3')}</li>
+                          <li>{t('modals:decrypt.explanationStep4')}</li>
+                        </ol>
+                        <p>{t(wasmStatusKey)}</p>
+                      </div>
                     );
-                  }
-                  const wasmStatusKey = explanation.wasmReady
-                    ? 'modals:decrypt.explanationWasmReady'
-                    : 'modals:decrypt.explanationWasmMissing';
-                  return (
-                    <div className="text-sm text-[var(--text-muted)] space-y-2">
-                      <p>{t('modals:decrypt.explanationIntro')}</p>
-                      <ol className="list-decimal pl-5 space-y-1">
-                        <li>{t('modals:decrypt.explanationStep1')}</li>
-                        <li>{t('modals:decrypt.explanationStep2')}</li>
-                        <li>{t('modals:decrypt.explanationStep3')}</li>
-                        <li>{t('modals:decrypt.explanationStep4')}</li>
-                      </ol>
-                      <p>{t(wasmStatusKey)}</p>
-                    </div>
-                  );
-                })()}
+                  })()}
 
-                {isStubMode() && (
-                  <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
-                    <svg
-                      className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                    <div className="text-sm">
-                      <span className="font-medium text-[var(--warning)]">{t('modals:decrypt.devModeTitle')}</span>
-                      <p className="text-[var(--text-secondary)] mt-0.5">
-                        {t('modals:decrypt.devModeBody')}
-                      </p>
+                  {isStubMode() && (
+                    <div className="flex items-start gap-3 p-3 bg-[var(--warning-muted)] rounded-[var(--radius-md)]">
+                      <svg
+                        className="w-5 h-5 text-[var(--warning)] flex-shrink-0 mt-0.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                      <div className="text-sm">
+                        <span className="font-medium text-[var(--warning)]">{t('modals:decrypt.devModeTitle')}</span>
+                        <p className="text-[var(--text-secondary)] mt-0.5">
+                          {t('modals:decrypt.devModeBody')}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </details>
 
               {/* Security note */}
               <div className="flex items-start gap-3 p-3 bg-[var(--bg-secondary)] rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
@@ -509,7 +524,7 @@ export default function DecryptModal({
               {/* Success message */}
               <div className="flex items-center gap-3 p-3 bg-[var(--success-muted)] rounded-[var(--radius-md)]">
                 <svg
-                  className="w-5 h-5 text-[var(--success)] flex-shrink-0"
+                  className={`w-5 h-5 text-[var(--success)] flex-shrink-0 ${isCelebrating ? 'tx-celebration-icon' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -587,7 +602,7 @@ export default function DecryptModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-lg)]">
+        <div className="p-6 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
           {state === 'idle' && (
             // flex-row-reverse: Decrypt Now is first in DOM so it receives
             // initial focus; Cancel stays visually on the left.

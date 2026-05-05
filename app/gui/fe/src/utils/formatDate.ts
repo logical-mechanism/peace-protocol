@@ -1,9 +1,15 @@
+import i18n from 'i18next';
+
+function activeLocale(): string | undefined {
+  return i18n.language || undefined;
+}
+
 /**
  * Format an ISO date string as a short date: "Jan 15, 2026".
  */
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(activeLocale(), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -17,7 +23,7 @@ export function formatDate(dateString: string): string {
 export function formatDateTime(dateString?: string): string {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(activeLocale(), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

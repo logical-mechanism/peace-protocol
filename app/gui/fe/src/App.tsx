@@ -43,6 +43,21 @@ function App() {
 
   return (
     <>
+    {/* Atmospheric noise overlay — adds depth to the deep neutrals without
+     * breaking minimalism. Fixed-position, behind everything, pointer-events
+     * disabled. Static SVG turbulence so it does not interact with motion
+     * accessibility settings. Disabled in high-contrast mode. */}
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 -z-10 h-full w-full app-noise-overlay"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <filter id="app-noise">
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch" />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#app-noise)" />
+    </svg>
     <a
       href="#main-content"
       className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:bg-[var(--bg-card)] focus:text-[var(--text-primary)] focus:border focus:border-[var(--accent)] focus:rounded-[var(--radius-md)] focus:shadow-lg focus:outline-none"

@@ -302,7 +302,9 @@
       "create-collateral": "Sicherheit einrichten",
       "optimize-wallet": "Wallet optimieren",
       "update-price": "Preis aktualisieren",
-      "update-bid": "Gebot aktualisieren"
+      "update-bid": "Gebot aktualisieren",
+      "send": "ADA gesendet",
+      "receive": "ADA empfangen"
     }
   },
   "library": {

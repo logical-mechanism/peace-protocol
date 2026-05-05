@@ -50,7 +50,7 @@ export default function TransactionLink({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`inline-flex items-center gap-1 font-mono text-[var(--accent)] hover:text-[var(--accent)]/80 underline underline-offset-2 transition-colors ${className}`}
+        className={`inline-flex items-center gap-1 font-mono text-[var(--link)] hover:text-[var(--link-hover)] underline underline-offset-2 transition-colors ${className}`}
         title={t('ui.viewTxOnCardanoScan', { txHash })}
       >
         {txHash}
@@ -103,7 +103,7 @@ export function TransactionLinkInline({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-[var(--accent)] hover:underline ${className}`}
+      className={`text-[var(--link)] hover:text-[var(--link-hover)] hover:underline ${className}`}
       title={t('ui.viewOnCardanoScan')}
     >
       {txHash.slice(0, 8)}...{txHash.slice(-8)}

@@ -302,7 +302,9 @@
       "create-collateral": "Thiết lập tài sản thế chấp",
       "optimize-wallet": "Tối ưu ví",
       "update-price": "Cập nhật giá",
-      "update-bid": "Cập nhật đặt giá"
+      "update-bid": "Cập nhật đặt giá",
+      "send": "ADA đã gửi",
+      "receive": "ADA đã nhận"
     }
   },
   "library": {

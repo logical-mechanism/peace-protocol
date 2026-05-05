@@ -68,7 +68,7 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
 
   return (
     <span
-      className={`relative inline-flex items-center ${className}`}
+      className={`relative inline-flex items-center align-middle ml-1 ${className}`}
       onMouseEnter={show}
       onMouseLeave={hide}
     >
@@ -82,9 +82,9 @@ export default function InfoTooltip({ text, position = 'top', className = '' }: 
         aria-label={t('ui.moreInfo')}
         aria-describedby={isVisible ? tooltipId : undefined}
         aria-expanded={isVisible}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:shadow-[var(--focus-ring)] transition-colors duration-[var(--transition-fast)] cursor-help"
+        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[var(--text-muted)] hover:text-[var(--accent)] focus-visible:text-[var(--accent)] focus-visible:shadow-[var(--focus-ring)] transition-colors duration-[var(--transition-fast)] cursor-help"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 16v-4m0-4h.01" />
         </svg>

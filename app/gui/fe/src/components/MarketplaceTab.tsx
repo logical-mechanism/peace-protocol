@@ -21,6 +21,7 @@ import LayoutPopover from './LayoutPopover';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { filterListings, sortListings, countActiveFilters, countPanelFilters } from '../services/marketplaceFilters';
+import { fuzzyMatch } from '../utils/fuzzySearch';
 import { getNsfwEnabled } from '../services/nsfwStorage';
 import { getOnboardingState } from '../services/onboardingStorage';
 import { truncateHex } from '../utils/truncate';
@@ -246,6 +247,24 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
   const activeFilterCount = useMemo(() => countActiveFilters(filterParams), [filterParams]);
   const panelFilterCount = useMemo(() => countPanelFilters(filterParams), [filterParams]);
 
+  // Fuzzy near-match suggestion — when search yields zero exact matches, find the
+  // best fuzzy match across all listing descriptions so we can offer "did you mean."
+  // Only computed when filtered is empty AND search is non-empty (cheap fallback).
+  const fuzzyNearMatch = useMemo(() => {
+    if (filteredAndSorted.length > 0) return null;
+    if (!debouncedSearch.trim()) return null;
+    let best: { description: string; score: number } | null = null;
+    for (const e of encryptions) {
+      if (!e.description) continue;
+      const { match, score } = fuzzyMatch(debouncedSearch, e.description);
+      if (match && (!best || score > best.score)) {
+        best = { description: e.description, score };
+      }
+    }
+    // Only suggest if the fuzzy score is reasonable (subsequence or better)
+    return best && best.score >= 0.4 ? best : null;
+  }, [filteredAndSorted.length, debouncedSearch, encryptions]);
+
   // Load more pagination — accumulate batches instead of showing a single page
   const ITEMS_PER_PAGE = 24;
 
@@ -370,7 +389,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
     categoryFilter.length === 1 && categoryFilter[0] !== 'all' ? categoryFilter[0] : null;
 
   const activeChips = sellerPkh || singleCategorySelected ? (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 mt-[var(--space-2)] pt-[var(--space-2)] border-t border-[var(--border-subtle)]">
       {sellerPkh && (
         <button
           type="button"
@@ -514,11 +533,10 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
         </div>
       )}
-      {activeChips}
-      {/* Toolbar */}
-      <div className="mb-6">
+      {/* Toolbar — single framed container; active chips + filter panel dock inside */}
+      <div className="mb-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-2)]">
         {/* Primary row: Search + Filters toggle + View toggle + Refresh */}
-        <div className="flex gap-3">
+        <div className="flex gap-[var(--space-2)]">
           {/* Search */}
           <div className="flex-1 relative">
             <svg
@@ -541,7 +559,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
               value={searchQuery}
               onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
               aria-label={t('marketplace.searchAria')}
-              className="w-full pl-10 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
+              className="w-full pl-10 pr-8 py-2 text-sm bg-transparent border border-transparent rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:bg-[var(--bg-primary)] focus:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]"
             />
             {searchQuery && (
               <button
@@ -604,71 +622,89 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
           </button>
         </div>
 
-        {/* Collapsible filter panel */}
+        {/* Active filter chips dock inside the toolbar frame */}
+        {activeChips}
+
+        {/* Collapsible filter panel — grouped into Filter / Sort / Display sections */}
         {filtersOpen && (
-          <div className="flex flex-wrap items-center justify-evenly gap-y-4 mt-3 p-4 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
-            {/* Status Filter */}
-            <div className="w-40">
-              <Select
-                value={statusFilter}
-                options={[
-                  { value: 'all', label: t('filters.allStatus') },
-                  { value: 'active', label: t('filters.statusActive') },
-                  { value: 'pending', label: t('filters.statusPending') },
-                ]}
-                onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MarketplaceFilters['statusFilter'] })}
-                ariaLabel={t('filters.filterByStatus')}
-              />
+          <div className="mt-[var(--space-2)] pt-[var(--space-3)] border-t border-[var(--border-subtle)] space-y-[var(--space-3)]">
+            {/* Filter section */}
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)] mb-[var(--space-2)]">
+                {t('filters.sectionFilter')}
+              </h3>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+                <div className="w-40">
+                  <Select
+                    value={statusFilter}
+                    options={[
+                      { value: 'all', label: t('filters.allStatus') },
+                      { value: 'active', label: t('filters.statusActive') },
+                      { value: 'pending', label: t('filters.statusPending') },
+                    ]}
+                    onChange={(v) => dispatch({ type: 'SET_STATUS', payload: v as MarketplaceFilters['statusFilter'] })}
+                    ariaLabel={t('filters.filterByStatus')}
+                  />
+                </div>
+
+                <CategoryFilter
+                  selected={categoryFilter}
+                  onChange={(next) => dispatch({ type: 'SET_CATEGORY', payload: next })}
+                />
+
+                <PriceRangeSlider
+                  min={priceRange.min}
+                  max={priceRange.max}
+                  valueMin={priceMin}
+                  valueMax={priceMax}
+                  onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
+                  onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
+                />
+
+                <DateFilter
+                  label={t('filters.dateAfter')}
+                  value={dateFrom}
+                  onChange={(v) => dispatch({ type: 'SET_DATE_FROM', payload: v })}
+                  ariaLabel={t('filters.dateAfterAria')}
+                />
+                <DateFilter
+                  label={t('filters.dateBefore')}
+                  value={dateTo}
+                  onChange={(v) => dispatch({ type: 'SET_DATE_TO', payload: v })}
+                  ariaLabel={t('filters.dateBeforeAria')}
+                />
+              </div>
             </div>
 
-            {/* Category Filter */}
-            <CategoryFilter
-              selected={categoryFilter}
-              onChange={(next) => dispatch({ type: 'SET_CATEGORY', payload: next })}
-            />
-
-            {/* Price Range Slider */}
-            <PriceRangeSlider
-              min={priceRange.min}
-              max={priceRange.max}
-              valueMin={priceMin}
-              valueMax={priceMax}
-              onChangeMin={(v) => dispatch({ type: 'SET_PRICE_MIN', payload: v })}
-              onChangeMax={(v) => dispatch({ type: 'SET_PRICE_MAX', payload: v })}
-            />
-
-            {/* Date Range (filters by UTxO creation date, not original listing date) */}
-            <DateFilter
-              label={t('filters.dateAfter')}
-              value={dateFrom}
-              onChange={(v) => dispatch({ type: 'SET_DATE_FROM', payload: v })}
-              ariaLabel={t('filters.dateAfterAria')}
-            />
-            <DateFilter
-              label={t('filters.dateBefore')}
-              value={dateTo}
-              onChange={(v) => dispatch({ type: 'SET_DATE_TO', payload: v })}
-              ariaLabel={t('filters.dateBeforeAria')}
-            />
-
-            {/* Sort */}
-            <div className="w-56">
-              <Select
-                value={sortBy}
-                options={[
-                  { value: 'newest', label: t('filters.sortNewest') },
-                  { value: 'oldest', label: t('filters.sortOldest') },
-                  { value: 'price-high', label: t('filters.sortPriceHigh') },
-                  { value: 'price-low', label: t('filters.sortPriceLow') },
-                  { value: 'most-bids', label: t('filters.sortMostBids') },
-                  { value: 'alpha-asc', label: t('filters.sortAlphaAsc') },
-                  { value: 'alpha-desc', label: t('filters.sortAlphaDesc') },
-                ]}
-                onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MarketplaceFilters['sortBy'] })}
-                ariaLabel={t('mySales.sortListingsAria')}
-              />
+            {/* Sort section */}
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)] mb-[var(--space-2)]">
+                {t('filters.sectionSort')}
+              </h3>
+              <div className="w-56">
+                <Select
+                  value={sortBy}
+                  options={[
+                    { value: 'newest', label: t('filters.sortNewest') },
+                    { value: 'oldest', label: t('filters.sortOldest') },
+                    { value: 'price-high', label: t('filters.sortPriceHigh') },
+                    { value: 'price-low', label: t('filters.sortPriceLow') },
+                    { value: 'most-bids', label: t('filters.sortMostBids') },
+                    { value: 'alpha-asc', label: t('filters.sortAlphaAsc') },
+                    { value: 'alpha-desc', label: t('filters.sortAlphaDesc') },
+                  ]}
+                  onChange={(v) => dispatch({ type: 'SET_SORT', payload: v as MarketplaceFilters['sortBy'] })}
+                  ariaLabel={t('mySales.sortListingsAria')}
+                />
+              </div>
             </div>
 
+            {/* Display section */}
+            <div>
+              <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)] mb-[var(--space-2)]">
+                {t('filters.sectionDisplay')}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
             {/* Favorites Toggle */}
             <button
               onClick={() => dispatch({ type: 'SET_FAVORITES_ONLY', payload: !showFavoritesOnly })}
@@ -725,6 +761,8 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
                 </svg>
               )}
             </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -754,12 +792,26 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
             title={t('marketplace.noMatchingTitle')}
             description={t('marketplace.noMatchingDesc')}
             action={
-              <button
-                onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
-                className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
-              >
-                {t('filters.clearFilters')}
-              </button>
+              <div className="flex flex-col items-center gap-3">
+                {fuzzyNearMatch && (
+                  <button
+                    onClick={() => {
+                      // Take the first ~30 chars of the matched description as the new search seed
+                      const snippet = fuzzyNearMatch.description.slice(0, 30).trim();
+                      dispatch({ type: 'SET_SEARCH', payload: snippet });
+                    }}
+                    className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-secondary"
+                  >
+                    {t('marketplace.didYouMean', { snippet: fuzzyNearMatch.description.length > 40 ? fuzzyNearMatch.description.slice(0, 40) + '…' : fuzzyNearMatch.description })}
+                  </button>
+                )}
+                <button
+                  onClick={() => dispatch({ type: 'CLEAR_FILTERS' })}
+                  className="px-4 py-2 text-sm rounded-[var(--radius-md)] btn-base btn-tertiary"
+                >
+                  {t('filters.clearFilters')}
+                </button>
+              </div>
             }
           />
         ) : (
@@ -780,7 +832,7 @@ function MarketplaceTab({ userPkh, lovelace, onPlaceBid, onCreateListing, onStar
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((encryption, index) => (
-            <div key={encryption.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={encryption.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <EncryptionCard
                 encryption={encryption}
                 onPlaceBid={onPlaceBid}

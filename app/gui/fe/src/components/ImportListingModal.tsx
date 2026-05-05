@@ -5,6 +5,7 @@ import InfoTooltip from './InfoTooltip';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
+import { formatWithCommas } from '../utils/formatAda';
 import { detectCategoryFromExtension, type FileCategory } from '../config/categories';
 import SubCategorySelector from './SubCategorySelector';
 import type { ListingCreationStep } from '../services/transactionBuilder';
@@ -71,15 +72,9 @@ const STEP_ORDER: Record<ListingCreationStep, number> = {
   submitting: 5,
 };
 
-function formatPrice(raw: string): string {
-  if (!raw || raw.endsWith('.')) return raw;
-  const num = parseFloat(raw);
-  if (isNaN(num)) return raw;
-  return new Intl.NumberFormat('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 6,
-  }).format(num);
-}
+// Wraps the shared formatWithCommas helper so the existing call sites below
+// keep their local name. Matches CreateListingModal / the bid modals.
+const formatPrice = formatWithCommas;
 
 export default function ImportListingModal({
   isOpen,
@@ -245,8 +240,11 @@ export default function ImportListingModal({
     setSubmitError(null);
   };
 
-  const handlePriceFocus = () => {
+  const handlePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     setDisplayPrice(formData.suggestedPrice);
+    // Select-all on focus so the user can immediately overwrite the value,
+    // matching the bid/price modals.
+    e.target.select();
   };
 
   const handlePriceBlur = () => {
@@ -307,7 +305,7 @@ export default function ImportListingModal({
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />

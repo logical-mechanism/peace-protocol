@@ -1,35 +1,46 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useModal } from '../contexts/ModalContext';
 
 interface ScrollToTopProps {
   threshold?: number;  // Scroll distance before button appears (default: 300px)
+  // Optional scrollable container. When provided, listens to its scroll/scrollTo
+  // instead of the window. Useful for inner scroll regions (e.g. virtualized lists)
+  // that don't propagate scroll to the page.
+  scrollContainer?: RefObject<HTMLElement | null>;
 }
 
-export default function ScrollToTop({ threshold = 300 }: ScrollToTopProps) {
+export default function ScrollToTop({ threshold = 300, scrollContainer }: ScrollToTopProps) {
   const { t } = useTranslation('common');
   const [isVisible, setIsVisible] = useState(false);
   const { hasOpenModal } = useModal();
 
   useEffect(() => {
+    const target: EventTarget = scrollContainer?.current ?? window;
+    const readScroll = () =>
+      scrollContainer?.current
+        ? scrollContainer.current.scrollTop
+        : window.scrollY;
+
     const handleScroll = () => {
-      setIsVisible(window.scrollY > threshold);
+      setIsVisible(readScroll() > threshold);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    target.addEventListener('scroll', handleScroll, { passive: true });
 
     // Check initial scroll position
     handleScroll();
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [threshold]);
+    return () => target.removeEventListener('scroll', handleScroll);
+  }, [threshold, scrollContainer]);
 
   const scrollToTop = useCallback(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  }, []);
+    if (scrollContainer?.current) {
+      scrollContainer.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [scrollContainer]);
 
   if (!isVisible || hasOpenModal) return null;
 

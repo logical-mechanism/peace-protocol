@@ -20,22 +20,32 @@ export default function EmptyState({
   return (
     <div
       role="status"
-      className={`bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-12)] text-center ${className}`}
+      className={`relative overflow-hidden bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-12)] text-center ${className}`}
     >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 35%, var(--accent-muted) 0%, transparent 55%)',
+        }}
+      />
       {illustration ? (
-        <div className="flex justify-center mb-6">
+        <div className="relative flex justify-center mb-6 empty-state-float">
           {illustration}
         </div>
       ) : icon ? (
-        <div className="flex justify-center mb-4 text-[var(--text-muted)]">
+        <div className="relative flex justify-center mb-4 text-[var(--text-muted)]">
           {icon}
         </div>
       ) : null}
-      <p className="text-[var(--text-primary)] font-medium">{title}</p>
+      <p className="t-display relative text-lg text-[var(--text-primary)]">
+        {title}
+      </p>
       {description && (
-        <p className="text-sm text-[var(--text-muted)] mt-2">{description}</p>
+        <p className="relative text-sm text-[var(--text-muted)] mt-2">{description}</p>
       )}
-      {action && <div className="mt-6">{action}</div>}
+      {action && <div className="relative mt-6">{action}</div>}
     </div>
   );
 }

@@ -55,7 +55,7 @@ export default function ConfirmModal({
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
+        className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={loading ? undefined : onClose}
         aria-hidden="true"
       />
@@ -74,7 +74,7 @@ export default function ConfirmModal({
             {message}
           </p>
           {description && (
-            <p className="mt-3 text-xs text-[var(--text-tertiary)] leading-relaxed italic">
+            <p className="mt-3 text-xs text-[var(--text-muted)] leading-relaxed italic">
               {truncateDescription(description)}
             </p>
           )}

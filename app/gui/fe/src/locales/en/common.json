@@ -38,6 +38,8 @@
     "removeListing": "Remove Listing",
     "remove": "Remove",
     "viewBids": "View Bids",
+    "openDescription": "View full description",
+    "viewFull": "View full",
     "insufficientBalance": "Insufficient balance",
     "insufficientBalanceMinimum": "Insufficient balance (minimum 2 ADA)",
     "insufficientBalanceButton": "Insufficient Balance",
@@ -315,7 +317,12 @@
     "gridView": "Grid view",
     "listView": "List view",
     "cardSize": "Card size",
-    "columns": "Columns"
+    "columns": "Columns",
+    "cardSizeSmall": "Small cards",
+    "cardSizeMedium": "Medium cards",
+    "cardSizeLarge": "Large cards",
+    "columnsCount_one": "{{count}} column",
+    "columnsCount_other": "{{count}} columns"
   },
   "ui": {
     "loading": "Loading",
@@ -385,7 +392,8 @@
     "copyError": "Copy error to clipboard",
     "dismiss": "Dismiss notification",
     "dismissAll": "Dismiss all",
-    "dismissAllQueued": "Dismiss all ({{count}} queued)"
+    "dismissAllQueued": "Dismiss all ({{count}} queued)",
+    "queueOverflow": "+{{count}} more"
   },
   "categories": {
     "text": "Text",

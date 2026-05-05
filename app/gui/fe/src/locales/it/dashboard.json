@@ -302,7 +302,9 @@
       "create-collateral": "Imposta collaterale",
       "optimize-wallet": "Ottimizza portafoglio",
       "update-price": "Aggiorna prezzo",
-      "update-bid": "Aggiorna offerta"
+      "update-bid": "Aggiorna offerta",
+      "send": "ADA inviato",
+      "receive": "ADA ricevuto"
     }
   },
   "library": {

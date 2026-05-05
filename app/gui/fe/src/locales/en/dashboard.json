@@ -19,6 +19,8 @@
     "iagonOffline": "Iagon Offline",
     "iagonOfflineTitle": "Iagon not connected - click to configure",
     "collateralSet": "Collateral Set",
+    "allSystemsReady": "All Systems Ready",
+    "allSystemsReadyTitle": "Hover to see node, prover, Iagon, and collateral status",
     "noCollateral": "No Collateral",
     "noCollateralTitle": "No collateral UTxO found — click to set up in Settings",
     "createListing": "Create Listing",
@@ -33,6 +35,8 @@
     "disconnect": "Disconnect",
     "unfinishedListingTitle": "Unfinished Listing Found",
     "unfinishedListingBody": "A file listing for \"{{filename}}\" was uploaded but the transaction was not completed. The file is still on Iagon — you can resume without re-uploading.",
+    "walletCreatedTitle": "Welcome to Veiled",
+    "walletCreatedBody": "Your wallet is ready. Fund it to start listing or bidding.",
     "discard": "Discard",
     "resumeListing": "Resume Listing",
     "dismissTitle": "Dismiss",
@@ -53,6 +57,12 @@
     "refreshTitle": "Refresh data (Ctrl+R)",
     "refreshAria": "Refresh data",
     "tabsAria": "Dashboard tabs",
+    "tabBadgeNewBids_one": "{{count}} new bid",
+    "tabBadgeNewBids_other": "{{count}} new bids",
+    "tabBadgeAcceptedBids_one": "{{count}} accepted bid ready to decrypt",
+    "tabBadgeAcceptedBids_other": "{{count}} accepted bids ready to decrypt",
+    "tabBadgePendingTx_one": "{{count}} pending transaction",
+    "tabBadgePendingTx_other": "{{count}} pending transactions",
     "relistFromLibraryTitle": "Relist from Library",
     "confirmFallback": "Confirm"
   },
@@ -66,6 +76,9 @@
   "filters": {
     "filtersLabel": "Filters",
     "toggleFilters": "Toggle filters",
+    "sectionFilter": "Filter",
+    "sectionSort": "Sort",
+    "sectionDisplay": "Display",
     "clearSearch": "Clear search",
     "clearFilters": "Clear Filters",
     "clearAllFilters": "Clear all filters",
@@ -145,6 +158,7 @@
     "activeFilters_other": "{{count}} filters active — Clear",
     "noMatchingTitle": "No matching listings",
     "noMatchingDesc": "Try adjusting your search or filters",
+    "didYouMean": "Did you mean: \"{{snippet}}\"?",
     "emptyTitle": "No listings available yet",
     "emptyDesc": "Be the first to create one!",
     "createListing": "Create Listing",
@@ -302,7 +316,9 @@
       "create-collateral": "Set Collateral",
       "optimize-wallet": "Optimize Wallet",
       "update-price": "Update Price",
-      "update-bid": "Update Bid"
+      "update-bid": "Update Bid",
+      "send": "Sent ADA",
+      "receive": "Received ADA"
     }
   },
   "library": {

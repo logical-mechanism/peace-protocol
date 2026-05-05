@@ -380,68 +380,60 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
       <RefreshIndicator visible={isRefreshing} />
-      {/* Storage Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalItems')}</p>
-          <p className="text-xl font-semibold text-[var(--text-primary)]">
-            {libraryStats.totalCount}
-          </p>
-        </div>
-        <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-          <p className="text-xs text-[var(--text-muted)] mb-1">{t('library.totalSize')}</p>
-          <p className="text-xl font-semibold text-[var(--accent)]">
-            {formatBytes(libraryStats.totalSize)}
-          </p>
-        </div>
+      {/* Storage Summary — single quiet horizontal banner */}
+      <div className="mb-6 px-[var(--space-md)] py-[var(--space-3)] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] flex items-center gap-[var(--space-3)] text-sm flex-wrap">
+        <span className="flex items-baseline gap-[var(--space-2)]">
+          <span className="text-[var(--text-muted)]">{t('library.totalItems')}</span>
+          <span className="font-semibold text-[var(--text-primary)]">{libraryStats.totalCount}</span>
+        </span>
+        <span aria-hidden="true" className="text-[var(--border-default)]">·</span>
+        <span className="flex items-baseline gap-[var(--space-2)]">
+          <span className="text-[var(--text-muted)]">{t('library.totalSize')}</span>
+          <span className="font-semibold text-[var(--accent)]">{formatBytes(libraryStats.totalSize)}</span>
+        </span>
         {Object.entries(libraryStats.byCategory)
           .sort(([, a], [, b]) => b.size - a.size)
-          .slice(0, 2)
+          .slice(0, 3)
           .map(([cat, stats]) => (
-            <div key={cat} className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4">
-              <p className="text-xs text-[var(--text-muted)] mb-1">
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </p>
-              <p className="text-xl font-semibold text-[var(--text-primary)]">
-                {stats.count}
-              </p>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {formatBytes(stats.size)}
-              </p>
-            </div>
+            <span key={cat} className="flex items-baseline gap-[var(--space-2)]">
+              <span aria-hidden="true" className="text-[var(--border-default)]">·</span>
+              <span className="text-[var(--text-muted)]">{t(`common:categories.${cat}`)}</span>
+              <span className="text-[var(--text-secondary)]">{stats.count} ({formatBytes(stats.size)})</span>
+            </span>
           ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        {/* Search */}
-        <div className="flex-1 relative">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+      {/* Toolbar — single framed container (matches Marketplace) */}
+      <div className="mb-6 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-2)]">
+        <div className="flex flex-col md:flex-row gap-[var(--space-2)]">
+          {/* Search */}
+          <div className="flex-1 relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder={t('library.searchPlaceholder')}
+              value={searchQuery}
+              onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
+              aria-label={t('library.searchAria')}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-transparent border border-transparent rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:bg-[var(--bg-primary)] focus:border-[var(--border-default)] transition-all duration-[var(--transition-fast)]"
             />
-          </svg>
-          <input
-            type="text"
-            placeholder={t('library.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => dispatch({ type: 'SET_SEARCH', payload: e.target.value })}
-            aria-label={t('library.searchAria')}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow)] transition-all duration-[var(--transition-fast)]"
-          />
-        </div>
+          </div>
 
-        {/* Filters */}
-        <div className="flex gap-3">
+          {/* Filters */}
+          <div className="flex gap-[var(--space-2)]">
           {/* Category Filter */}
           <div className="w-44">
             <Select
@@ -513,6 +505,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
             {selectMode ? <><span>{t('library.cancelButton')}</span> <kbd className="ml-1 text-xs text-[var(--text-muted)]">{t('library.escKey')}</kbd></> : t('library.selectButton')}
           </button>
         </div>
+        </div>
       </div>
 
       {/* Results Count */}
@@ -552,7 +545,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((item, index) => (
-            <div key={item.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={item.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <LibraryCard
                 item={item}
                 onView={handleView}
@@ -625,7 +618,7 @@ function LibraryTab({ refreshSignal, onSwitchTab, onLocalRefresh, filters, dispa
           </span>
           <button
             onClick={handleSelectAll}
-            className="text-sm text-[var(--accent)] hover:underline cursor-pointer"
+            className="text-sm text-[var(--link)] hover:text-[var(--link-hover)] hover:underline cursor-pointer"
           >
             {t('library.selectAll')}
           </button>

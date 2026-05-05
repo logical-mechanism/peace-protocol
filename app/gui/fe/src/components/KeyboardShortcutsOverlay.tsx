@@ -48,7 +48,7 @@ export default function KeyboardShortcutsOverlay({
     <div ref={overlayRef} className="fixed inset-0 z-[70] flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm modal-backdrop-enter"
+        className="absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm modal-backdrop-enter"
         onClick={onClose}
         aria-hidden="true"
       />

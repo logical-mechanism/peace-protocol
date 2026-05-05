@@ -30,7 +30,7 @@ import { useToast, ToastContainer } from '../components/Toast'
 import { extractPaymentKeyHash } from '../services/transactionBuilder'
 import { getLastActiveTab, setLastActiveTab, clearLastActiveTab } from '../services/tabStorage'
 import { useDataRefresh } from '../hooks/useDataRefresh'
-import { useUpdateCheck } from '../hooks/useUpdateCheck'
+import { useUpdate } from '../contexts/UpdateContext'
 import { useWalletHealth } from '../hooks/useWalletHealth'
 import {
   marketplaceReducer, MARKETPLACE_INITIAL,
@@ -243,21 +243,27 @@ export default function Dashboard() {
   const [relativeTime, setRelativeTime] = useState(() => t('dashboard:shell.timeJustNow'))
   const toast = useToast()
 
-  // ── Update check (auto-check on startup) ────────────────────────
-  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdateCheck(true)
+  // ── Update check (auto-check happens in UpdateProvider) ────────
+  const { state: updateState, downloadUpdate: downloadAppUpdate } = useUpdate()
   const updateToastShownRef = useRef(false)
 
   useEffect(() => {
     if (updateState.status === 'available' && !updateToastShownRef.current) {
       updateToastShownRef.current = true
+      const info = updateState.info
       toast.info(
-        t('toast.updateAvailableTitle', { version: updateState.info.latest_version }),
-        t('toast.updateAvailableBody', { currentVersion: updateState.info.current_version }),
+        t('toast.updateAvailableTitle', { version: info.latest_version }),
+        t('toast.updateAvailableBody', { currentVersion: info.current_version }),
         0,
         {
           label: t('toast.updateDownload'),
           onClick: () => {
-            downloadAppUpdate(updateState.info.download_url)
+            // Kick off the download (visible in Settings → Updates via the
+            // shared UpdateContext) and navigate the user to that section so
+            // they can watch progress instead of staring at a toast that
+            // appears to do nothing.
+            downloadAppUpdate(info.download_url, info.download_size)
+            navigate('/settings', { state: { section: 'update' } })
           },
         }
       )
@@ -292,7 +298,7 @@ export default function Dashboard() {
   const effects = useDashboardEffects({
     userPkh, tipSlot, tipHeight, nodeStage, expressReady,
     refreshSignal, historySignal, triggerSoftRefresh, refreshBalance,
-    activeTab, toast, wallet, address,
+    toast, wallet, address,
     marketplaceFilters, marketplaceDispatch,
   })
 
@@ -358,8 +364,20 @@ export default function Dashboard() {
   // switch or refresh doesn't re-arm the flow. first-decrypt hands off to
   // MyPurchasesTab (which owns the list of eligible targets); first-bid-accepted
   // starts directly on Dashboard.
+  //
+  // WalletSetup also passes `state.justCreated` after a brand-new wallet is
+  // minted; we fire the signature celebration toast and clear the state so
+  // back-button navigation does not re-celebrate.
   useEffect(() => {
-    const navState = location.state as { startTutorial?: string } | null
+    const navState = location.state as { startTutorial?: string; justCreated?: boolean } | null
+    if (navState?.justCreated) {
+      toast.celebrate(
+        t('dashboard:shell.walletCreatedTitle'),
+        t('dashboard:shell.walletCreatedBody'),
+      )
+      navigate(location.pathname, { replace: true, state: null })
+      return
+    }
     if (navState?.startTutorial === 'first-decrypt') {
       setActiveTab('my-purchases')
       setAutoStartDecryptTutorial(true)
@@ -569,18 +587,63 @@ export default function Dashboard() {
   const tabPanelClass = (tabId: TabId) =>
     activeTab !== tabId ? 'hidden' : undefined
 
+  // Collapse the four healthy-state pills into a single "All Systems Ready" pill
+  // when node, prover, iagon, collateral are all good. The collapsed pill expands
+  // on hover/focus to reveal each individual status.
+  const allSystemsReady =
+    nodeStage === 'synced' &&
+    wasmReady &&
+    effects.iagonConnected &&
+    !walletHealth.isChecking &&
+    walletHealth.hasCollateral
+
   return (
     <div className="min-h-screen">
       {/* Navigation */}
       <nav className="h-16 border-b border-[var(--border-subtle)] px-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-lg font-semibold">{t('dashboard:shell.appName')}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold mr-1">{t('dashboard:shell.appName')}</h1>
           <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]"></span>
             {t('dashboard:shell.networkPreprod')}
           </span>
-          {/* Node Sync Indicator */}
-          {nodeStage === 'synced' ? (
+          {/* Collapsed "All Systems Ready" pill — shown when all four are healthy */}
+          {allSystemsReady && (
+            <div className="relative group">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full cursor-default"
+                aria-label={t('dashboard:shell.allSystemsReady')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                {t('dashboard:shell.allSystemsReady')}
+              </button>
+              {/* Hover/focus popover reveals each individual system status */}
+              <div
+                className="absolute top-full left-0 mt-2 hidden group-hover:flex group-focus-within:flex flex-col gap-1.5 p-2 bg-[var(--bg-card)] border border-[var(--border-default)] rounded-[var(--radius-md)] shadow-lg z-50 whitespace-nowrap"
+                role="tooltip"
+              >
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.nodeReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.proverReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.iagonReady')}
+                </span>
+                <span className="inline-flex items-center gap-2 text-xs text-[var(--success)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
+                  {t('dashboard:shell.collateralSet')}
+                </span>
+              </div>
+            </div>
+          )}
+          {/* Node Sync Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : nodeStage === 'synced' ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.nodeReady')}
@@ -622,8 +685,8 @@ export default function Dashboard() {
               {t('dashboard:shell.nodeOffline')}
             </button>
           )}
-          {/* WASM Prover Indicator */}
-          {wasmReady ? (
+          {/* WASM Prover Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : wasmReady ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.proverReady')}
@@ -638,8 +701,8 @@ export default function Dashboard() {
               {t('dashboard:shell.proverProgress', { count: Math.round(wasmProgress) })}
             </button>
           ) : null}
-          {/* Iagon Connection Indicator */}
-          {effects.iagonConnected ? (
+          {/* Iagon Connection Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : effects.iagonConnected ? (
             <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
               {t('dashboard:shell.iagonReady')}
@@ -654,8 +717,8 @@ export default function Dashboard() {
               {t('dashboard:shell.iagonOffline')}
             </button>
           )}
-          {/* Collateral Indicator */}
-          {nodeStage === 'synced' && !walletHealth.isChecking && (
+          {/* Collateral Indicator — hidden when allSystemsReady (collapsed pill takes over) */}
+          {allSystemsReady ? null : nodeStage === 'synced' && !walletHealth.isChecking && (
             walletHealth.hasCollateral ? (
               <span className="inline-flex items-center gap-2 px-2 py-1 text-xs text-[var(--success)] bg-[var(--success-muted)] border border-[var(--success)]/30 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]"></span>
@@ -689,7 +752,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setCreateListingDropdownOpen((prev) => !prev)}
-                className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-white/20 btn-base btn-primary"
+                className="flex items-center px-2 py-2 text-sm font-medium rounded-r-[var(--radius-md)] border-l border-black/20 btn-base btn-primary"
                 aria-label={t('dashboard:shell.moreListingOptionsAria')}
                 aria-expanded={createListingDropdownOpen}
                 aria-haspopup="true"
@@ -725,12 +788,12 @@ export default function Dashboard() {
 
           {/* ADA Balance */}
           {lovelace ? (
-            <div className="px-3 py-1.5 text-sm font-medium text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
+            <div className="px-3 py-1.5 text-sm font-medium tnum text-[var(--accent)] bg-[var(--accent-muted)] rounded-[var(--radius-md)]">
               {formatAdaDisplay(lovelace)} ADA
             </div>
           ) : (
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]"
               title={t('dashboard:shell.balanceUnavailableTitle')}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -843,14 +906,15 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '0ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.myListingsCount === null ? '...' : t('dashboard:shell.statActiveCount', { count: effects.myListingsCount })}
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
@@ -861,40 +925,43 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '50ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.myBidsCount === null ? '...' : t('dashboard:shell.statPendingCount', { count: effects.myBidsCount })}
             </p>
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '100ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '150ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
-                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
+                : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
-            <p className="text-2xl font-semibold text-[var(--accent)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.pendingTxCount > 0 ? t('dashboard:shell.statPendingCount', { count: effects.pendingTxCount }) : t('dashboard:shell.statNonePending')}
             </p>
           </button>
@@ -914,25 +981,32 @@ export default function Dashboard() {
                 tabIndex={activeTab === tab.id ? 0 : -1}
                 onClick={() => setActiveTab(tab.id)}
                 title={t('dashboard:shell.tabShortcutTitle', { label: t(`dashboard:${tab.labelKey}`), number: index + 1 })}
-                className={`pb-3 transition-all duration-[var(--transition-fast)] cursor-pointer flex items-center gap-2 ${
+                /* border-b-2 always present so tab height does not jump on
+                 * activation. Only the border color animates between
+                 * accent (active) and transparent (inactive). */
+                className={`pb-3 border-b-2 transition-colors duration-[var(--transition-base)] cursor-pointer flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'text-[var(--text-primary)] border-b-2 border-[var(--accent)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                    ? 'text-[var(--text-primary)] border-[var(--accent)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] border-transparent'
                 }`}
               >
                 {t(`dashboard:${tab.labelKey}`)}
+                {/* Tab badge color rule:
+                 *   warning (amber) — "needs your action": pending tx, new bids on your listings
+                 *   success (green) — "ready / done": accepted bids ready to decrypt
+                 *   accent / neutral — count-only, no implied urgency */}
                 {tab.id === 'my-sales' && effects.bidNotifications.unseenBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--accent)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full animate-pulse" aria-label={t('dashboard:shell.tabBadgeNewBids', { count: effects.bidNotifications.unseenBidCount })}>
                     {effects.bidNotifications.unseenBidCount}
                   </span>
                 )}
                 {tab.id === 'my-purchases' && effects.acceptedBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={`${effects.acceptedBidCount} accepted bids ready to decrypt`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={t('dashboard:shell.tabBadgeAcceptedBids', { count: effects.acceptedBidCount })}>
                     {effects.acceptedBidCount}
                   </span>
                 )}
                 {tab.id === 'history' && effects.pendingTxCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={`${effects.pendingTxCount} pending transactions`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={t('dashboard:shell.tabBadgePendingTx', { count: effects.pendingTxCount })}>
                     {effects.pendingTxCount}
                   </span>
                 )}

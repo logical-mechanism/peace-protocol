@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { useUpdateCheck, type UpdateInfo } from '../useUpdateCheck'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -102,7 +103,95 @@ describe('useUpdateCheck', () => {
     }
     expect(invoke).toHaveBeenCalledWith('download_update', {
       downloadUrl: MOCK_UPDATE_INFO.download_url,
+      expectedSize: null,
     })
+  })
+
+  it('downloadUpdate passes expectedSize through to invoke', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce('/home/user/Veiled_0.4.3_amd64.AppImage')
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url, 600_000_000)
+    })
+
+    expect(invoke).toHaveBeenCalledWith('download_update', {
+      downloadUrl: MOCK_UPDATE_INFO.download_url,
+      expectedSize: 600_000_000,
+    })
+  })
+
+  it('downloadUpdate seeds total_bytes from expectedSize before first progress event', async () => {
+    let resolveDownload!: (value: string) => void
+    ;(invoke as Mock).mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveDownload = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    act(() => {
+      void result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url, 600_000_000)
+    })
+
+    // Pre-event state: percent=0, but total_bytes already reflects expected size
+    // so the UI doesn't render "0 / 0 B" until the first event arrives.
+    expect(result.current.state.status).toBe('downloading')
+    if (result.current.state.status === 'downloading') {
+      expect(result.current.state.progress.total_bytes).toBe(600_000_000)
+      expect(result.current.state.progress.bytes_per_sec).toBe(0)
+    }
+
+    await act(async () => {
+      resolveDownload('/path')
+    })
+  })
+
+  it('cancelDownload invokes the Rust cancel command', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce(undefined)
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.cancelDownload()
+    })
+
+    expect(invoke).toHaveBeenCalledWith('cancel_update_download')
+  })
+
+  it('downloadUpdate restores to available state when download is cancelled', async () => {
+    // First a check so the hook has the available info to restore.
+    ;(invoke as Mock).mockResolvedValueOnce(MOCK_UPDATE_INFO)
+    const { result } = renderHook(() => useUpdateCheck())
+    await act(async () => {
+      await result.current.checkForUpdate()
+    })
+    expect(result.current.state.status).toBe('available')
+
+    // Now download_update rejects with the cancel sentinel.
+    ;(invoke as Mock).mockRejectedValueOnce('cancelled')
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    expect(result.current.state.status).toBe('available')
+    if (result.current.state.status === 'available') {
+      expect(result.current.state.info.latest_version).toBe('0.4.3')
+    }
+  })
+
+  it('downloadUpdate falls back to idle on cancel when no prior available info', async () => {
+    ;(invoke as Mock).mockRejectedValueOnce('cancelled')
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    await act(async () => {
+      await result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    expect(result.current.state.status).toBe('idle')
   })
 
   it('downloadUpdate sets error state on failure', async () => {
@@ -118,6 +207,54 @@ describe('useUpdateCheck', () => {
     if (result.current.state.status === 'error') {
       expect(result.current.state.message).toBe('Disk full')
     }
+  })
+
+  it('progress event payload populates bytes_per_sec', async () => {
+    let progressHandler: ((event: { payload: { downloaded_bytes: number; total_bytes: number; percent: number; bytes_per_sec: number } }) => void) | undefined
+    ;(listen as Mock).mockImplementationOnce((_event, handler) => {
+      progressHandler = handler
+      return Promise.resolve(vi.fn())
+    })
+    let resolveDownload!: (value: string) => void
+    ;(invoke as Mock).mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveDownload = resolve
+      }),
+    )
+
+    const { result } = renderHook(() => useUpdateCheck())
+
+    act(() => {
+      void result.current.downloadUpdate(MOCK_UPDATE_INFO.download_url)
+    })
+
+    // Wait a tick for the listen() promise to resolve and register the handler.
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(progressHandler).toBeDefined()
+    act(() => {
+      progressHandler?.({
+        payload: {
+          downloaded_bytes: 50_000_000,
+          total_bytes: 600_000_000,
+          percent: 8.33,
+          bytes_per_sec: 5_000_000,
+        },
+      })
+    })
+
+    if (result.current.state.status === 'downloading') {
+      expect(result.current.state.progress.bytes_per_sec).toBe(5_000_000)
+      expect(result.current.state.progress.percent).toBeCloseTo(8.33)
+    } else {
+      throw new Error(`expected downloading state, got ${result.current.state.status}`)
+    }
+
+    await act(async () => {
+      resolveDownload('/path')
+    })
   })
 
   it('dismiss sets state to dismissed', async () => {
@@ -163,6 +300,26 @@ describe('useUpdateCheck', () => {
     })
 
     // Wait for the async invoke to complete
+    await act(async () => {
+      await vi.runAllTimersAsync()
+    })
+
+    expect(invoke).toHaveBeenCalledWith('check_for_update')
+  })
+
+  it('auto-checks under React.StrictMode (effect setup → cleanup → setup must still fire timer)', async () => {
+    ;(invoke as Mock).mockResolvedValueOnce(MOCK_UPDATE_INFO)
+
+    // Regression: the previous implementation flipped a guard ref before
+    // the timer fired, so StrictMode's cleanup-then-rerun pattern left the
+    // ref `true` with the only timer already cancelled — the auto-check
+    // never ran in dev (production builds skip the double-invoke and were
+    // unaffected).
+    renderHook(() => useUpdateCheck(true), { wrapper: StrictMode })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
     await act(async () => {
       await vi.runAllTimersAsync()
     })

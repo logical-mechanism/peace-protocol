@@ -4,7 +4,7 @@ import '../i18n';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useNode } from '../contexts/NodeContext';
 import Select from './Select';
-import { bidsApi, encryptionsApi } from '../services/api';
+import { bidsApi, encryptionsApi, chainApi } from '../services/api';
 import { optimisticStore } from '../services/optimisticStore';
 import type { BidDisplay, EncryptionDisplay } from '../services/api';
 import { getBidSecretsForEncryption, listBidSecretTokens } from '../services/bidSecretStorage';
@@ -22,6 +22,8 @@ import { getGridClasses } from '../hooks/useTabFilterState';
 import type { PurchaseStage } from './BidTimeline';
 import { useDebounce } from '../hooks/useDebounce';
 import { getOnboardingState } from '../services/onboardingStorage';
+import { reencryptionHistoryToCSV } from '../services/transactionHistory';
+import { exportTextFile } from '../services/fileExport';
 
 export interface DecryptTutorialTarget {
   bid?: BidDisplay;
@@ -80,6 +82,7 @@ function MyPurchasesTab({
   const [descModalContent, setDescModalContent] = useState('');
   const [descModalToken, setDescModalToken] = useState<string | undefined>();
   const [decryptBannerDismissed, setDecryptBannerDismissed] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Destructure filter state from Dashboard-level reducer
   const { viewMode, sortBy, statusFilter, searchQuery, cardSize, columnCount, currentPage } = filters;
@@ -347,6 +350,36 @@ function MyPurchasesTab({
     [onDecrypt]
   );
 
+  const handleExportCsv = async () => {
+    if (!userPkh) return;
+    try {
+      const tokens = await listBidSecretTokens().catch(() => [] as string[]);
+      console.info(`reencryption-history: querying with ${tokens.length} bid tokens`);
+      const { events, meta } = await chainApi.getReencryptionHistory(userPkh, tokens);
+      if (meta) console.info('reencryption-history: meta', meta);
+      console.info(`reencryption-history: ${events.length} events for ${userPkh.slice(0, 12)}...`);
+      if (events.length === 0) {
+        const summary = meta
+          ? `(${meta.candidates} candidates, ${meta.extracted} re-encryption txs found, ${meta.matchedUser} matched your wallet)`
+          : '';
+        setExportMessage(`No completed re-encryption events found on chain yet. ${summary}`);
+        setTimeout(() => setExportMessage(null), 8000);
+        return;
+      }
+      const csv = reencryptionHistoryToCSV(events, userPkh);
+      const filename = `veiled-tax-records-${new Date().toISOString().slice(0, 10)}.csv`;
+      const result = await exportTextFile(csv, filename);
+      if (result) {
+        setExportMessage(t('history.exportedTo', { path: result }));
+        setTimeout(() => setExportMessage(null), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      setExportMessage(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
+      setTimeout(() => setExportMessage(null), 8000);
+    }
+  };
+
   const screenReaderMessage = loading
     ? t('myPurchases.loading')
     : error
@@ -388,6 +421,30 @@ function MyPurchasesTab({
     return (
       <>
         <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
+        {userPkh && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleExportCsv}
+              className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+              title={t('history.exportTitle')}
+              aria-label={t('history.exportAria')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+        {exportMessage && (
+          <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+            {exportMessage}
+          </div>
+        )}
         <EmptyState
           illustration={<NoPurchasesIllustration />}
           title={t('myPurchases.emptyTitle')}
@@ -409,6 +466,33 @@ function MyPurchasesTab({
     <>
     <div className="sr-only" aria-live="polite" role="status">{screenReaderMessage}</div>
     <div>
+      {/* Top action row — always rendered so the unified tax CSV
+          (every re-encryption tx involving the user, queried from chain)
+          stays accessible regardless of the user's current bid/purchase state. */}
+      {userPkh && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleExportCsv}
+            className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] btn-base btn-icon"
+            title={t('history.exportTitle')}
+            aria-label={t('history.exportAria')}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+      {exportMessage && (
+        <div className="mb-4 px-3 py-2 text-xs text-[var(--text-muted)] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-[var(--radius-md)]">
+          {exportMessage}
+        </div>
+      )}
       {showDecryptBanner && decryptTutorialTarget && (
         <div
           className="mb-4 flex items-center gap-3 px-4 py-3 text-sm rounded-[var(--radius-md)]"
@@ -694,7 +778,7 @@ function MyPurchasesTab({
       ) : viewMode === 'grid' ? (
         <div className={getGridClasses(columnCount)}>
           {paginatedResults.map((bid, index) => (
-            <div key={bid.tokenName} className="card-stagger" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
+            <div key={bid.tokenName} className="card-stagger h-full" style={{ animationDelay: `${Math.min(index, 9) * 50}ms` }}>
               <MyPurchaseBidCard
                 bid={bid}
                 encryption={getEncryption(bid.encryptionToken)}

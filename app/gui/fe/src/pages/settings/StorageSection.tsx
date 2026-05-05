@@ -116,7 +116,7 @@ export default function StorageSection({
                             key={seg.label}
                             className="h-full transition-all duration-300"
                             style={{ width: `${pct}%`, backgroundColor: seg.color }}
-                            title={`${seg.label}: ${formatBytes(seg.bytes)} (${pct.toFixed(1)}%)`}
+                            title={t('storage.segmentTooltip', { label: seg.label, size: formatBytes(seg.bytes), percent: pct.toFixed(1) })}
                           />
                         )
                       })}

@@ -38,6 +38,13 @@ if [ ! -f be/dist/index.js ]; then
   exit 1
 fi
 
+# Refresh the bundled be/ copy that Tauri loads at runtime.
+# tauri loads Express from src-tauri/resources/be/, NOT app/gui/be/, so the
+# tsc --watch above is invisible to the running app unless we sync. The
+# bundle:be script copies be/dist + installs prod deps in resources/be/.
+echo "Syncing bundled backend (resources/be)..."
+npm run bundle:be >/dev/null
+
 echo "Starting development version..."
 if [ $# -gt 0 ]; then
   npx tauri dev -- "$@"

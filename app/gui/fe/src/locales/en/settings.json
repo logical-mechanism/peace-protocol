@@ -245,6 +245,7 @@
     "snarkSetup": "SNARK Setup",
     "walletLabel": "Wallet",
     "other": "Other",
+    "segmentTooltip": "{{label}}: {{size}} ({{percent}}%)",
     "refresh": "Refresh",
     "loading": "Loading...",
     "imageCacheTitle": "Image Cache",
@@ -379,14 +380,18 @@
     "upToDate": "You're on the latest version",
     "availableBadge": "Update available: v{{version}}",
     "releaseNotes": "Release notes:",
+    "releaseNotesModalTitle": "Release notes",
+    "viewFullNotes": "Expand",
     "downloadUpdate": "Download Update",
     "downloading": "Downloading update...",
+    "cancelDownload": "Cancel",
     "downloadedTitle": "Update downloaded",
     "savedTo": "Saved to: {{path}}",
     "restartHint": "Close and reopen the app to use the new version.",
     "downloadSuccessTitle": "Update downloaded",
     "downloadSuccessBody": "Saved to: {{path}}. Close and reopen the app to use the new version.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "eta": "ETA {{time}}"
   },
   "tutorials": {
     "title": "Tutorials & Help",

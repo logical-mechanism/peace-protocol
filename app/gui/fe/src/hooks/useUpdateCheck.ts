@@ -16,6 +16,7 @@ export interface DownloadProgress {
   downloaded_bytes: number
   total_bytes: number
   percent: number
+  bytes_per_sec: number
 }
 
 export type UpdateState =
@@ -73,18 +74,57 @@ export function useUpdateCheck(autoCheck = false) {
     }
   }, [])
 
-  const downloadUpdate = useCallback(async (downloadUrl: string) => {
-    setState({
-      status: 'downloading',
-      progress: { downloaded_bytes: 0, total_bytes: 0, percent: 0 },
-    })
+  // Stash the most recently observed `available` info so cancel can
+  // restore the user to the "Update available v0.X.Y" view instead of
+  // dumping them back to a blank idle state. Updated via effect rather
+  // than inside a setState updater because React 18+ may invoke the
+  // updater lazily — the ref would still be null when the cancel
+  // handler ran.
+  const lastAvailableInfoRef = useRef<UpdateInfo | null>(null)
+  useEffect(() => {
+    if (state.status === 'available') {
+      lastAvailableInfoRef.current = state.info
+    }
+  }, [state])
+
+  const downloadUpdate = useCallback(
+    async (downloadUrl: string, expectedSize?: number | null) => {
+      setState({
+        status: 'downloading',
+        progress: { downloaded_bytes: 0, total_bytes: expectedSize ?? 0, percent: 0, bytes_per_sec: 0 },
+      })
+      try {
+        const filePath = await invoke<string>('download_update', {
+          downloadUrl,
+          expectedSize: expectedSize ?? null,
+        })
+        setState({ status: 'downloaded', filePath })
+        return filePath
+      } catch (err) {
+        const msg = `${err}`
+        if (msg === 'cancelled') {
+          // User-initiated abort — restore the available view if we have
+          // info, else fall back to idle. Don't surface as an error.
+          if (lastAvailableInfoRef.current) {
+            setState({ status: 'available', info: lastAvailableInfoRef.current })
+          } else {
+            setState({ status: 'idle' })
+          }
+          return null
+        }
+        setState({ status: 'error', message: msg })
+        return null
+      }
+    },
+    [],
+  )
+
+  const cancelDownload = useCallback(async () => {
     try {
-      const filePath = await invoke<string>('download_update', { downloadUrl })
-      setState({ status: 'downloaded', filePath })
-      return filePath
-    } catch (err) {
-      setState({ status: 'error', message: `${err}` })
-      return null
+      await invoke('cancel_update_download')
+    } catch {
+      // The Rust command can't fail; if it somehow did, the in-flight
+      // download_update will still resolve with its own error path.
     }
   }, [])
 
@@ -97,17 +137,20 @@ export function useUpdateCheck(autoCheck = false) {
     setState({ status: 'idle' })
   }, [])
 
-  // Auto-check on mount when enabled (Dashboard startup)
+  // Auto-check on mount when enabled. The guard is set inside the timeout
+  // callback (not in the effect body) so React StrictMode's double-invoke in
+  // dev — setup → cleanup → setup — cannot leave the ref `true` with the
+  // first timer already cancelled, which would skip the second scheduling
+  // and prevent the check from ever firing.
   useEffect(() => {
-    if (!autoCheck || startupCheckedRef.current) return
-    startupCheckedRef.current = true
+    if (!autoCheck) return
     const timer = setTimeout(() => {
-      if (!dismissedRef.current) {
-        checkForUpdate()
-      }
+      if (startupCheckedRef.current || dismissedRef.current) return
+      startupCheckedRef.current = true
+      checkForUpdate()
     }, 3000)
     return () => clearTimeout(timer)
   }, [autoCheck, checkForUpdate])
 
-  return { state, checkForUpdate, downloadUpdate, dismiss, reset }
+  return { state, checkForUpdate, downloadUpdate, cancelDownload, dismiss, reset }
 }

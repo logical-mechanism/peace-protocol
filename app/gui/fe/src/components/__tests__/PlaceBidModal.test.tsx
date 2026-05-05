@@ -92,16 +92,18 @@ describe('PlaceBidModal', () => {
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('validates non-numeric bid amount (type="number" sanitizes to empty)', async () => {
+  it('rejects non-numeric input via input filter and keeps the prior valid value', () => {
     renderModal();
 
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    // type=text means HTML no longer strips letters for us; the onChange filter
+    // refuses to update state. After re-render, the controlled value snaps
+    // back to the suggested-price prefill ("100").
     fireEvent.change(input, { target: { value: 'abc' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
-
-    // type="number" inputs sanitize non-numeric values to "", triggering "required"
-    expect(await screen.findByText('Bid amount is required')).toBeInTheDocument();
+    // Force a re-render via a benign state update so React reasserts the
+    // controlled value.
+    fireEvent.focus(input);
+    expect(input.value).toBe('100');
   });
 
   it('validates bid amount below minimum (2 ADA)', async () => {
@@ -355,36 +357,13 @@ describe('PlaceBidModal', () => {
     expect(screen.getByText('Bid exceeds your wallet balance')).toBeInTheDocument();
   });
 
-  // --- HTML number input attributes ---
+  // --- HTML input attributes (type=text + inputMode=decimal so we can render
+  // thousands-separator commas at rest, which type=number forbids) ---
 
-  it('uses type="number" for native browser constraints', () => {
+  it('uses type="text" so the input can render thousands-separator commas at rest', () => {
     renderModal();
     const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.type).toBe('number');
-  });
-
-  it('sets min attribute to MIN_BID_ADA', () => {
-    renderModal();
-    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.getAttribute('min')).toBe('2');
-  });
-
-  it('sets step attribute to 0.1', () => {
-    renderModal();
-    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.getAttribute('step')).toBe('0.1');
-  });
-
-  it('sets max attribute based on wallet balance minus fee reserve', () => {
-    renderModal({ balanceLovelace: '500000000' }); // 500 ADA
-    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.getAttribute('max')).toBe('495'); // 500 - 5 fee reserve
-  });
-
-  it('does not set max attribute when balance is undefined', () => {
-    renderModal({ balanceLovelace: undefined });
-    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
-    expect(input.getAttribute('max')).toBeNull();
+    expect(input.type).toBe('text');
   });
 
   it('has inputMode decimal for mobile keyboard hints', () => {
@@ -404,19 +383,11 @@ describe('PlaceBidModal', () => {
 
   // --- Future price input attributes ---
 
-  it('uses type="number" for future price input', () => {
+  it('uses type="text" for future price input so it can render commas at rest', () => {
     renderModal();
     fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
     const input = document.getElementById('futurePrice') as HTMLInputElement;
-    expect(input.type).toBe('number');
-  });
-
-  it('sets min=0 and step=0.1 on future price input', () => {
-    renderModal();
-    fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
-    const input = document.getElementById('futurePrice') as HTMLInputElement;
-    expect(input.getAttribute('min')).toBe('0');
-    expect(input.getAttribute('step')).toBe('0.1');
+    expect(input.type).toBe('text');
   });
 
   it('has inputMode decimal on future price input', () => {
@@ -424,6 +395,45 @@ describe('PlaceBidModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Set Future Listing Price/i }));
     const input = document.getElementById('futurePrice') as HTMLInputElement;
     expect(input.getAttribute('inputmode')).toBe('decimal');
+  });
+
+  // --- Thousands-separator format-on-blur (D16) ---
+
+  it('formats the bid amount with thousands separators on blur', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1000000' } });
+    expect(input.value).toBe('1000000'); // raw while typing/focused
+    fireEvent.blur(input);
+    expect(input.value).toBe('1,000,000'); // formatted at rest
+  });
+
+  it('reverts the bid amount to a comma-free raw string on focus', () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1000000' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('1,000,000');
+    fireEvent.focus(input);
+    expect(input.value).toBe('1000000');
+  });
+
+  it('strips commas before submitting so onSubmit receives a numeric ADA value', async () => {
+    renderModal();
+    const input = screen.getByLabelText(/Your Bid Amount/) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1000000' } });
+    fireEvent.blur(input);
+    expect(input.value).toBe('1,000,000');
+
+    fireEvent.click(screen.getByRole('button', { name: /Place Bid/i }));
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        baseEncryption.tokenName,
+        1_000_000,
+        baseEncryption.utxo,
+        100, // futurePrice defaults to suggestedPrice when section not opened
+      );
+    });
   });
 
   // --- Minimum bid InfoTooltip ---

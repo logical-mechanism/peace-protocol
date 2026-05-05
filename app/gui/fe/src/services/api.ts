@@ -181,7 +181,10 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
     const errorData = await response.json().catch(() => ({
       error: { code: 'UNKNOWN', message: response.statusText },
     }));
-    throw new Error(errorData.error?.detail || errorData.error?.message || 'API request failed');
+    const code = errorData.error?.code ?? 'UNKNOWN';
+    const message = errorData.error?.message ?? 'API request failed';
+    const detail = errorData.error?.detail;
+    throw new Error(detail ? `${code}: ${message} — ${detail}` : `${code}: ${message}`);
   }
 
   return response.json();
@@ -406,7 +409,78 @@ export const chainApi = {
       return [];
     }
   },
+
+  /**
+   * Get plain wallet activity (non-protocol ADA send/receive) for a payment credential.
+   * Backend caches for 60s. Returns records typed as `send` or `receive`.
+   */
+  async getWalletActivity(pkh: string): Promise<HistoryRecoveryRecord[]> {
+    try {
+      const response = await apiFetch<ApiResponse<HistoryRecoveryRecord[]>>(`/api/chain/activity/${pkh}`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Get all completed re-encryption events involving a payment credential
+   * — the canonical tax-record source. Each row corresponds to one
+   * post-SNARK re-encryption tx on chain where the user was either the
+   * accepted bidder (Purchase) or the listing owner (Sale).
+   *
+   * `encryptionTokens` is the list of encryption tokens the user has
+   * bid on (from listBidSecretTokens). The backend walks each token's
+   * full asset history to find the user's purchase re-encryption,
+   * regardless of whether they still own it. The seller side uses
+   * getCredentialTxs(pkh) and needs no extra hint.
+   *
+   * Returns events plus a `meta` block with candidate-scan counts so
+   * the caller can diagnose empty results without round-tripping to
+   * the BE log. Throws on backend failure (caller can distinguish
+   * "no events" from "Koios unreachable").
+   */
+  async getReencryptionHistory(
+    pkh: string,
+    encryptionTokens: string[],
+  ): Promise<{ events: ReencryptionEvent[]; meta?: ReencryptionHistoryMeta }> {
+    const response = await apiFetch<ApiResponse<ReencryptionEvent[]> & { meta?: ReencryptionHistoryMeta }>(
+      `/api/chain/reencryption-history/${pkh}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ encryptionTokens }),
+      },
+    );
+    return { events: response.data, meta: response.meta };
+  },
 };
+
+export interface ReencryptionHistoryMeta {
+  encryptionTokens: number;
+  buyerSideHashes: number;
+  sellerSideHashes: number;
+  candidates: number;
+  fetched: number;
+  extracted: number;
+  skipNoBidInput: number;
+  skipNoBuyerOutput: number;
+  skipParseFail: number;
+  /** Re-encryption events successfully extracted but with no recoverable seller PKH. */
+  extractedNoSeller: number;
+  matchedUser: number;
+}
+
+export interface ReencryptionEvent {
+  txHash: string;
+  blockHeight: number;
+  /** Block time in milliseconds. */
+  timestamp: number;
+  encryptionTokenName: string;
+  buyerPkh: string;
+  sellerPkh: string;
+  bidAmountLovelace: number;
+  futurePriceLovelace: number;
+}
 
 export interface KoiosWalletUtxo {
   input: { txHash: string; outputIndex: number };

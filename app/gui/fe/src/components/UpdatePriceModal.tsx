@@ -5,7 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
-import { formatAda } from '../utils/formatAda';
+import { formatAda, formatWithCommas, stripCommas } from '../utils/formatAda';
 
 interface UpdatePriceModalProps {
   isOpen: boolean;
@@ -22,6 +22,9 @@ export default function UpdatePriceModal({
 }: UpdatePriceModalProps) {
   const { t } = useTranslation(['modals', 'common']);
   const [priceAda, setPriceAda] = useState('');
+  // Display string carries thousands-separator commas at rest; priceAda stays
+  // comma-free so existing parseFloat callsites keep working.
+  const [displayPrice, setDisplayPrice] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<FriendlyError | null>(null);
@@ -37,6 +40,7 @@ export default function UpdatePriceModal({
         ? (encryption.suggestedPrice / 1_000_000).toString()
         : '';
       setPriceAda(currentAda);
+      setDisplayPrice(formatWithCommas(currentAda));
       setTimeout(() => priceInputRef.current?.focus(), 50);
     }
   }, [isOpen, encryption]);
@@ -79,16 +83,32 @@ export default function UpdatePriceModal({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/,/g, '');
+    let raw = stripCommas(e.target.value);
+    let display = e.target.value;
     // Cap at 6 decimal places (1 lovelace = 0.000001 ADA)
-    const dotIndex = value.indexOf('.');
-    if (dotIndex !== -1 && value.length - dotIndex - 1 > 6) return;
+    const dotIndex = raw.indexOf('.');
+    if (dotIndex !== -1 && raw.length - dotIndex - 1 > 6) return;
+    if (raw && !/^[0-9]*\.?[0-9]*$/.test(raw)) return;
     // Clamp to Cardano max supply (45 billion ADA)
-    const parsed = parseFloat(value);
-    if (!isNaN(parsed) && parsed > 45_000_000_000) value = '45000000000';
-    setPriceAda(value);
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed) && parsed > 45_000_000_000) {
+      raw = '45000000000';
+      display = '45000000000';
+    }
+    setPriceAda(raw);
+    setDisplayPrice(display);
     if (error) setError(null);
     if (submitError) setSubmitError(null);
+  };
+
+  const handlePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayPrice(priceAda);
+    e.target.select();
+  };
+
+  const handlePriceBlur = () => {
+    setDisplayPrice(formatWithCommas(priceAda));
+    if (priceAda.trim()) validateForm();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,7 +146,7 @@ export default function UpdatePriceModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm"
         onClick={isSubmitting ? undefined : onClose}
         aria-hidden="true"
       />
@@ -169,21 +189,23 @@ export default function UpdatePriceModal({
                 id="update-price-input"
                 type="text"
                 inputMode="decimal"
-                value={priceAda}
+                autoComplete="off"
+                value={displayPrice}
                 onChange={handleInputChange}
-                onBlur={() => { if (priceAda.trim()) validateForm(); }}
+                onFocus={handlePriceFocus}
+                onBlur={handlePriceBlur}
                 disabled={isSubmitting}
                 placeholder="0"
                 aria-invalid={!!error}
                 aria-describedby={error ? 'update-price-error' : 'update-price-hint'}
-                className={`w-full px-[var(--space-3)] py-[var(--space-2)] text-sm rounded-[var(--radius-md)] border bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 ${
+                className={`w-full px-[var(--space-3)] py-[var(--space-2)] text-sm tnum rounded-[var(--radius-md)] border bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 ${
                   error
-                    ? 'border-[var(--error)] focus:border-[var(--error)]'
+                    ? 'field-invalid'
                     : 'border-[var(--border-default)] focus:border-[var(--accent)]'
                 }`}
               />
               {error && (
-                <p id="update-price-error" role="alert" className="mt-[var(--space-1)] text-xs text-[var(--error)]">{error}</p>
+                <p id="update-price-error" role="alert" className="field-invalid-helper">{error}</p>
               )}
               {/* Lovelace preview */}
               {priceAda.trim() && !isNaN(parseFloat(priceAda)) && parseFloat(priceAda) >= 0 && (

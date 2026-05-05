@@ -302,7 +302,9 @@
       "create-collateral": "Définir le collatéral",
       "optimize-wallet": "Optimiser le portefeuille",
       "update-price": "Mettre à jour le prix",
-      "update-bid": "Mettre à jour l'offre"
+      "update-bid": "Mettre à jour l'offre",
+      "send": "ADA envoyé",
+      "receive": "ADA reçu"
     }
   },
   "library": {

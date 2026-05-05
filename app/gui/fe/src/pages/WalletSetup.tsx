@@ -233,7 +233,10 @@ export default function WalletSetup() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     try {
       await createWallet(words, password)
-      navigate('/dashboard')
+      // Signal "first wallet just created" to Dashboard so it can fire the
+      // signature celebration toast on landing. The flag is consumed once on
+      // mount and cleared, so back-button navigation does not re-celebrate.
+      navigate('/dashboard', { state: { justCreated: true } })
     } catch (e) {
       setError(e instanceof Error ? e.message : t('setup.errors.createFailed'))
     } finally {
@@ -258,46 +261,46 @@ export default function WalletSetup() {
         className="min-h-screen flex items-center justify-center p-[var(--space-xl)]"
         style={{ background: 'var(--bg-primary)' }}
       >
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-[var(--space-12)]">
-            <h1
-              className="text-4xl font-bold mb-[var(--space-3)]"
-              style={{ color: 'var(--text-primary)' }}
-            >
+        <div className="relative w-full max-w-lg">
+          {/* Soft accent halo behind the welcome heading */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-48 pointer-events-none opacity-60"
+            style={{
+              background:
+                'radial-gradient(ellipse at 50% 0%, var(--accent-muted) 0%, transparent 45%)',
+            }}
+          />
+          <div className="relative text-center mb-[var(--space-lg)]">
+            <h1 className="t-display text-4xl mb-[var(--space-2)] text-[var(--text-primary)]">
               {t('appName')}
             </h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              {t('setup.tagline')}
-            </p>
+            <p className="text-[var(--text-secondary)]">{t('setup.tagline')}</p>
           </div>
 
-          <div className="space-y-[var(--space-md)]">
+          <div className="relative space-y-[var(--space-md)]">
+            {/* Primary: Create new wallet */}
             <button
               onClick={() => setMode('create')}
-              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-[var(--radius-lg)] text-left btn-base btn-primary"
             >
-              <div
-                className="text-lg font-semibold mb-[var(--space-1)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <div className="text-lg font-semibold mb-[var(--space-1)] text-white">
                 {t('setup.chooseCreateTitle')}
               </div>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm text-white/80">
                 {t('setup.chooseCreateSubtitle')}
               </div>
             </button>
 
+            {/* Secondary: Import existing */}
             <button
               onClick={() => setMode('import')}
-              className="w-full p-[var(--space-lg)] rounded-xl text-left transition-colors duration-[var(--transition-fast)] cursor-pointer bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-[var(--bg-card-hover)]"
+              className="w-full p-[var(--space-lg)] rounded-[var(--radius-lg)] text-left bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent)] hover:bg-[var(--bg-card-hover)] transition-colors duration-[var(--transition-fast)] cursor-pointer"
             >
-              <div
-                className="text-lg font-semibold mb-[var(--space-1)]"
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <div className="text-lg font-semibold mb-[var(--space-1)] text-[var(--text-primary)]">
                 {t('setup.chooseImportTitle')}
               </div>
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <div className="text-sm text-[var(--text-secondary)]">
                 {t('setup.chooseImportSubtitle')}
               </div>
             </button>
@@ -374,26 +377,19 @@ export default function WalletSetup() {
                 {t('setup.create.warning')}
               </div>
 
-              <div className="grid grid-cols-4 gap-[var(--space-3)] mb-[var(--space-lg)]">
+              <div
+                className="grid grid-cols-4 gap-[var(--space-2)] mb-[var(--space-lg)] p-[var(--space-3)] rounded-[var(--radius-lg)] bg-[var(--bg-secondary)]"
+                style={{ boxShadow: 'var(--shadow-glow)' }}
+              >
                 {mnemonic.map((word, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] rounded-lg text-sm"
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
+                    className="flex items-center gap-[var(--space-2)] px-[var(--space-3)] py-[var(--space-2)] rounded-[var(--radius-md)] bg-[var(--bg-elevated)]"
                   >
-                    <span
-                      className="text-xs w-5 text-right"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                    <span className="text-xs w-5 text-right text-[var(--text-muted)]">
                       {i + 1}
                     </span>
-                    <span
-                      className="font-mono"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
+                    <span className="font-mono text-base text-[var(--text-primary)] tracking-wide">
                       {word}
                     </span>
                   </div>
@@ -403,23 +399,14 @@ export default function WalletSetup() {
               <div className="flex gap-[var(--space-3)]">
                 <button
                   onClick={handleCopyMnemonic}
-                  className="px-[var(--space-md)] py-[var(--space-2)] rounded-lg text-sm cursor-pointer"
-                  style={{
-                    background: 'var(--bg-elevated)',
-                    color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
+                  className="px-[var(--space-md)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm btn-base btn-tertiary"
                 >
                   {copied ? t('setup.create.copied') : t('setup.create.copyToClipboard')}
                 </button>
                 <div className="flex-1" />
                 <button
                   onClick={() => setCreateStep('verify')}
-                  className="px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer"
-                  style={{
-                    background: 'var(--accent)',
-                    color: '#fff',
-                  }}
+                  className="px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
                 >
                   {t('setup.create.wroteItDown')}
                 </button>
@@ -457,13 +444,7 @@ export default function WalletSetup() {
               <button
                 onClick={() => setCreateStep('password')}
                 disabled={!verificationPassed}
-                className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: verificationPassed
-                    ? 'var(--accent)'
-                    : 'var(--bg-elevated)',
-                  color: '#fff',
-                }}
+                className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
               >
                 {t('setup.create.continue')}
               </button>
@@ -510,11 +491,7 @@ export default function WalletSetup() {
                 setImportStep('enter')
               }
             }}
-            className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-lg text-sm cursor-pointer"
-            style={{
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-subtle)',
-            }}
+            className="mr-[var(--space-md)] px-[var(--space-3)] py-[var(--space-1)] rounded-[var(--radius-md)] text-sm btn-base btn-tertiary"
           >
             {t('setup.back')}
           </button>
@@ -548,12 +525,7 @@ export default function WalletSetup() {
               <button
                 type="button"
                 onClick={handleBulkPaste}
-                className="ml-[var(--space-md)] px-[var(--space-3)] py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer"
-                style={{
-                  color: 'var(--accent)',
-                  border: '1px solid var(--accent)',
-                  background: 'transparent',
-                }}
+                className="ml-[var(--space-md)] px-[var(--space-3)] py-1.5 rounded-[var(--radius-md)] text-xs whitespace-nowrap btn-base btn-secondary"
               >
                 {t('setup.import.pasteAll')}
               </button>
@@ -592,11 +564,7 @@ export default function WalletSetup() {
                 setImportStep('password')
               }}
               disabled={!importValid}
-              className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                background: importValid ? 'var(--accent)' : 'var(--bg-elevated)',
-                color: '#fff',
-              }}
+              className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium btn-base btn-primary"
             >
               {t('setup.import.continue')}
             </button>
@@ -763,14 +731,8 @@ function PasswordForm({
       <button
         onClick={onSubmit}
         disabled={!passwordValid || isSubmitting}
-        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{
-          background: passwordValid && !isSubmitting
-            ? 'var(--accent)'
-            : 'var(--bg-elevated)',
-          color: '#fff',
-          transition: 'none',
-        }}
+        className="w-full px-[var(--space-lg)] py-[var(--space-2)] rounded-[var(--radius-md)] text-sm font-medium flex items-center justify-center gap-2 btn-base btn-primary"
+        style={{ transition: 'none' }}
       >
         {isSubmitting && <LoadingSpinner size="sm" className="text-white" />}
         {isSubmitting ? t('setup.password.creating') : t('setup.password.submit')}

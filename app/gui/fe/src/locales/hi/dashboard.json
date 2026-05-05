@@ -302,7 +302,9 @@
       "create-collateral": "संपार्श्विक सेट करें",
       "optimize-wallet": "वॉलेट ऑप्टिमाइज़ करें",
       "update-price": "मूल्य अपडेट करें",
-      "update-bid": "बोली अपडेट करें"
+      "update-bid": "बोली अपडेट करें",
+      "send": "ADA भेजा गया",
+      "receive": "ADA प्राप्त हुआ"
     }
   },
   "library": {

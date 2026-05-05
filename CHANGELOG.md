@@ -4,6 +4,27 @@ All notable changes to the PEACE Protocol are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.3] - 2026-05-04
+
+### Added
+- Updater: accurate download progress with rolling-window speed and ETA, route toast Download to Settings, expand release notes into a modal, cancel an in-flight download (#128)
+- Activity: wallet send/receive transactions in the History tab, sourced from a new `/api/chain/activity/:pkh` backend endpoint with scroll-to-top button on the virtualized list (#129)
+- History: CSV export of historical sales and purchases for tax records, sourced from on-chain re-encryption events (#130)
+- UI: Dusk three-color palette (lilac / mint / sand), marketplace and library card hierarchy with image banner / hero / quiet footer, tighter dashboard status pills, equal-height stat and listing cards, atmospheric empty state, welcome treatment for the wallet mode chooser, celebration toast on first wallet creation, type scale and `--text-*` token roles (#131)
+- Marketplace: fuzzy near-match suggestion when a search yields no results, segmented control for Place Bid quick actions, Decrypt "How it works" collapses to a disclosure after first decrypt (#131)
+- i18n: locale-aware `formatAda` / `formatDate` / `formatRelativeTime` helpers, lint guard against hardcoded a11y attribute strings, EN-key backfill for polish-pass strings, translated Dashboard tab badge aria-labels (#132)
+- Inputs: thousands-separator comma formatting on Place Bid, Update Bid, and Update Price currency inputs, with a centralized `formatWithCommas` / `stripCommas` helper (D16) (#133)
+- Typography: Bricolage Grotesque display face for hero text, with Inter and JetBrains Mono tracked via `@fontsource-variable` (#134)
+
+### Fixed
+- Updater: auto-check timer survives StrictMode double-invoke (#128)
+- History: `reconcileWithOnChain` now refreshes existing records' fields from on-chain instead of insert-only, and reads `tx_timestamp` from Koios `/tx_info` (closes a long-silent stale-field bug) (#129)
+- Activity: include wallet activity in the manual refresh path; `bundle:be` runs on `run.sh` startup so backend changes are not stale at runtime (#129)
+- A11y: EncryptionCard description uses a real button instead of a `role=button` wrapper (#131)
+- Library: equal-height grid cards regardless of imageLink presence (#131)
+- Cards: scrim wrapper on image overlays, NSFW badge relocated to top-right, price + ADA and bid count + storage chips locked on one line (#131)
+- MySales: stack price and storage badge on narrow cards; card price font scales with card width via container queries (#133)
+
 ## [0.5.2] - 2026-04-22
 
 ### Added

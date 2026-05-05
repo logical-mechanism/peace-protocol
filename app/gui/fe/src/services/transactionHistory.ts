@@ -9,8 +9,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { getPendingTxPool } from './providers';
 import { storageGet, storageSet, storageGetJSON, storageSetJSON, storageRemove } from './storageUtils';
 import { playSound } from './notificationSound';
+import type { ReencryptionEvent } from './api';
 
-export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid';
+export type TransactionType = 'create-listing' | 'remove-listing' | 'place-bid' | 'cancel-bid' | 'accept-bid' | 'cancel-pending' | 'complete-sale' | 'create-collateral' | 'optimize-wallet' | 'update-price' | 'update-bid' | 'send' | 'receive';
 export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
 
 export interface TransactionRecord {
@@ -158,7 +159,6 @@ export function reconcileWithOnChain(
 ): ReconciliationResult {
   const records = getTransactions(walletPkh);
   const onChainHashSet = new Set(onChainRecords.map(o => o.txHash));
-  const existingHashes = new Set(records.map(r => r.txHash));
   let changed = false;
   const discrepancies: ReconciliationDiscrepancy[] = [];
 
@@ -176,10 +176,34 @@ export function reconcileWithOnChain(
     }
   }
 
-  // Add on-chain records not yet in local storage
+  // Add or refresh on-chain records.
+  // For new hashes: insert. For existing hashes: refresh fields where on-chain
+  // has authoritative data the local copy is missing (timestamp, amount,
+  // counterparty, block height). Without this, an entry once persisted with
+  // null/0 timestamp would never get its real timestamp from a later reconcile,
+  // and would stay sorted at the bottom forever.
+  const recordsByHash = new Map(records.map(r => [r.txHash, r]));
   for (const onChain of onChainRecords) {
-    if (!existingHashes.has(onChain.txHash)) {
+    const existing = recordsByHash.get(onChain.txHash);
+    if (!existing) {
       records.push(onChain);
+      changed = true;
+      continue;
+    }
+    if (onChain.timestamp && (!existing.timestamp || existing.timestamp <= 0)) {
+      existing.timestamp = onChain.timestamp;
+      changed = true;
+    }
+    if (onChain.amountLovelace !== undefined && existing.amountLovelace === undefined) {
+      existing.amountLovelace = onChain.amountLovelace;
+      changed = true;
+    }
+    if (onChain.counterparty && !existing.counterparty) {
+      existing.counterparty = onChain.counterparty;
+      changed = true;
+    }
+    if (onChain.confirmedAtBlock && !existing.confirmedAtBlock) {
+      existing.confirmedAtBlock = onChain.confirmedAtBlock;
       changed = true;
     }
   }
@@ -263,6 +287,8 @@ export function getTypeLabel(type: TransactionType): string {
     case 'optimize-wallet': return 'Optimize Wallet';
     case 'update-price': return 'Update Price';
     case 'update-bid': return 'Update Bid';
+    case 'send': return 'Sent ADA';
+    case 'receive': return 'Received ADA';
   }
 }
 
@@ -296,6 +322,37 @@ export function toCSV(records: TransactionRecord[]): string {
     const block = r.confirmedAtBlock !== undefined ? String(r.confirmedAtBlock) : '';
     const counterparty = r.counterparty ?? '';
     return `${date},${type},${status},${hash},${token},${desc},${amount},${block},${counterparty}`;
+  });
+  return [header, ...rows].join('\n');
+}
+
+function lovelaceToAda(lovelace: number | undefined | null): string {
+  if (lovelace === undefined || lovelace === null) return '';
+  return (lovelace / 1_000_000).toFixed(6);
+}
+
+/**
+ * Convert on-chain re-encryption events to a unified tax-record CSV.
+ * One row per completed re-encryption tx the user participated in;
+ * the `Side` column distinguishes Sale (user was the listing owner)
+ * from Purchase (user was the accepted bidder). Both directions share
+ * the same row shape because both derive from the same on-chain tx —
+ * inputs (bid datum, encryption datum) and outputs (new encryption,
+ * lovelace to seller) carry every field needed for tax reporting.
+ *
+ * Columns: Date, Side, Token Name, Bid Amount (ADA), Future Price (ADA),
+ * Seller PKH, Buyer PKH, Tx Hash, Block Height
+ */
+export function reencryptionHistoryToCSV(
+  events: ReencryptionEvent[],
+  userPkh: string,
+): string {
+  const header =
+    'Date,Side,Token Name,Bid Amount (ADA),Future Price (ADA),Seller PKH,Buyer PKH,Tx Hash,Block Height';
+  const rows = events.map((e) => {
+    const date = new Date(e.timestamp).toISOString();
+    const side = e.buyerPkh === userPkh ? 'Purchase' : 'Sale';
+    return `${date},${side},${e.encryptionTokenName},${lovelaceToAda(e.bidAmountLovelace)},${lovelaceToAda(e.futurePriceLovelace)},${e.sellerPkh},${e.buyerPkh},${e.txHash},${e.blockHeight}`;
   });
   return [header, ...rows].join('\n');
 }

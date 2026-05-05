@@ -1,26 +1,24 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { truncateHex } from '../utils/truncate';
 import { useModalStack } from '../hooks/useModalStack';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 
-interface DescriptionModalProps {
+interface ReleaseNotesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  description: string;
-  tokenName?: string;
+  version: string;
+  releaseNotes: string;
 }
 
-export default function DescriptionModal({
+export default function ReleaseNotesModal({
   isOpen,
   onClose,
-  description,
-  tokenName,
-}: DescriptionModalProps) {
-  const { t } = useTranslation(['modals', 'common']);
-  // Stack-aware Escape key + body scroll lock
-  const { zIndex, shouldRender, animationState } = useModalStack('description', isOpen, onClose);
+  version,
+  releaseNotes,
+}: ReleaseNotesModalProps) {
+  const { t } = useTranslation(['modals', 'common', 'settings']);
+  const { zIndex, shouldRender, animationState } = useModalStack('release-notes', isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, isOpen);
 
@@ -33,30 +31,22 @@ export default function DescriptionModal({
       style={{ zIndex }}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="description-modal-title"
+      aria-labelledby="release-notes-modal-title"
     >
-      {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-[var(--backdrop-overlay)] backdrop-blur-sm ${animationState === 'exiting' ? 'modal-backdrop-exit' : 'modal-backdrop-enter'}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal — no overflow-hidden on panel root so focus outlines aren't clipped. */}
-      <div className={`relative w-full max-w-lg max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
-        {/* Header */}
+      <div className={`relative w-full max-w-2xl max-h-[80vh] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-lg flex flex-col mx-4 ${animationState === 'exiting' ? 'modal-panel-exit' : 'modal-panel-enter'}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] rounded-t-[var(--radius-xl)]">
           <div>
-            <h2 id="description-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
-              {t('modals:description.title')}
+            <h2 id="release-notes-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
+              {t('settings:update.releaseNotesModalTitle')}
             </h2>
-            {tokenName && (
-              <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5" title={tokenName ?? ''}>
-                {truncateHex(tokenName ?? '', 12, 6)}
-              </p>
-            )}
+            <p className="text-xs font-mono text-[var(--text-muted)] mt-0.5">v{version}</p>
           </div>
-          {/* tabIndex={-1}: Escape closes. */}
           <button
             onClick={onClose}
             aria-label={t('modals:common.closeDialog')}
@@ -74,14 +64,12 @@ export default function DescriptionModal({
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">
-            {description}
-          </p>
+          <pre className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words font-sans leading-relaxed">
+            {releaseNotes}
+          </pre>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)] rounded-b-[var(--radius-xl)]">
           <button
             onClick={onClose}

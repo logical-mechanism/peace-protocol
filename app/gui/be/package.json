@@ -1,6 +1,6 @@
 {
   "name": "veiled-be",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Veiled Backend API",
   "engines": {
     "node": ">=20.19.0",

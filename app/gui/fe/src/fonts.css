@@ -45,3 +45,15 @@
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/* Bricolage Grotesque — variable weight + opsz, display face for hero moments
+ * (wordmark, onboarding step titles, EmptyState titles, Dashboard stats).
+ * Source: @fontsource-variable/bricolage-grotesque (latin subset, standard
+ * variable file with both wght + opsz axes). */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/bricolage-grotesque-variable.woff2') format('woff2-variations');
+}
