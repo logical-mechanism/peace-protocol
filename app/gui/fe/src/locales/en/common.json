@@ -38,6 +38,8 @@
     "removeListing": "Remove Listing",
     "remove": "Remove",
     "viewBids": "View Bids",
+    "openDescription": "View full description",
+    "viewFull": "View full",
     "insufficientBalance": "Insufficient balance",
     "insufficientBalanceMinimum": "Insufficient balance (minimum 2 ADA)",
     "insufficientBalanceButton": "Insufficient Balance",
@@ -385,7 +387,8 @@
     "copyError": "Copy error to clipboard",
     "dismiss": "Dismiss notification",
     "dismissAll": "Dismiss all",
-    "dismissAllQueued": "Dismiss all ({{count}} queued)"
+    "dismissAllQueued": "Dismiss all ({{count}} queued)",
+    "queueOverflow": "+{{count}} more"
   },
   "categories": {
     "text": "Text",

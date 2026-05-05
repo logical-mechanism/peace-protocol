@@ -274,10 +274,10 @@ function EncryptionCard({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setDescriptionModalOpen(true); }}
-                aria-label={t('card.openDescription', { defaultValue: 'View full description' })}
+                aria-label={t('card.openDescription')}
                 className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--link)] hover:text-[var(--link-hover)] focus-visible:text-[var(--link-hover)] rounded transition-colors duration-[var(--transition-fast)]"
               >
-                {t('card.viewFull', { defaultValue: 'View full' })}
+                {t('card.viewFull')}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

@@ -372,8 +372,8 @@ export default function Dashboard() {
     const navState = location.state as { startTutorial?: string; justCreated?: boolean } | null
     if (navState?.justCreated) {
       toast.celebrate(
-        t('dashboard:shell.walletCreatedTitle', { defaultValue: 'Welcome to Veiled' }),
-        t('dashboard:shell.walletCreatedBody', { defaultValue: 'Your wallet is ready. Fund it to start listing or bidding.' }),
+        t('dashboard:shell.walletCreatedTitle'),
+        t('dashboard:shell.walletCreatedBody'),
       )
       navigate(location.pathname, { replace: true, state: null })
       return

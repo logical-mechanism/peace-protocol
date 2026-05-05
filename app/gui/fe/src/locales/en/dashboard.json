@@ -35,6 +35,8 @@
     "disconnect": "Disconnect",
     "unfinishedListingTitle": "Unfinished Listing Found",
     "unfinishedListingBody": "A file listing for \"{{filename}}\" was uploaded but the transaction was not completed. The file is still on Iagon — you can resume without re-uploading.",
+    "walletCreatedTitle": "Welcome to Veiled",
+    "walletCreatedBody": "Your wallet is ready. Fund it to start listing or bidding.",
     "discard": "Discard",
     "resumeListing": "Resume Listing",
     "dismissTitle": "Dismiss",
