@@ -894,14 +894,15 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <button
             onClick={() => setActiveTab('my-sales')}
-            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '0ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-sales'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyListings')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.myListingsCount === null ? '...' : t('dashboard:shell.statActiveCount', { count: effects.myListingsCount })}
             </p>
             {effects.bidNotifications.unseenBidCount > 0 && (
@@ -912,40 +913,43 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab('my-purchases')}
-            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '50ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'my-purchases'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statMyBids')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.myBidsCount === null ? '...' : t('dashboard:shell.statPendingCount', { count: effects.myBidsCount })}
             </p>
           </button>
           <button
             onClick={() => setActiveTab('library')}
-            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '100ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'library'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statLibrary')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.libraryCount === null ? '...' : t('dashboard:library.totalCount', { count: effects.libraryCount })}
             </p>
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
+            style={{ animationDelay: '150ms' }}
+            className={`card-stagger h-full bg-[var(--bg-card)] border rounded-[var(--radius-lg)] p-6 text-left transition-all duration-[var(--transition-fast)] cursor-pointer ${
               activeTab === 'history'
-                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)]'
+                ? 'border-[var(--accent)] shadow-[var(--shadow-glow)] -translate-y-0.5'
                 : 'border-[var(--border-subtle)] hover:border-[var(--border-default)] hover:bg-[var(--bg-card-hover)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5'
             }`}
           >
             <h2 className="text-lg font-medium mb-2">{t('dashboard:shell.statTransactions')}</h2>
-            <p className="text-2xl font-semibold tracking-tight tnum text-[var(--text-primary)]">
+            <p className="t-display text-2xl tnum text-[var(--text-primary)]">
               {effects.pendingTxCount > 0 ? t('dashboard:shell.statPendingCount', { count: effects.pendingTxCount }) : t('dashboard:shell.statNonePending')}
             </p>
           </button>
