@@ -255,28 +255,33 @@ function EncryptionCard({
             )}
           </div>
 
-          {/* Description (no sub-card frame — competes with parent card).
-            * `group` wrapper enables an inline "View" caret that appears on hover,
-            * signaling the otherwise-hidden click affordance. */}
+          {/* Description: plain <p> for the text + a real <button> for the
+            * "View full →" affordance. The wrapper still has onClick for mouse
+            * convenience (clicking anywhere on the description opens the modal)
+            * but it intentionally has NO role/tabIndex/keyboard handler — the
+            * inner button is the keyboard- and screen-reader-visible
+            * interactive element. Screen readers hear the description as
+            * paragraph text, then "View full description, button". */}
           {encryption.description && (
             <div
               onClick={() => setDescriptionModalOpen(true)}
               className="group relative mb-[var(--space-3)] cursor-pointer"
               title={encryption.description}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDescriptionModalOpen(true); } }}
-              aria-label={t('card.openDescription', { defaultValue: 'View full description' })}
             >
               <p className={`text-sm text-[var(--text-secondary)] ${descClamp} group-hover:text-[var(--text-primary)] transition-colors duration-[var(--transition-fast)]`}>
                 <HighlightText text={truncateDescription(encryption.description)} query={searchQuery} />
               </p>
-              <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--link)] opacity-0 group-hover:opacity-100 transition-opacity duration-[var(--transition-fast)]">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setDescriptionModalOpen(true); }}
+                aria-label={t('card.openDescription', { defaultValue: 'View full description' })}
+                className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--link)] hover:text-[var(--link-hover)] focus-visible:text-[var(--link-hover)] rounded transition-colors duration-[var(--transition-fast)]"
+              >
                 {t('card.viewFull', { defaultValue: 'View full' })}
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-              </span>
+              </button>
             </div>
           )}
 
