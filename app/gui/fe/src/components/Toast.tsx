@@ -410,6 +410,20 @@ export function useToast() {
     [addToast, t]
   );
 
+  /**
+   * Fire a success toast with the celebration variant (animated icon + green glow).
+   * Use for milestone moments that aren't a transaction success — wallet
+   * creation, first-time onboarding completion. For tx success with a
+   * CardanoScan link, prefer transactionSuccess().
+   */
+  const celebrate = useCallback(
+    (title: string, message?: string, action?: ToastAction) => {
+      const base = getToastDurationMs();
+      return addToast('success', title, message, base === 0 ? 0 : Math.max(base, 6000), action, 'transaction');
+    },
+    [addToast]
+  );
+
   return {
     toasts: visibleToasts,
     queuedCount,
@@ -421,6 +435,7 @@ export function useToast() {
     warning,
     info,
     transactionSuccess,
+    celebrate,
   };
 }
 

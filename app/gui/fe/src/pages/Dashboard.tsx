@@ -364,8 +364,20 @@ export default function Dashboard() {
   // switch or refresh doesn't re-arm the flow. first-decrypt hands off to
   // MyPurchasesTab (which owns the list of eligible targets); first-bid-accepted
   // starts directly on Dashboard.
+  //
+  // WalletSetup also passes `state.justCreated` after a brand-new wallet is
+  // minted; we fire the signature celebration toast and clear the state so
+  // back-button navigation does not re-celebrate.
   useEffect(() => {
-    const navState = location.state as { startTutorial?: string } | null
+    const navState = location.state as { startTutorial?: string; justCreated?: boolean } | null
+    if (navState?.justCreated) {
+      toast.celebrate(
+        t('dashboard:shell.walletCreatedTitle', { defaultValue: 'Welcome to Veiled' }),
+        t('dashboard:shell.walletCreatedBody', { defaultValue: 'Your wallet is ready. Fund it to start listing or bidding.' }),
+      )
+      navigate(location.pathname, { replace: true, state: null })
+      return
+    }
     if (navState?.startTutorial === 'first-decrypt') {
       setActiveTab('my-purchases')
       setAutoStartDecryptTutorial(true)

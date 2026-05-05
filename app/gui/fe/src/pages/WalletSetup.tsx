@@ -233,7 +233,10 @@ export default function WalletSetup() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
     try {
       await createWallet(words, password)
-      navigate('/dashboard')
+      // Signal "first wallet just created" to Dashboard so it can fire the
+      // signature celebration toast on landing. The flag is consumed once on
+      // mount and cleared, so back-button navigation does not re-celebrate.
+      navigate('/dashboard', { state: { justCreated: true } })
     } catch (e) {
       setError(e instanceof Error ? e.message : t('setup.errors.createFailed'))
     } finally {
