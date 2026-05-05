@@ -9,7 +9,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { copyToClipboard } from '../utils/clipboard';
 import { saveBidFormDraft, getBidFormDraft, clearBidFormDraft } from '../services/bidFormDraftStorage';
 import { getFriendlyError, type FriendlyError } from '../services/errorMessages';
-import { formatAda } from '../utils/formatAda';
+import { formatAda, formatWithCommas, stripCommas } from '../utils/formatAda';
 
 interface PlaceBidFormData {
   bidAmount: string;
@@ -62,7 +62,12 @@ export default function PlaceBidModal({
   const [copiedError, setCopiedError] = useState(false);
   const [showFuturePrice, setShowFuturePrice] = useState(false);
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  // Display strings that may contain thousands-separator commas at rest;
+  // formData holds the comma-stripped raw value used for parsing/submit.
+  const [displayBidAmount, setDisplayBidAmount] = useState('');
+  const [displayFuturePrice, setDisplayFuturePrice] = useState('');
   const bidAmountRef = useRef<HTMLInputElement>(null);
+  const futurePriceRef = useRef<HTMLInputElement>(null);
 
   // Reset form when modal opens (only on isOpen transition)
   useEffect(() => {
@@ -75,6 +80,8 @@ export default function PlaceBidModal({
       const draft = encryption ? getBidFormDraft(encryption.tokenName) : null;
       if (draft) {
         setFormData({ bidAmount: draft.bidAmount, futurePrice: draft.futurePrice });
+        setDisplayBidAmount(formatWithCommas(draft.bidAmount));
+        setDisplayFuturePrice(formatWithCommas(draft.futurePrice));
         setShowFuturePrice(draft.showFuturePrice);
         setRestoredFromDraft(true);
       } else {
@@ -85,6 +92,8 @@ export default function PlaceBidModal({
           bidAmount: suggestedAda,
           futurePrice: suggestedAda,
         });
+        setDisplayBidAmount(formatWithCommas(suggestedAda));
+        setDisplayFuturePrice(formatWithCommas(suggestedAda));
         setShowFuturePrice(false);
       }
       setTimeout(() => bidAmountRef.current?.focus(), 50);
@@ -147,17 +156,27 @@ export default function PlaceBidModal({
     const { name, value } = e.target;
     // Strip commas from ADA amounts so "1,000" parses as 1000, not 1
     let sanitized = (name === 'bidAmount' || name === 'futurePrice')
-      ? value.replace(/,/g, '')
+      ? stripCommas(value)
       : value;
+    let displayValue = value;
     // Cap price fields at 6 decimal places (1 lovelace = 0.000001 ADA)
     if (name === 'bidAmount' || name === 'futurePrice') {
       const dotIndex = sanitized.indexOf('.');
       if (dotIndex !== -1 && sanitized.length - dotIndex - 1 > 6) return;
-      // Clamp to Cardano max supply (45 billion ADA)
+      // Reject characters that aren't part of a numeric literal so users can't
+      // sneak letters past the type=text input. Allow empty so they can clear.
+      if (sanitized && !/^[0-9]*\.?[0-9]*$/.test(sanitized)) return;
+      // Clamp to Cardano max supply (45 billion ADA). When clamped, show the
+      // clamped value (without commas — focus is in the field while typing).
       const parsed = parseFloat(sanitized);
-      if (!isNaN(parsed) && parsed > 45_000_000_000) sanitized = '45000000000';
+      if (!isNaN(parsed) && parsed > 45_000_000_000) {
+        sanitized = '45000000000';
+        displayValue = '45000000000';
+      }
     }
     setFormData((prev) => ({ ...prev, [name]: sanitized }));
+    if (name === 'bidAmount') setDisplayBidAmount(displayValue);
+    else if (name === 'futurePrice') setDisplayFuturePrice(displayValue);
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -167,9 +186,35 @@ export default function PlaceBidModal({
 
   // Validate bid amount on blur for immediate feedback (only if user entered a value)
   const handleBidAmountBlur = () => {
+    setDisplayBidAmount(formatWithCommas(formData.bidAmount));
     if (formData.bidAmount.trim()) {
       validateForm();
     }
+  };
+
+  const handleBidAmountFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayBidAmount(formData.bidAmount);
+    e.target.select();
+  };
+
+  const handleFuturePriceBlur = () => {
+    setDisplayFuturePrice(formatWithCommas(formData.futurePrice));
+  };
+
+  const handleFuturePriceFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setDisplayFuturePrice(formData.futurePrice);
+    e.target.select();
+  };
+
+  // Quick-action buttons (Suggested / +10 / +25 / Max) need to update both the
+  // raw form value and the formatted display, since the input is not focused.
+  const setBidAmount = (raw: string) => {
+    setFormData((prev) => ({ ...prev, bidAmount: raw }));
+    setDisplayBidAmount(formatWithCommas(raw));
+  };
+  const setFuturePrice = (raw: string) => {
+    setFormData((prev) => ({ ...prev, futurePrice: raw }));
+    setDisplayFuturePrice(formatWithCommas(raw));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -332,9 +377,7 @@ export default function PlaceBidModal({
                       <>
                         <button
                           type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, bidAmount: suggestedPriceAda!.toString() }))
-                          }
+                          onClick={() => setBidAmount(suggestedPriceAda!.toString())}
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
                         >
@@ -343,10 +386,7 @@ export default function PlaceBidModal({
                         <button
                           type="button"
                           onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              bidAmount: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
-                            }))
+                            setBidAmount((Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString())
                           }
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
@@ -356,10 +396,7 @@ export default function PlaceBidModal({
                         <button
                           type="button"
                           onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              bidAmount: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
-                            }))
+                            setBidAmount((Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString())
                           }
                           disabled={isSubmitting}
                           className={`px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)] ${balanceAda !== undefined ? 'border-r border-[var(--border-subtle)]' : ''}`}
@@ -376,7 +413,7 @@ export default function PlaceBidModal({
                             Math.floor(balanceAda - FEE_RESERVE_ADA),
                             MIN_BID_ADA
                           );
-                          setFormData((prev) => ({ ...prev, bidAmount: maxBid.toString() }));
+                          setBidAmount(maxBid.toString());
                           if (errors.bidAmount) {
                             setErrors((prev) => ({ ...prev, bidAmount: undefined }));
                           }
@@ -395,18 +432,17 @@ export default function PlaceBidModal({
               <div className="relative">
                 <input
                   ref={bidAmountRef}
-                  type="number"
+                  type="text"
                   inputMode="decimal"
+                  autoComplete="off"
                   id="bidAmount"
                   name="bidAmount"
-                  value={formData.bidAmount}
+                  value={displayBidAmount}
                   onChange={handleInputChange}
+                  onFocus={handleBidAmountFocus}
                   onBlur={handleBidAmountBlur}
                   disabled={isSubmitting}
                   placeholder="0.00"
-                  min={MIN_BID_ADA}
-                  max={balanceAda !== undefined ? balanceAda - FEE_RESERVE_ADA : undefined}
-                  step="0.1"
                   aria-invalid={!!errors.bidAmount}
                   aria-describedby={errors.bidAmount ? 'bidAmount-error' : 'bidAmount-hint'}
                   className={`w-full px-3 py-2.5 text-sm tnum bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
@@ -475,9 +511,7 @@ export default function PlaceBidModal({
                       <div className="inline-flex rounded-[var(--radius-md)] border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-secondary)]">
                         <button
                           type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, futurePrice: suggestedPriceAda!.toString() }))
-                          }
+                          onClick={() => setFuturePrice(suggestedPriceAda!.toString())}
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
                         >
@@ -486,10 +520,7 @@ export default function PlaceBidModal({
                         <button
                           type="button"
                           onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              futurePrice: (Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString(),
-                            }))
+                            setFuturePrice((Math.floor(encryption.suggestedPrice! * 1.1) / 1_000_000).toString())
                           }
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] border-r border-[var(--border-subtle)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
@@ -499,10 +530,7 @@ export default function PlaceBidModal({
                         <button
                           type="button"
                           onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              futurePrice: (Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString(),
-                            }))
+                            setFuturePrice((Math.floor(encryption.suggestedPrice! * 1.25) / 1_000_000).toString())
                           }
                           disabled={isSubmitting}
                           className="px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-[var(--transition-fast)]"
@@ -514,19 +542,21 @@ export default function PlaceBidModal({
                   </div>
                   <div className="relative">
                     <input
-                      type="number"
+                      ref={futurePriceRef}
+                      type="text"
                       inputMode="decimal"
+                      autoComplete="off"
                       id="futurePrice"
                       name="futurePrice"
-                      value={formData.futurePrice}
+                      value={displayFuturePrice}
                       onChange={handleInputChange}
+                      onFocus={handleFuturePriceFocus}
+                      onBlur={handleFuturePriceBlur}
                       disabled={isSubmitting}
                       placeholder="0.00"
-                      min={0}
-                      step="0.1"
                       aria-invalid={!!errors.futurePrice}
                       aria-describedby={errors.futurePrice ? 'futurePrice-error' : undefined}
-                      className={`w-full px-3 py-2.5 text-sm bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
+                      className={`w-full px-3 py-2.5 text-sm tnum bg-[var(--bg-secondary)] border rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 focus:border-[var(--accent)] transition-all duration-[var(--transition-fast)] disabled:opacity-50 pr-12 ${
                         errors.futurePrice ? 'border-[var(--error)]' : 'border-[var(--border-subtle)]'
                       }`}
                     />
