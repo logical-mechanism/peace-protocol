@@ -21,6 +21,27 @@ export default defineConfig([
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // Catches user-facing strings that bypass i18n in screen-reader-only or
+      // tooltip attributes — these are invisible during visual review.
+      // `placeholder` is intentionally not listed: form placeholders in this
+      // app are numeric ("0", "0.00") or symbolic ("…") and locale-agnostic.
+      'no-restricted-syntax': ['error',
+        {
+          selector: "JSXAttribute[name.name=/^(aria-label|aria-description|aria-roledescription|alt|title)$/] > Literal[value!=''][value!=' ']",
+          message: "Hardcoded user-facing attribute string. Use t() — e.g. aria-label={t('namespace:key')}.",
+        },
+        {
+          selector: "JSXAttribute[name.name=/^(aria-label|aria-description|aria-roledescription|alt|title)$/] > JSXExpressionContainer > TemplateLiteral",
+          message: "User-facing attribute should use t() with interpolation, not a template literal that may contain hardcoded English. e.g. aria-label={t('foo', { count })}.",
+        },
+      ],
+    },
+  },
+  {
+    // Test files use synthetic fixtures — exempt from the i18n attr rule.
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 ])

@@ -266,7 +266,7 @@ export function ToastContainer({ toasts, onClose, queuedCount = 0, onDismissAll 
       {queuedCount > 0 && (
         <div className="self-end inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-[var(--text-secondary)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-[var(--shadow-sm)]" aria-hidden="true">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-          {t('toast.queueOverflow', { count: queuedCount, defaultValue: '+{{count}} more' })}
+          {t('toast.queueOverflow', { count: queuedCount })}
         </div>
       )}
       {toasts.length >= 2 && onDismissAll && (

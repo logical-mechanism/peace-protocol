@@ -6,16 +6,16 @@ describe('formatRelativeTime', () => {
     vi.useRealTimers();
   });
 
-  it('returns "just now" for dates less than 60 seconds ago', () => {
+  it('returns "now" for dates less than 60 seconds ago', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-06-01T12:00:30Z'));
-    expect(formatRelativeTime('2025-06-01T12:00:00Z')).toBe('just now');
+    expect(formatRelativeTime('2025-06-01T12:00:00Z')).toBe('now');
   });
 
-  it('returns "just now" for the current time', () => {
+  it('returns "now" for the current time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-06-01T12:00:00Z'));
-    expect(formatRelativeTime('2025-06-01T12:00:00Z')).toBe('just now');
+    expect(formatRelativeTime('2025-06-01T12:00:00Z')).toBe('now');
   });
 
   it('returns minutes ago for dates less than 1 hour ago', () => {
@@ -54,10 +54,10 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime('2024-06-01T12:00:00Z')).toBe('2y ago');
   });
 
-  it('returns "just now" for future dates', () => {
+  it('returns "now" for future dates', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-06-01T12:00:00Z'));
-    expect(formatRelativeTime('2025-06-01T13:00:00Z')).toBe('just now');
+    expect(formatRelativeTime('2025-06-01T13:00:00Z')).toBe('now');
   });
 
   it('handles boundary at 30 days (switches to months)', () => {

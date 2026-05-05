@@ -372,8 +372,8 @@ export default function Dashboard() {
     const navState = location.state as { startTutorial?: string; justCreated?: boolean } | null
     if (navState?.justCreated) {
       toast.celebrate(
-        t('dashboard:shell.walletCreatedTitle', { defaultValue: 'Welcome to Veiled' }),
-        t('dashboard:shell.walletCreatedBody', { defaultValue: 'Your wallet is ready. Fund it to start listing or bidding.' }),
+        t('dashboard:shell.walletCreatedTitle'),
+        t('dashboard:shell.walletCreatedBody'),
       )
       navigate(location.pathname, { replace: true, state: null })
       return
@@ -996,17 +996,17 @@ export default function Dashboard() {
                  *   success (green) — "ready / done": accepted bids ready to decrypt
                  *   accent / neutral — count-only, no implied urgency */}
                 {tab.id === 'my-sales' && effects.bidNotifications.unseenBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full animate-pulse" aria-label={`${effects.bidNotifications.unseenBidCount} new bids`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full animate-pulse" aria-label={t('dashboard:shell.tabBadgeNewBids', { count: effects.bidNotifications.unseenBidCount })}>
                     {effects.bidNotifications.unseenBidCount}
                   </span>
                 )}
                 {tab.id === 'my-purchases' && effects.acceptedBidCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={`${effects.acceptedBidCount} accepted bids ready to decrypt`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--success)] text-white rounded-full" aria-label={t('dashboard:shell.tabBadgeAcceptedBids', { count: effects.acceptedBidCount })}>
                     {effects.acceptedBidCount}
                   </span>
                 )}
                 {tab.id === 'history' && effects.pendingTxCount > 0 && (
-                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={`${effects.pendingTxCount} pending transactions`}>
+                  <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-[var(--warning)] text-white rounded-full" aria-label={t('dashboard:shell.tabBadgePendingTx', { count: effects.pendingTxCount })}>
                     {effects.pendingTxCount}
                   </span>
                 )}
