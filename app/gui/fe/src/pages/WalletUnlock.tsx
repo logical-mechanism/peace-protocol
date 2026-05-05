@@ -92,8 +92,8 @@ export default function WalletUnlock() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1
-            className="text-3xl font-bold mb-2 tracking-tight"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
+            className="t-display text-3xl mb-2"
+            style={{ color: 'var(--text-primary)' }}
           >
             {t('appName')}
           </h1>

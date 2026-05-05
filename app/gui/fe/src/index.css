@@ -298,41 +298,48 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 /* Semantic typography classes — prefer these over ad-hoc Tailwind text-*
  * utilities in new components. .t-display uses the display face for hero
- * moments; everything else stays on the body face (Inter). */
-.t-display {
-  font-family: var(--font-display);
-  font-size: var(--text-display-size);
-  line-height: var(--text-display-leading);
-  font-weight: var(--text-display-weight);
-  letter-spacing: -0.02em;  /* tracking-tight */
-}
+ * moments; everything else stays on the body face (Inter).
+ *
+ * Wrapped in @layer components so per-instance Tailwind utilities
+ * (e.g. text-lg, text-3xl) override the role's default size/leading.
+ * Otherwise the bare class would beat the utility on source order and
+ * lock every .t-display element to 32px. */
+@layer components {
+  .t-display {
+    font-family: var(--font-display);
+    font-size: var(--text-display-size);
+    line-height: var(--text-display-leading);
+    font-weight: var(--text-display-weight);
+    letter-spacing: -0.02em;  /* tracking-tight */
+  }
 
-.t-heading {
-  font-size: var(--text-heading-size);
-  line-height: var(--text-heading-leading);
-  font-weight: var(--text-heading-weight);
-  letter-spacing: -0.01em;
-}
+  .t-heading {
+    font-size: var(--text-heading-size);
+    line-height: var(--text-heading-leading);
+    font-weight: var(--text-heading-weight);
+    letter-spacing: -0.01em;
+  }
 
-.t-body {
-  font-size: var(--text-body-size);
-  line-height: var(--text-body-leading);
-  font-weight: var(--text-body-weight);
-}
+  .t-body {
+    font-size: var(--text-body-size);
+    line-height: var(--text-body-leading);
+    font-weight: var(--text-body-weight);
+  }
 
-.t-caption {
-  font-size: var(--text-caption-size);
-  line-height: var(--text-caption-leading);
-  font-weight: var(--text-caption-weight);
-}
+  .t-caption {
+    font-size: var(--text-caption-size);
+    line-height: var(--text-caption-leading);
+    font-weight: var(--text-caption-weight);
+  }
 
-.t-mono {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-size);
-  line-height: var(--text-mono-leading);
-  font-weight: var(--text-mono-weight);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  .t-mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-mono-size);
+    line-height: var(--text-mono-leading);
+    font-weight: var(--text-mono-weight);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
 }
 
 /* Tabular numerals — fixed-width digits so price columns and timestamps stop
@@ -751,15 +758,24 @@ select option {
  * decryption completion, first wallet creation. The glow uses --success
  * (semantic green) because the celebration belongs to the "completed" family.
  * Used briefly and never crowded next to the lilac accent, so it doesn't
- * read as "Halloween palette." One memorable beat. */
+ * read as "Halloween palette." One memorable beat.
+ *
+ * Glow color is set on the .tx-celebration class via --tx-glow so light
+ * theme can override (the keyframe itself can't reference theme-scoped
+ * vars at the rule level — only at apply time). */
 @keyframes tx-celebration {
-  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
-  50%  { transform: scale(1.04); box-shadow: 0 0 36px rgba(34, 197, 94, 0.55); }
-  100% { transform: scale(1);    box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+  0%   { transform: scale(1);    box-shadow: 0 0 0 transparent; }
+  50%  { transform: scale(1.04); box-shadow: 0 0 36px var(--tx-glow); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 transparent; }
 }
 
 .tx-celebration {
+  --tx-glow: rgba(34, 197, 94, 0.55);
   animation: tx-celebration 600ms ease-out;
+}
+
+[data-theme="light"] .tx-celebration {
+  --tx-glow: rgba(22, 163, 74, 0.4);
 }
 
 /* Compact icon-only variant: scale beat without box-shadow halo, for inline
@@ -923,7 +939,9 @@ select option {
 }
 
 [data-theme="light"] .app-noise-overlay {
-  opacity: 0.04;
+  /* Light surfaces show grain more visibly than dark ones; keep it close to
+   * dark-theme strength so it reads as paper texture, not as dirt. */
+  opacity: 0.022;
 }
 
 @media (prefers-contrast: more) {

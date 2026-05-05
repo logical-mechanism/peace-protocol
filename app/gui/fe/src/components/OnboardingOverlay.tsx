@@ -113,8 +113,8 @@ export default function OnboardingOverlay() {
 
         <h3
           id="onboarding-step-title"
-          className="text-base font-semibold mb-1.5 tracking-tight"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
+          className="t-display text-base mb-1.5"
+          style={{ color: 'var(--text-primary)' }}
         >
           {t(step.titleKey)}
         </h3>
