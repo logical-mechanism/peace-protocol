@@ -18,11 +18,24 @@
 
   /* Text - high contrast for readability (WCAG AA 4.5:1 on all bg-* surfaces).
    * Token roles (audit before introducing a new use):
-   *   --text-primary    body text, headings, primary content
-   *   --text-secondary  supporting prose, descriptions, sub-titles
-   *   --text-muted      de-emphasized metadata only — labels, timestamps,
-   *                     hint text, badge captions. Should never be used for
-   *                     content the user must read to complete a task. */
+   *   --text-primary    body text, headings, primary content, hero values
+   *                     the user is making a decision about (e.g. a price)
+   *   --text-secondary  supporting prose, descriptions, sub-titles, and
+   *                     readable-but-secondary values (e.g. a mono hash
+   *                     the user might want to verify but isn't acting on)
+   *   --text-muted      de-emphasized metadata only — field labels in a
+   *                     label/value row, timestamps, hint text, badge
+   *                     captions, placeholders, inactive chip states.
+   *                     Should never be used for content the user must
+   *                     read to complete a task.
+   *
+   * Reference pattern (PlaceBidModal "Listing Details" row):
+   *   <span className="text-muted">Token</span>
+   *   <span className="text-secondary font-mono">9f3c…e2</span>
+   *   <span className="text-primary tnum">12.40 ADA</span>
+   *
+   * Three tiers in one row — label (muted), technical value (secondary),
+   * decision value (primary). Use this hierarchy for any new metadata row. */
   --text-primary: #fafafa;
   --text-secondary: #a1a1a1;
   --text-muted: #9ca3af;
