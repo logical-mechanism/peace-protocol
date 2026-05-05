@@ -46,18 +46,10 @@
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Bricolage Grotesque — variable weight + opsz, display face for hero moments.
- *
- * To enable: drop `bricolage-grotesque-variable.woff2` into /public/fonts/
- * and uncomment the @font-face block below. Source options:
- *   - npm: `npm i @fontsource-variable/bricolage-grotesque` and copy from
- *     node_modules/@fontsource-variable/bricolage-grotesque/files/
- *   - Google Fonts: https://fonts.google.com/specimen/Bricolage+Grotesque
- *
- * While the file is missing, the @font-face block stays commented so the
- * browser does not log a 404. The --font-display token falls back to Inter,
- * so .t-display and font-display utilities render correctly without it. */
-/*
+/* Bricolage Grotesque — variable weight + opsz, display face for hero moments
+ * (wordmark, onboarding step titles, EmptyState titles, Dashboard stats).
+ * Source: @fontsource-variable/bricolage-grotesque (latin subset, standard
+ * variable file with both wght + opsz axes). */
 @font-face {
   font-family: 'Bricolage Grotesque';
   font-style: normal;
@@ -65,4 +57,3 @@
   font-display: swap;
   src: url('/fonts/bricolage-grotesque-variable.woff2') format('woff2-variations');
 }
-*/
