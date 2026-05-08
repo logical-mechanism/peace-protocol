@@ -6,26 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [0.6.0] - 2026-05-07
 
-Contracts-only release closing the actionable findings from the
-2026-05-07 self-audit (`app/contracts/audits/audit_report.md`). Genesis
-parameter signature changed (breaking), so the protocol is bumped to
-0.6.0 even though the off-chain stack is unchanged.
+Audit-fix release closing the actionable findings from the 2026-05-07
+self-audit (`app/contracts/audits/audit_report.md`). Genesis parameter
+signature changed (breaking), all five validator hashes change, and
+the off-chain happy-path scripts + GUI tx-builder needed paired
+updates to stay in lockstep with the new on-chain semantics.
+
+### Deployment notes (read this before launching)
+- All five validator hashes are different. Re-run `app/contracts/compile.sh` and `app/commands/00_createScriptReferences.sh` against a fresh bootstrap UTxO, then update the GUI's per-network env vars: `ENCRYPTION_CONTRACT_ADDRESS_*`, `BIDDING_CONTRACT_ADDRESS_*`, `REFERENCE_CONTRACT_ADDRESS_*`, `*_POLICY_ID_*`, `GENESIS_TOKEN_NAME_*`, and the three `*_REF_TX_HASH_*` / `*_REF_OUTPUT_INDEX_*` pairs (see `app/gui/be/src/config/index.ts`).
+- This is a hard fork: existing UTxOs at the old contract addresses are unaffected (still spendable under their original validators), but new mints / transitions go to the new addresses. There is no migration path by design (hyperstructure semantics).
 
 ### Fixed
 - contracts(H-01): pin `stake_credential == None` and `reference_script == None` on every continuing protocol output across encryption.ak (5 sites: EntryEncryptionMint, UseEncryption, UseSnark, CancelEncryption, UpdateEncryptionPrice) and bidding.ak (2 sites: EntryBidMint, UpdateBidPrice), plus the two `UseBid` singleton-input filters and the `UseEncryption` bid-input lookup. Closes the stake-credential hijack — the permissionless TTL-expired CancelEncryption branch is the highest-impact path.
 - contracts(M-01): genesis policy now takes a third compile-time parameter `reference_hash: ScriptHash` and asserts `ReferenceDatum.reference == reference_hash` at mint time. The reference-validator trust anchor is now enforced on-chain instead of relying on operator off-chain discipline. To break the bootstrap cycle, reference.ak is re-keyed from `(_genesis_pid, _genesis_tkn)` to `(_tx_id, _tx_idx)` so it can be built before genesis.
 - contracts(M-03): `verify_groth16` now rejects over-supplied `public` lists via `expect [] = leftover_public` instead of silently truncating past `nPublic - 1`. Pattern-matches on the empty list to avoid re-introducing the `aiken/collection/list` import.
 - contracts(I-08): `compile.sh` token-name builder now mirrors `util.construct_token_name` (`bytes([idx]) + tx_id_hex`) instead of CBOR-encoding tx_idx. The old builder diverged from the on-chain semantic for tx_idx ≥ 24 (CBOR major-type-0 emits 2 bytes). Asserts `0 ≤ tx_idx ≤ 255` up front.
+- gui(I-08): `computeTokenName` in `fe/src/services/transactions/txUtils.ts` had the same CBOR/byte mismatch for **encryption / bidding** mints. Pre-existing latent bug — every entry-mint with `output_index >= 24` would have failed on-chain with a token-name mismatch. Now mirrors `bytearray.push` byte-for-byte; throws on out-of-range `outputIndex`.
+- commands(H-01): every encryption/bidding script-address build in `app/commands/` (14 sites across 11 scripts) was using `--stake-key-hash ${staking_credential}` — the operator-side equivalent of the H-01 attack pattern. Removed the flag everywhere; addresses are now bare script-only as the v0.6.0 validators require.
+- commands(I-08): replaced 7 `cbor2.dumps`-based token-name builders with the bytewise form across 6 scripts (01a, 02a, 02b, 03, 05, 07a, 07b). Renamed local `tx_idx_cbor` → `tx_idx_byte` for accuracy.
 
 ### Changed
-- contracts(BREAKING): genesis policy signature is now `validator contract(tx_id, tx_idx, reference_hash)`. The off-chain Veiled bootstrap flow needs a follow-up to thread the new parameter through deployment.
-- contracts: reference.ak parameter signature changed from `(_genesis_pid, _genesis_tkn)` to `(_tx_id, _tx_idx)`. Both are unused — the swap exists only to break the bootstrap cycle introduced by M-01.
+- contracts(BREAKING): genesis policy signature is now `validator contract(tx_id, tx_idx, reference_hash)`. compile.sh builds reference.ak first, derives its hash, then threads it into the genesis build.
+- contracts: reference.ak parameter signature changed from `(_genesis_pid, _genesis_tkn)` to `(_tx_id, _tx_idx)`. Both are unused — the swap exists only to break the bootstrap cycle introduced by M-01. Reference UTxO address differs per deployment.
 - contracts(I-02): test fixtures now expose `mk_addr_with_stake` and `mk_output_with_ref_script` covering all four stake_credential variants (None, Some(Inline(VerificationKey(_))), Some(Inline(Script(_))), Some(Pointer(_))) plus reference_script Some/None.
 - contracts: 8 new H-01 perimeter regression tests covering all adversarial stake variants plus reference_script attached on `is_protocol_output` / `is_protocol_input`.
 - contracts: 1 new M-03 over-supply negative test (`fail_groth_proof1_public_oversupplied`) extracted from `valid_groth_proof1`'s VK / proof / public / commitment-wires fixture.
 - contracts: baseline bench scaffolding under `lib/benchmarks/` (8 bench blocks across groth and util) — adds `aiken-lang/fuzz v2.2.0` as a dependency. Numbers are NOT optimal; this is the audit-required baseline so future optimization claims can quote a before/after delta.
 - contracts: inline rationale comments at every site flagged as carried Intentional (H-02, H-03, H-04, L-03, I-05) so future readers don't re-discover the design.
-- contracts: validator sizes after refactor — encryption 8,945 (+903 vs pre-fix 8,042), bidding 4,149 (-1,671 — net improvement from cleaner UseBid destructure), genesis 1,094, groth 1,664 (+22 from M-03), reference 29.
+- contracts: validator sizes after refactor — encryption 8,945 (+903 vs pre-fix 8,042), bidding 4,149 (−1,671 — net improvement from cleaner UseBid destructure), genesis 1,094, groth 1,664 (+22 from M-03), reference 29.
+- gui: `computeTokenName` unit tests updated to assert the new byte-for-byte semantics (the CBOR-form assertions for `outputIndex >= 24` were the I-08 bug expressed as test contract).
+- docs: v0.6.0 audit-fix notes added to `app/contracts/README.md` and `app/gui/CLAUDE.md` (Conventions & Gotchas) covering the four off-chain coupling points future contributors need to know about.
 
 ## [0.5.3] - 2026-05-04
 
