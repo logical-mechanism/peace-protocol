@@ -182,3 +182,89 @@ test generate_token_name__single_input() {
 test construct_token_name__fails_when_idx_negative() fail {
   expect _tkn = util.construct_token_name(id_seq_00_1f, -1)
 }
+
+/// ------------------------------------------------------------
+/// Tests: is_protocol_output / is_protocol_input (H-01 regression)
+///
+/// These cover the H-01 fix at the perimeter-helper layer. Every
+/// continuing-output check across encryption.ak (5 sites) and
+/// bidding.ak (2 sites + 2 input filters) routes through these
+/// helpers, so a regression here would surface as a regression in
+/// every output-emitting redeemer.
+///
+/// Variants exercised (audit Phase 7c row "Address.stake_credential"):
+///   - None                                 — canonical (must accept).
+///   - Some(Inline(VerificationKey(_)))     — H-01 attack #1 (yield hijack).
+///   - Some(Inline(Script(_)))              — H-01 attack #2 (script-stake).
+///   - Some(Pointer(_))                     — H-01 attack #3 (pointer cred).
+/// And reference_script: None / Some(_).
+/// ------------------------------------------------------------
+
+fn out_with(
+  stake: Option<Referenced<Credential>>,
+  ref: Option<ScriptHash>,
+) -> Output {
+  Output {
+    address: mk_addr_with_stake(stake),
+    value: assets.from_lovelace(2),
+    datum: NoDatum,
+    reference_script: ref,
+  }
+}
+
+test is_protocol_output__canonical_shape_accepts() {
+  util.is_protocol_output(out_with(stake_none(), None), dummy_pid)
+}
+
+test is_protocol_output__rejects_inline_vkey_stake() {
+  !util.is_protocol_output(out_with(stake_inline_vkey(), None), dummy_pid)
+}
+
+test is_protocol_output__rejects_inline_script_stake() {
+  !util.is_protocol_output(out_with(stake_inline_script(), None), dummy_pid)
+}
+
+test is_protocol_output__rejects_pointer_stake() {
+  !util.is_protocol_output(out_with(stake_pointer(), None), dummy_pid)
+}
+
+test is_protocol_output__rejects_attached_reference_script() {
+  !util.is_protocol_output(
+    out_with(stake_none(), Some(dummy_ref_script_hash)),
+    dummy_pid,
+  )
+}
+
+test is_protocol_output__rejects_wrong_payment_credential() {
+  // payment credential mismatched (different script hash)
+  let other_pid: PolicyId =
+    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  !util.is_protocol_output(out_with(stake_none(), None), other_pid)
+}
+
+test is_protocol_input__canonical_shape_accepts() {
+  let i =
+    Input {
+      output_reference: OutputReference {
+        transaction_id: id_seq_00_1f,
+        output_index: 0,
+      },
+      output: out_with(stake_none(), None),
+    }
+  util.is_protocol_input(i, dummy_pid)
+}
+
+test is_protocol_input__rejects_adversarial_stake_cred() {
+  // Cover the UseBid input filters that were the previous escape route
+  // for H-01: a hostile builder could substitute the stake_credential
+  // on either of the two singleton input filters.
+  let i =
+    Input {
+      output_reference: OutputReference {
+        transaction_id: id_seq_00_1f,
+        output_index: 0,
+      },
+      output: out_with(stake_inline_vkey(), None),
+    }
+  !util.is_protocol_input(i, dummy_pid)
+}
