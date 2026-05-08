@@ -10,10 +10,11 @@ use aiken/builtin.{
 }
 use types/groth.{CommitmentKey, GrothProof, SnarkVerificationKey}
 
-test valid_groth_proof1() {
-  // VK and proof from gnark output (out/vk.json, out/proof.json, out/public.json)
-  let vk: SnarkVerificationKey =
-    SnarkVerificationKey {
+// Shared fixture for proof1 — extracted from `valid_groth_proof1` so we
+// can reuse it in M-03 over-supply / under-supply negative tests without
+// duplicating the full ~95-line VK + proof block.
+fn proof1_vk() -> SnarkVerificationKey {
+  SnarkVerificationKey {
       nPublic: 37,
       vkAlpha: #"abee8b9ac29a8c210210305b37260d1f6feab3a280ac5c4b405e5059c8575cf4b64a3c0137c3af086fb54adc3d0e88a7",
       vkBeta: #"81d0685ade0fb4e315d0903531d326c04bbd119cb85225446b4df7c05d986adb01ab87a50ddcd2bc45721a213210e5ae01f1e3b174a4fb7697aea8a0ff76689b310c53323cd833e2ce78eda70851015a3f19804e962613fce70a0106369fbc71",
@@ -66,9 +67,10 @@ test valid_groth_proof1() {
         },
       ],
     }
+}
 
-  let proof: GrothProof =
-    GrothProof {
+fn proof1_proof() -> GrothProof {
+  GrothProof {
       piA: #"99d5bcfeb866aca22f1e3b222ac626106e10de89f4fd4ecc4eae742f346dd6106b87bd04de90398de7d6b683e80693e7",
       piB: #"84b1a59d6858416e68b489af5eace9bcbd26d41a1aec69fdba3021d8752d5303f922be7e1ded54a432f8428584e9d954124a4f18afd472e9404ec824e2bfd1b7440dd2077bd0240491e527b4d7a9e25304ecfd8a8d10dbcb8c1cfe3400bc25a4",
       piC: #"8d7f86284feda80e734fbc258d9239859bb34f833a66ab5d23ed72a97ce748a04ecd6a4f12f41dd15c8faa723ffde3cc",
@@ -77,10 +79,52 @@ test valid_groth_proof1() {
       ],
       commitmentPok: #"b4aac57fabe8f02fb596a1b03108f822b3bfd60799b32f459af582dfffbdffecaae176e4482e52328c56f9b57ce27abd",
     }
+}
 
-  // Public inputs: 36 values (NOT including the implicit leading "1")
-  // gnark's nPublic=37 includes witness[0]=1, but we only pass witness[1..36]
-  let public_values: List<Int> =
+// Public inputs: 36 values (NOT including the implicit leading "1")
+// gnark's nPublic=37 includes witness[0]=1, but we only pass witness[1..36]
+fn proof1_public_values() -> List<Int> {
+  [
+    17500288565172873801, 9411633287470898589, 11539752139897092681,
+    14117566851138557178, 11732854847018214359, 149328769413022752,
+    12743184510663640417, 3586972869393599483, 1162853564816257447,
+    13963573845061158233, 8519358064772266323, 300849905542043934,
+    7122734010029193537, 14091438530330602714, 18437455730936055131,
+    1270115798220374375, 3523544288121143632, 1409434267968882308,
+    7685756809009194907, 3596529320966201100, 6136440426073328453,
+    7222376003872321934, 9282423828667808000, 1484539344460549012,
+    7138643491626859436, 5505419637978662744, 7017732200911399991,
+    6377522435931897794, 18011877622578215533, 776479359663048414,
+    10288726997180865397, 18352781759426245713, 17860951621094200122,
+    3645999937606863567, 7588265706522355601, 337242724379907695,
+  ]
+}
+
+// Commitment wire: computed by gnark as hash_to_field(D.Marshal() || committed_publics.Marshal())
+// D.Marshal() = D.RawBytes() = uncompressed G1 (96 bytes)
+fn proof1_commitment_wires() -> List<Int> {
+  [
+    49991262587312637956023442585994913640804096857137196427912272488498041054114,
+  ]
+}
+
+test valid_groth_proof1() {
+  groth.verify_groth16(
+    proof1_vk(),
+    proof1_proof(),
+    proof1_public_values(),
+    proof1_commitment_wires(),
+  )
+}
+
+// M-03 negative test: appending an extra value to `public` after the
+// expected `nPublic - 1 = 36` entries must now fail. Pre-fix, the
+// derive_vk_x_combined recursion silently terminated when `ic_tail` was
+// exhausted and the extra value was ignored, letting the verifier
+// over-accept under-constrained inputs. Post-fix, `expect [] =
+// leftover_public` rejects the extra entry before the pairing check.
+test fail_groth_proof1_public_oversupplied() fail {
+  let public_with_extra: List<Int> =
     [
       17500288565172873801, 9411633287470898589, 11539752139897092681,
       14117566851138557178, 11732854847018214359, 149328769413022752,
@@ -94,16 +138,17 @@ test valid_groth_proof1() {
       6377522435931897794, 18011877622578215533, 776479359663048414,
       10288726997180865397, 18352781759426245713, 17860951621094200122,
       3645999937606863567, 7588265706522355601, 337242724379907695,
+      // Extra trailing entry — should be rejected by the leftover check.
+      999999999999999999,
     ]
 
-  // Commitment wire: computed by gnark as hash_to_field(D.Marshal() || committed_publics.Marshal())
-  // D.Marshal() = D.RawBytes() = uncompressed G1 (96 bytes)
-  let commitment_wires: List<Int> =
-    [
-      49991262587312637956023442585994913640804096857137196427912272488498041054114,
-    ]
-
-  groth.verify_groth16(vk, proof, public_values, commitment_wires)
+  expect _ok =
+    groth.verify_groth16(
+      proof1_vk(),
+      proof1_proof(),
+      public_with_extra,
+      proof1_commitment_wires(),
+    )
 }
 
 test valid_groth_proof2() {

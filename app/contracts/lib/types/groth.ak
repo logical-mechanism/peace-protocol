@@ -74,16 +74,23 @@ pub type GrothCommitmentWire =
 
 // ---------- Helpers ----------
 
-// Single-pass: processes first n IC elements with `public`, rest with `wires`
+// Single-pass: processes first n IC elements with `public`, rest with `wires`.
+// Returns the accumulated G1 point and any unconsumed `public` tail. The
+// caller is expected to assert the leftover is empty — silently truncating
+// `public` past `nPublic - 1` would be an under-constrained verifier
+// (M-03). The `wires` side stays asymmetric (over-supply still fails via
+// the `wires shorter than vkIC` branch when ic_tail is exhausted first
+// in a way that consumes wires — but in this codebase `commitment_wires`
+// is always exactly one element by construction).
 fn derive_vk_x_combined(
   ic_tail: List<ByteArray>,
   public: List<Int>,
   wires: List<Int>,
   n: Int,
   acc: G1Element,
-) -> G1Element {
+) -> (G1Element, List<Int>) {
   when ic_tail is {
-    [] -> acc
+    [] -> (acc, public)
     [ic_i, ..rest_ic] -> {
       let pt = bls12_381_g1_uncompress(ic_i)
       if n > 0 {
@@ -180,17 +187,21 @@ pub fn verify_groth16(
   // gnark adds the commitment points D directly to vk_x (not just the wire values)
   // Since 1*IC[0] = IC[0], we start acc with IC[0] and multiply remaining ICs
   expect [head, ..tail] = vk.vkIC
-  let vk_x = {
-    let base =
-      derive_vk_x_combined(
-        tail,
-        public,
-        commitment_wires,
-        n_raw_public,
-        bls12_381_g1_uncompress(head),
-      )
-    add_commitments(proof.commitments, base)
-  }
+  let (base, leftover_public) =
+    derive_vk_x_combined(
+      tail,
+      public,
+      commitment_wires,
+      n_raw_public,
+      bls12_381_g1_uncompress(head),
+    )
+  // M-03 fix: reject any over-supplied `public` instead of silently
+  // truncating. Without this, a future caller that exposes `public` to
+  // user input would have an under-constrained verifier — extra entries
+  // past `nPublic - 1` would be ignored. Pattern-match on the empty list
+  // to avoid re-introducing the `aiken/collection/list` import.
+  expect [] = leftover_public
+  let vk_x = add_commitments(proof.commitments, base)
 
   let lhs =
     bls12_381_mul_miller_loop_result(
