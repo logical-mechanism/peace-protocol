@@ -2,8 +2,11 @@
 //// SPDX-License-Identifier: GPL-3.0-only
 ////
 
+use aiken/crypto.{ScriptHash, VerificationKeyHash}
 use aiken/primitive/bytearray
-use cardano/address.{Address}
+use cardano/address.{
+  Address, Credential, Inline, Pointer, Referenced, Script, VerificationKey,
+}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{Input, NoDatum, Output, OutputReference, TransactionId}
 use util
@@ -14,8 +17,46 @@ use util
 const dummy_pid: PolicyId =
   #"01010101010101010101010101010101010101010101010101010101"
 
+const dummy_stake_vkh: VerificationKeyHash =
+  #"02020202020202020202020202020202020202020202020202020202"
+
+const dummy_stake_script: ScriptHash =
+  #"03030303030303030303030303030303030303030303030303030303"
+
+const dummy_ref_script_hash: ScriptHash =
+  #"04040404040404040404040404040404040404040404040404040404"
+
 fn mk_addr() -> Address {
   address.from_script(dummy_pid)
+}
+
+/// I-02 fixture extension: build an Address with the canonical
+/// payment_credential (Script(dummy_pid)) but an arbitrary
+/// stake_credential. Used to generate the four adversarial variants
+/// that the H-01 validator-level tests need to exercise.
+pub fn mk_addr_with_stake(stake: Option<Referenced<Credential>>) -> Address {
+  Address { payment_credential: Script(dummy_pid), stake_credential: stake }
+}
+
+/// Adversarial stake-credential variants for H-01 negative testing.
+///   - None                                 — canonical (post-fix accepts).
+///   - Some(Inline(VerificationKey(_)))     — H-01 attack #1.
+///   - Some(Inline(Script(_)))              — H-01 attack #2.
+///   - Some(Pointer(_))                     — H-01 attack #3.
+pub fn stake_none() -> Option<Referenced<Credential>> {
+  None
+}
+
+pub fn stake_inline_vkey() -> Option<Referenced<Credential>> {
+  Some(Inline(VerificationKey(dummy_stake_vkh)))
+}
+
+pub fn stake_inline_script() -> Option<Referenced<Credential>> {
+  Some(Inline(Script(dummy_stake_script)))
+}
+
+pub fn stake_pointer() -> Option<Referenced<Credential>> {
+  Some(Pointer { slot_number: 1, transaction_index: 2, certificate_index: 3 })
 }
 
 fn mk_output() -> Output {
@@ -24,6 +65,19 @@ fn mk_output() -> Output {
     value: assets.from_lovelace(2),
     datum: NoDatum,
     reference_script: None,
+  }
+}
+
+/// I-02 fixture extension: build an Output with an attached
+/// reference_script. Closes the second open variant the audit Phase 7c
+/// flagged — none of the existing tests could construct an Output with
+/// reference_script: Some(_).
+pub fn mk_output_with_ref_script(ref: Option<ScriptHash>) -> Output {
+  Output {
+    address: mk_addr(),
+    value: assets.from_lovelace(2),
+    datum: NoDatum,
+    reference_script: ref,
   }
 }
 
