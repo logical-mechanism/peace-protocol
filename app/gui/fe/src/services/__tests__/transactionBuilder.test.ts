@@ -16,41 +16,54 @@ function makeFormData(category: FileCategory) {
   return { category, subcategory: '', nsfw: false, secretMessage: '', file: null, filePath: null, fileName: null, fileSize: null, description: '', suggestedPrice: '', imageLink: '' };
 }
 
-describe('computeTokenName', () => {
+describe('computeTokenName (mirrors on-chain util.construct_token_name byte-for-byte)', () => {
   const txHash = 'a'.repeat(64);
 
-  it('index 0: result starts with 00, total length 64', () => {
+  it('index 0: single 00 byte prepended', () => {
     const result = computeTokenName(txHash, 0);
     expect(result).toHaveLength(64);
     expect(result.startsWith('00')).toBe(true);
   });
 
-  it('index 23: result starts with 17', () => {
+  it('index 23: single 17 byte prepended', () => {
     const result = computeTokenName(txHash, 23);
     expect(result).toHaveLength(64);
     expect(result.startsWith('17')).toBe(true);
   });
 
-  it('index 24: result starts with 1818 (CBOR 1-byte encoding)', () => {
+  // I-08 regression: index 24 used to emit `1818` (CBOR major-type-0
+  // 1-byte encoding), which desynced from on-chain `bytearray.push` and
+  // made the mint fail. Now must emit a SINGLE 18 byte.
+  it('index 24: single 18 byte prepended (I-08 regression)', () => {
     const result = computeTokenName(txHash, 24);
     expect(result).toHaveLength(64);
-    expect(result.startsWith('1818')).toBe(true);
+    expect(result.startsWith('18')).toBe(true);
+    expect(result.startsWith('1818')).toBe(false);
   });
 
-  it('index 255: result starts with 18ff', () => {
+  it('index 255: single ff byte prepended', () => {
     const result = computeTokenName(txHash, 255);
     expect(result).toHaveLength(64);
-    expect(result.startsWith('18ff')).toBe(true);
+    expect(result.startsWith('ff')).toBe(true);
+    expect(result.startsWith('18ff')).toBe(false);
   });
 
-  it('index 256: result starts with 190100 (CBOR 2-byte encoding)', () => {
-    const result = computeTokenName(txHash, 256);
-    expect(result).toHaveLength(64);
-    expect(result.startsWith('190100')).toBe(true);
+  // bytearray.push on-chain rejects values outside [0, 255]; off-chain
+  // must reject too rather than silently produce a desynced token name.
+  it('index 256: throws (mirrors on-chain bytearray.push rejection)', () => {
+    expect(() => computeTokenName(txHash, 256)).toThrow(/0, 255/);
   });
 
-  it('all results are exactly 64 hex chars', () => {
-    for (const idx of [0, 1, 23, 24, 100, 255, 256, 1000]) {
+  it('index -1: throws', () => {
+    expect(() => computeTokenName(txHash, -1)).toThrow(/0, 255/);
+  });
+
+  it('non-integer index: throws', () => {
+    expect(() => computeTokenName(txHash, 1.5)).toThrow(/0, 255/);
+  });
+
+  it('all in-range results are exactly 64 hex chars', () => {
+    for (const idx of [0, 1, 23, 24, 100, 200, 255]) {
       const result = computeTokenName(txHash, idx);
       expect(result).toHaveLength(64);
       expect(result).toMatch(/^[0-9a-f]+$/);
@@ -122,11 +135,9 @@ describe('computeTokenName — edge cases', () => {
     expect(typeof result).toBe('string');
   });
 
-  it('handles very large index values', () => {
+  it('rejects out-of-range index values (was: silently produced bad token names)', () => {
     const txHash = 'a'.repeat(64);
-    const result = computeTokenName(txHash, 100_000);
-    expect(result).toHaveLength(64);
-    expect(result).toMatch(/^[0-9a-f]+$/);
+    expect(() => computeTokenName(txHash, 100_000)).toThrow();
   });
 });
 

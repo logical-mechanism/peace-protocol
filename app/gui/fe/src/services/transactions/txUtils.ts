@@ -116,30 +116,41 @@ export function estimateMinLovelace(datum: object): string {
 }
 
 /**
- * Compute token name from a UTxO.
- * Token name = CBOR(outputIndex) + txHash (first 64 - len(cbor) chars)
+ * Compute the token name a forthcoming entry mint will produce, mirroring
+ * `lib/util.construct_token_name` on-chain byte-for-byte:
+ *
+ *   token_name = bytearray.push(idx, tx_id) |> bytearray.slice(0, 31)
+ *
+ * That is: a SINGLE byte for `outputIndex` (range [0, 255]) prepended to
+ * `txHash`, then truncated to 32 bytes (64 hex chars). This must match
+ * the on-chain semantic exactly — the encryption / bidding / genesis
+ * mint validators all assert `assets.has_nft_strict(mint, policy_id,
+ * util.generate_token_name(inputs))`, so any divergence makes the mint
+ * fail.
+ *
+ * Earlier versions of this function CBOR-encoded `outputIndex`, which
+ * matched on-chain only for `outputIndex <= 23`. CBOR major-type-0
+ * emits 2 bytes for [24, 255] and the resulting off-chain prediction
+ * desyncs from on-chain. See audit finding I-08.
  *
  * @param txHash - Transaction hash (64 hex chars)
- * @param outputIndex - Output index
- * @returns Token name (64 hex chars)
+ * @param outputIndex - Output index of the UTxO whose token is being minted (must be 0..255)
+ * @returns Token name (up to 64 hex chars)
+ * @throws if outputIndex is out of [0, 255] — `bytearray.push` rejects it on-chain
  */
 export function computeTokenName(txHash: string, outputIndex: number): string {
-  // CBOR encode the output index
-  // For small integers (0-23), CBOR is just the value
-  // For 24-255, CBOR is 0x18 + value
-  // For larger, use more bytes
-  let indexCbor: string;
-  if (outputIndex <= 23) {
-    indexCbor = outputIndex.toString(16).padStart(2, '0');
-  } else if (outputIndex <= 255) {
-    indexCbor = '18' + outputIndex.toString(16).padStart(2, '0');
-  } else {
-    // 2-byte integer: 0x19 + value
-    indexCbor = '19' + outputIndex.toString(16).padStart(4, '0');
+  if (
+    !Number.isInteger(outputIndex) ||
+    outputIndex < 0 ||
+    outputIndex > 255
+  ) {
+    throw new Error(
+      `computeTokenName: outputIndex must be an integer in [0, 255], got ${outputIndex}. ` +
+        `On-chain bytearray.push fails outside this range.`,
+    );
   }
-
-  // Concatenate and truncate to 64 hex chars
-  const combined = indexCbor + txHash;
+  const indexByte = outputIndex.toString(16).padStart(2, '0');
+  const combined = indexByte + txHash;
   return combined.slice(0, 64);
 }
 
