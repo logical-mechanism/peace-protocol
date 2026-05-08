@@ -13,7 +13,7 @@ use types/groth.{CommitmentKey, GrothProof, SnarkVerificationKey}
 // Shared fixture for proof1 — extracted from `valid_groth_proof1` so we
 // can reuse it in M-03 over-supply / under-supply negative tests without
 // duplicating the full ~95-line VK + proof block.
-fn proof1_vk() -> SnarkVerificationKey {
+pub fn proof1_vk() -> SnarkVerificationKey {
   SnarkVerificationKey {
       nPublic: 37,
       vkAlpha: #"abee8b9ac29a8c210210305b37260d1f6feab3a280ac5c4b405e5059c8575cf4b64a3c0137c3af086fb54adc3d0e88a7",
@@ -69,7 +69,7 @@ fn proof1_vk() -> SnarkVerificationKey {
     }
 }
 
-fn proof1_proof() -> GrothProof {
+pub fn proof1_proof() -> GrothProof {
   GrothProof {
       piA: #"99d5bcfeb866aca22f1e3b222ac626106e10de89f4fd4ecc4eae742f346dd6106b87bd04de90398de7d6b683e80693e7",
       piB: #"84b1a59d6858416e68b489af5eace9bcbd26d41a1aec69fdba3021d8752d5303f922be7e1ded54a432f8428584e9d954124a4f18afd472e9404ec824e2bfd1b7440dd2077bd0240491e527b4d7a9e25304ecfd8a8d10dbcb8c1cfe3400bc25a4",
@@ -83,7 +83,7 @@ fn proof1_proof() -> GrothProof {
 
 // Public inputs: 36 values (NOT including the implicit leading "1")
 // gnark's nPublic=37 includes witness[0]=1, but we only pass witness[1..36]
-fn proof1_public_values() -> List<Int> {
+pub fn proof1_public_values() -> List<Int> {
   [
     17500288565172873801, 9411633287470898589, 11539752139897092681,
     14117566851138557178, 11732854847018214359, 149328769413022752,
@@ -102,7 +102,7 @@ fn proof1_public_values() -> List<Int> {
 
 // Commitment wire: computed by gnark as hash_to_field(D.Marshal() || committed_publics.Marshal())
 // D.Marshal() = D.RawBytes() = uncompressed G1 (96 bytes)
-fn proof1_commitment_wires() -> List<Int> {
+pub fn proof1_commitment_wires() -> List<Int> {
   [
     49991262587312637956023442585994913640804096857137196427912272488498041054114,
   ]
