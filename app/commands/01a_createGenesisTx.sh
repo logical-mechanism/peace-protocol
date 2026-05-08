@@ -32,8 +32,11 @@ tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
 tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
-tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
-full_genesis_tkn="${tx_idx_cbor}${tx_id}"
+# I-08: mirror on-chain util.construct_token_name (`bytearray.push(idx)`).
+# The old `cbor2.dumps(idx)` form diverged from on-chain whenever
+# tx_idx >= 24, since CBOR major-type-0 emits two bytes there.
+tx_idx_byte=$(python3 -c "idx=${tx_idx}; assert 0 <= idx <= 255, f'tx_idx must be in [0, 255], got {idx}'; print(bytes([idx]).hex())")
+full_genesis_tkn="${tx_idx_byte}${tx_id}"
 genesis_tkn="${full_genesis_tkn:0:64}"
 
 mint_asset="1 ${genesis_pid}.${genesis_tkn}"

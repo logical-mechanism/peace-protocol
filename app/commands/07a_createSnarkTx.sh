@@ -91,8 +91,8 @@ tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
 tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
-tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
-full_genesis_tkn="${tx_idx_cbor}${tx_id}"
+tx_idx_byte=$(python3 -c "idx=${tx_idx}; assert 0 <= idx <= 255; print(bytes([idx]).hex())")  # I-08: mirror on-chain bytearray.push
+full_genesis_tkn="${tx_idx_byte}${tx_id}"
 genesis_tkn="${full_genesis_tkn:0:64}"
 
 # bidding token

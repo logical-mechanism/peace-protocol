@@ -61,8 +61,8 @@ first_utxo=$(jq -r 'keys[0]' ./tmp/alice_utxo.json)
 string=${first_utxo}
 IFS='#' read -ra array <<< "$string"
 
-tx_idx_cbor=$(../venv/bin/python -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
-full_tkn="${tx_idx_cbor}${array[0]}"
+tx_idx_byte=$(../venv/bin/python -c "idx=${array[1]}; assert 0 <= idx <= 255; print(bytes([idx]).hex())")  # I-08: mirror on-chain bytearray.push
+full_tkn="${tx_idx_byte}${array[0]}"
 token_name="${full_tkn:0:64}"
 echo $token_name > ../data/encryption.token
 encryption_asset="1 ${encryption_pid}.${token_name}"
