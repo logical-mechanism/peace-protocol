@@ -132,11 +132,26 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   burn_token,
                 }
               } else {
-                // invalid start
+                // hyperstructure escape (H-03 carried Intentional): the
+                // UTxO has a valid EncryptionDatum shape but does not
+                // hold the protocol NFT, so it is junk that ended up at
+                // this script address by accident. Returning True lets
+                // the depositor recover the funds. Combined with the
+                // bad-datum branch below, every non-protocol UTxO at
+                // this address is sweepable by design.
                 True
               }
             }
             UseEncryption(witness, r5, selected_bid_token, binding_proof) -> {
+              // H-04 carried (Design Tradeoff): lovelace not preserved on
+              // continuing encryption UTxOs across UseEncryption / UseSnark
+              // / CancelEncryption. By design — see audit §H-04. The
+              // motivation is a "penalty mechanism": if the seller lets a
+              // Pending state expire, anyone may CancelEncryption and the
+              // continuing output need only carry min-ADA. Reversing the
+              // policy means adding `lovelace_of(input) <= lovelace_of(
+              // output)` here, in UseSnark, and in CancelEncryption.
+
               // this token going back
               expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
@@ -226,6 +241,8 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
 
             UseSnark -> {
+              // H-04 carried (Design Tradeoff): lovelace not preserved
+              // — see UseEncryption above for rationale.
               expect Open = status
               // this token going back
               expect Some(this_output): Option<Output> =
@@ -278,6 +295,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
 
             CancelEncryption -> {
+              // H-04 carried (Design Tradeoff): the *permissionless* TTL-
+              // expired branch is the highest-impact penalty path —
+              // anyone can drain the lovelace once the Pending TTL is
+              // past, leaving only min-ADA. This is the seller's penalty
+              // for letting Pending expire. See audit §H-04.
               // this token going back
               expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
@@ -310,6 +332,15 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
 
             UpdateEncryptionPrice(price) -> {
+              // L-03 carried (Design Tradeoff): owner may self-drain
+              // lovelace on this path — only non-ADA tokens are pinned
+              // (`input_tokens == output_tokens` below). The owner is
+              // signed-in, so this is owner-controlled; see audit §L-03.
+              //
+              // I-05 carried (Advisory): `price` is an advisory `new_price`
+              // only — it is NOT bound to lovelace_of(output). Off-chain
+              // UIs MUST present "bid amount" and "declared resale price"
+              // separately. See audit §I-05 / lib/types/encryption.ak.
               // this token going back
               expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
@@ -349,7 +380,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           // — entry can only happen by accident or external mis-deposit.
           True
         }
-      // no datum
+      // hyperstructure escape (H-02 carried Intentional): a UTxO at the
+      // encryption script address with no inline datum is junk. Returning
+      // True lets the depositor recover the funds.
       None -> True
     }
   }

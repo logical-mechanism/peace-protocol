@@ -133,7 +133,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   lock_expired,
                 }
               } else {
-                // invalid start
+                // hyperstructure escape (H-03 carried Intentional): the
+                // UTxO has a valid BidDatum shape but does not hold the
+                // protocol NFT, so it is junk. Returning True lets the
+                // depositor recover the funds. See audit §H-03.
                 True
               }
             }
@@ -186,6 +189,15 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
 
             UpdateBidPrice(price) -> {
+              // L-03 carried (Design Tradeoff): owner may self-drain
+              // lovelace on this path — only non-ADA tokens are pinned
+              // (`input_tokens == output_tokens` below). The owner is
+              // signed-in, so this is owner-controlled; see audit §L-03.
+              //
+              // I-05 carried (Advisory): `price` is an advisory `new_price`
+              // only — it is NOT bound to lovelace_of(output). Off-chain
+              // UIs MUST present "bid amount" and "declared resale price"
+              // separately. See audit §I-05 / lib/types/bidding.ak.
               // this pointer going back
               expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, pointer)
@@ -223,7 +235,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           // — entry can only happen by accident or external mis-deposit.
           True
         }
-      // no datum
+      // hyperstructure escape (H-02 carried Intentional): a UTxO at the
+      // bidding script address with no inline datum is junk. Returning
+      // True lets the depositor recover the funds.
       None -> True
     }
   }
