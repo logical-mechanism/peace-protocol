@@ -4,7 +4,7 @@
 
 use aiken/collection/list.{has}
 use aiken/interval.{Finite, Interval, IntervalBound}
-use cardano/address.{Address, PaymentCredential, Script}
+use cardano/address.{PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, Transaction,
@@ -33,13 +33,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         // token name is based off the first UTxO being spent in this transaction
         let token_name: AssetName = util.generate_token_name(inputs)
         // find the output that holds the token being minted
-        expect Some(Output {
-          address: Address { payment_credential, .. },
-          datum: InlineDatum(output_datum_data),
-          reference_script,
-          ..
-        }): Option<Output> =
+        expect Some(this_output): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
+        expect InlineDatum(output_datum_data) = this_output.datum
         // encryption datum needs to be validated so destruct it
         expect EncryptionDatum {
           owner_vkh,
@@ -56,10 +52,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         and {
           // token name needs to be in the datum
           token == token_name,
-          // script output can not have a reference script
-          reference_script == None,
-          // must be going to the encryption contract
-          Script(policy_id) == payment_credential,
+          // continuing output must pin (Script(policy_id), None, no ref_script)
+          // — closes H-01 stake-credential hijack at mint time.
+          util.is_protocol_output(this_output, policy_id),
           // a single token should be minted in this transaction
           assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
@@ -143,13 +138,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             }
             UseEncryption(witness, r5, selected_bid_token, binding_proof) -> {
               // this token going back
-              expect Some(Output {
-                address: Address { payment_credential, .. },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                ..
-              }): Option<Output> =
+              expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
+              expect InlineDatum(output_datum_data) = this_output.datum
               // datum going back
               expect EncryptionDatum {
                 owner_vkh: next_owner_vkh,
@@ -169,21 +160,13 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   genesis_tkn,
                 )
               // get the bidding contract redeemer
-              expect Some(Input {
-                output_reference,
-                output: Output {
-                  address: Address {
-                    payment_credential: bid_payment_credential,
-                    ..
-                  },
-                  datum: InlineDatum(bidding_datum_data),
-                  ..
-                },
-              }) = search.for_input_by_token(inputs, bid, selected_bid_token)
+              expect Some(bid_input): Option<Input> =
+                search.for_input_by_token(inputs, bid, selected_bid_token)
+              expect InlineDatum(bidding_datum_data) = bid_input.output.datum
               expect Some(spend_redeemer): Option<Redeemer> =
                 search.for_spend_redeemer_by_output_reference(
                   redeemers,
-                  output_reference,
+                  bid_input.output_reference,
                 )
               expect UseBid = spend_redeemer
               expect BidDatum {
@@ -217,11 +200,12 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 bid_owner_g1 == next_owner_g1,
                 // new price comes from the bid datum
                 bid_new_price == next_new_price,
-                // check if correct script hashes
-                Script(this_script) == payment_credential,
-                Script(bid) == bid_payment_credential,
-                // script output can not have a reference script
-                reference_script == None,
+                // continuing encryption output must pin the perimeter
+                // (payment_cred, stake_cred=None, reference_script=None) —
+                // closes H-01 on the signed UseEncryption path.
+                util.is_protocol_output(this_output, this_script),
+                // bid input must also be a clean protocol input (perimeter)
+                util.is_protocol_input(bid_input, bid),
                 // consistency check; expand here for better r5 validation
                 level.verify_r5(owner_g1, r5, witness),
                 // correct level addition
@@ -244,13 +228,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             UseSnark -> {
               expect Open = status
               // this token going back
-              expect Some(Output {
-                address: Address { payment_credential, .. },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                ..
-              }): Option<Output> =
+              expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
+              expect InlineDatum(output_datum_data) = this_output.datum
               // get the groth script hash from the reference datum
               let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
                 search.for_reference_datum(
@@ -289,10 +269,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 has(extra_signatories, owner_vkh),
                 // datum must go back to open
                 output_datum_data == expected_output_datum_data,
-                // check if correct script hashes
-                Script(this_script) == payment_credential,
-                // script output can not have a reference script
-                reference_script == None,
+                // continuing output must pin the perimeter — closes H-01
+                // on the signed UseSnark path.
+                util.is_protocol_output(this_output, this_script),
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
@@ -300,13 +279,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
 
             CancelEncryption -> {
               // this token going back
-              expect Some(Output {
-                address: Address { payment_credential, .. },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                ..
-              }): Option<Output> =
+              expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
+              expect InlineDatum(output_datum_data) = this_output.datum
               // everything is constant but the status
               let expected_output_datum_data: Data =
                 EncryptionDatum { ..this_datum, status: Open }
@@ -326,10 +301,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 expired_or_cancel,
                 // datum must go back to open
                 output_datum_data == expected_output_datum_data,
-                // check if correct script hashes
-                Script(this_script) == payment_credential,
-                // script output can not have a reference script
-                reference_script == None,
+                // continuing output must pin the perimeter — closes H-01
+                // on the *permissionless* TTL-expired branch (highest impact).
+                util.is_protocol_output(this_output, this_script),
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
@@ -337,13 +311,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
 
             UpdateEncryptionPrice(price) -> {
               // this token going back
-              expect Some(Output {
-                address: Address { payment_credential, .. },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                value: output_value,
-              }): Option<Output> =
+              expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
+              expect InlineDatum(output_datum_data) = this_output.datum
+              let output_value = this_output.value
               // can only update price when open
               expect Open = status
               // everything is constant but the new_price
@@ -363,17 +334,19 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 input_tokens == output_tokens,
                 // owner_vkh must sign
                 has(extra_signatories, owner_vkh),
-                // check if correct script hashes
-                Script(this_script) == payment_credential,
-                // script output can not have a reference script
-                reference_script == None,
+                // continuing output must pin the perimeter — closes H-01
+                // on the signed UpdateEncryptionPrice path.
+                util.is_protocol_output(this_output, this_script),
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
             }
           }
         } else {
-          // bad datum
+          // bad datum: hyperstructure escape — any UTxO arriving at the
+          // encryption script address with a non-EncryptionDatum shape is
+          // freely sweepable. Documented intent (H-02 carried Intentional)
+          // — entry can only happen by accident or external mis-deposit.
           True
         }
       // no datum
