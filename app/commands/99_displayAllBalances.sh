@@ -14,7 +14,6 @@ ${cli} conway query protocol-parameters ${network} --out-file ./tmp/protocol.jso
 ${cli} conway query tip ${network} | jq
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # Loop the contract in the contract folder
 for script_file in ../contracts/contracts/*.plutus; do
@@ -29,7 +28,7 @@ for script_file in ../contracts/contracts/*.plutus; do
     if [ "$contract" == "reference_contract.plutus" ]; then
         script_address=$(${cli} conway address build --payment-script-file ${script_file} ${network})
     else
-        script_address=$(${cli} conway address build --payment-script-file ${script_file} --stake-key-hash ${staking_credential} ${network})
+        script_address=$(${cli} conway address build --payment-script-file ${script_file} ${network})
     fi
 
     echo -e "\033[1;37m\n--------------------------------------------------------------------------------\033[0m"
