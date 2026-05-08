@@ -4,7 +4,7 @@
 
 use aiken/collection/list.{has}
 use aiken/interval.{Finite, Interval, IntervalBound}
-use cardano/address.{PaymentCredential, Script}
+use cardano/address.{Address, PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, Transaction,
@@ -32,10 +32,21 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
       EntryEncryptionMint(schnorr_proof, binding_proof) -> {
         // token name is based off the first UTxO being spent in this transaction
         let token_name: AssetName = util.generate_token_name(inputs)
-        // find the output that holds the token being minted
-        expect Some(this_output): Option<Output> =
+        // find the output that holds the token being minted.
+        //
+        // H-01 fix (inlined for size): destructure the address into both
+        // `payment_credential` AND `stake_credential` here so they can
+        // be compared in the `and {}` block below. The equivalent
+        // `util.is_protocol_output(o, h)` helper exists for unit tests
+        // but is not called inside the validators because cross-module
+        // calls do not inline and inflated each handler by ~1KB.
+        expect Some(Output {
+          address: Address { payment_credential, stake_credential },
+          datum: InlineDatum(output_datum_data),
+          reference_script,
+          ..
+        }): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
-        expect InlineDatum(output_datum_data) = this_output.datum
         // encryption datum needs to be validated so destruct it
         expect EncryptionDatum {
           owner_vkh,
@@ -52,9 +63,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         and {
           // token name needs to be in the datum
           token == token_name,
-          // continuing output must pin (Script(policy_id), None, no ref_script)
-          // — closes H-01 stake-credential hijack at mint time.
-          util.is_protocol_output(this_output, policy_id),
+          // H-01 perimeter pin (inlined): payment_credential = Script(h),
+          // stake_credential = None, reference_script = None.
+          payment_credential == Script(policy_id),
+          stake_credential == None,
+          reference_script == None,
           // a single token should be minted in this transaction
           assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
@@ -152,10 +165,15 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // policy means adding `lovelace_of(input) <= lovelace_of(
               // output)` here, in UseSnark, and in CancelEncryption.
 
-              // this token going back
-              expect Some(this_output): Option<Output> =
+              // this token going back. H-01 fix (inlined): destructure
+              // the perimeter fields here so they can be compared below.
+              expect Some(Output {
+                address: Address { payment_credential, stake_credential },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              expect InlineDatum(output_datum_data) = this_output.datum
               // datum going back
               expect EncryptionDatum {
                 owner_vkh: next_owner_vkh,
@@ -174,14 +192,25 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   genesis_pid,
                   genesis_tkn,
                 )
-              // get the bidding contract redeemer
-              expect Some(bid_input): Option<Input> =
-                search.for_input_by_token(inputs, bid, selected_bid_token)
-              expect InlineDatum(bidding_datum_data) = bid_input.output.datum
+              // get the bidding contract redeemer. H-01 fix (inlined):
+              // pin the bid input's perimeter at the destructure site
+              // so the singleton-input filter can't be bypassed.
+              expect Some(Input {
+                output_reference,
+                output: Output {
+                  address: Address {
+                    payment_credential: bid_payment_credential,
+                    stake_credential: bid_stake_credential,
+                  },
+                  datum: InlineDatum(bidding_datum_data),
+                  reference_script: bid_reference_script,
+                  ..
+                },
+              }) = search.for_input_by_token(inputs, bid, selected_bid_token)
               expect Some(spend_redeemer): Option<Redeemer> =
                 search.for_spend_redeemer_by_output_reference(
                   redeemers,
-                  bid_input.output_reference,
+                  output_reference,
                 )
               expect UseBid = spend_redeemer
               expect BidDatum {
@@ -215,12 +244,19 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 bid_owner_g1 == next_owner_g1,
                 // new price comes from the bid datum
                 bid_new_price == next_new_price,
-                // continuing encryption output must pin the perimeter
-                // (payment_cred, stake_cred=None, reference_script=None) —
-                // closes H-01 on the signed UseEncryption path.
-                util.is_protocol_output(this_output, this_script),
-                // bid input must also be a clean protocol input (perimeter)
-                util.is_protocol_input(bid_input, bid),
+                // H-01 perimeter pin (inlined): continuing encryption
+                // output. payment_credential = Script(this_script),
+                // stake_credential = None, reference_script = None.
+                payment_credential == Script(this_script),
+                stake_credential == None,
+                reference_script == None,
+                // H-01 perimeter pin (inlined): bid input. Same shape;
+                // a hostile builder cannot smuggle an adversarial
+                // stake_credential or attached reference_script through
+                // the bid-input lookup path.
+                bid_payment_credential == Script(bid),
+                bid_stake_credential == None,
+                bid_reference_script == None,
                 // consistency check; expand here for better r5 validation
                 level.verify_r5(owner_g1, r5, witness),
                 // correct level addition
@@ -244,10 +280,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // H-04 carried (Design Tradeoff): lovelace not preserved
               // — see UseEncryption above for rationale.
               expect Open = status
-              // this token going back
-              expect Some(this_output): Option<Output> =
+              // this token going back. H-01 fix (inlined).
+              expect Some(Output {
+                address: Address { payment_credential, stake_credential },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              expect InlineDatum(output_datum_data) = this_output.datum
               // get the groth script hash from the reference datum
               let ReferenceDatum { groth: groth_script, .. }: ReferenceDatum =
                 search.for_reference_datum(
@@ -286,9 +326,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 has(extra_signatories, owner_vkh),
                 // datum must go back to open
                 output_datum_data == expected_output_datum_data,
-                // continuing output must pin the perimeter — closes H-01
-                // on the signed UseSnark path.
-                util.is_protocol_output(this_output, this_script),
+                // H-01 perimeter pin (inlined): closes the signed UseSnark
+                // path against stake-credential hijack.
+                payment_credential == Script(this_script),
+                stake_credential == None,
+                reference_script == None,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
@@ -300,10 +342,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // anyone can drain the lovelace once the Pending TTL is
               // past, leaving only min-ADA. This is the seller's penalty
               // for letting Pending expire. See audit §H-04.
-              // this token going back
-              expect Some(this_output): Option<Output> =
+              // this token going back. H-01 fix (inlined).
+              expect Some(Output {
+                address: Address { payment_credential, stake_credential },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                ..
+              }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              expect InlineDatum(output_datum_data) = this_output.datum
               // everything is constant but the status
               let expected_output_datum_data: Data =
                 EncryptionDatum { ..this_datum, status: Open }
@@ -323,9 +369,12 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 expired_or_cancel,
                 // datum must go back to open
                 output_datum_data == expected_output_datum_data,
-                // continuing output must pin the perimeter — closes H-01
-                // on the *permissionless* TTL-expired branch (highest impact).
-                util.is_protocol_output(this_output, this_script),
+                // H-01 perimeter pin (inlined): closes the *permissionless*
+                // TTL-expired CancelEncryption branch — the highest-impact
+                // H-01 attack path.
+                payment_credential == Script(this_script),
+                stake_credential == None,
+                reference_script == None,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
@@ -341,11 +390,14 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // only — it is NOT bound to lovelace_of(output). Off-chain
               // UIs MUST present "bid amount" and "declared resale price"
               // separately. See audit §I-05 / lib/types/encryption.ak.
-              // this token going back
-              expect Some(this_output): Option<Output> =
+              // this token going back. H-01 fix (inlined).
+              expect Some(Output {
+                address: Address { payment_credential, stake_credential },
+                datum: InlineDatum(output_datum_data),
+                reference_script,
+                value: output_value,
+              }): Option<Output> =
                 search.for_output_by_token(outputs, this_script, token)
-              expect InlineDatum(output_datum_data) = this_output.datum
-              let output_value = this_output.value
               // can only update price when open
               expect Open = status
               // everything is constant but the new_price
@@ -365,9 +417,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 input_tokens == output_tokens,
                 // owner_vkh must sign
                 has(extra_signatories, owner_vkh),
-                // continuing output must pin the perimeter — closes H-01
-                // on the signed UpdateEncryptionPrice path.
-                util.is_protocol_output(this_output, this_script),
+                // H-01 perimeter pin (inlined): closes the signed
+                // UpdateEncryptionPrice path.
+                payment_credential == Script(this_script),
+                stake_credential == None,
+                reference_script == None,
                 // force token to already exist
                 assets.has_nft(this_input.output.value, this_script, token),
               }
