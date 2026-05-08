@@ -4,7 +4,7 @@
 
 use aiken/collection/list.{has}
 use aiken/interval.{Finite}
-use cardano/address.{Address, PaymentCredential, Script}
+use cardano/address.{PaymentCredential, Script}
 use cardano/assets.{AssetName, PolicyId}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Redeemer, Transaction,
@@ -36,13 +36,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         // token name is based off the first UTxO being spent in this transaction
         let token_name: AssetName = util.generate_token_name(inputs)
         // find the output that holds the token being minted
-        expect Some(Output {
-          address: Address { payment_credential, .. },
-          datum: InlineDatum(output_datum_data),
-          reference_script,
-          ..
-        }): Option<Output> =
+        expect Some(this_output): Option<Output> =
           search.for_output_by_token(outputs, policy_id, token_name)
+        expect InlineDatum(output_datum_data) = this_output.datum
         // reputation datum needs to be validated so destruct it
         expect BidDatum {
           owner_vkh,
@@ -66,10 +62,9 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
           }
         //
         and {
-          // script output can not have a reference script
-          reference_script == None,
-          // must be going to the bid contract
-          Script(policy_id) == payment_credential,
+          // continuing bid output must pin (Script(policy_id), None, no
+          // ref_script) — closes H-01 stake-credential hijack at mint time.
+          util.is_protocol_output(this_output, policy_id),
           // a single token should be minted in this transaction
           assets.has_nft_strict(mint, policy_id, token_name),
           // owner_vkh must sign
@@ -151,32 +146,29 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                   genesis_pid,
                   genesis_tkn,
                 )
-              // expect a single input if we filter all inputs for the encryption script hash
-              expect [
-                Input {
-                  output_reference,
-                  output: Output { value: encryption_value, .. },
-                },
-              ]: List<Input> =
+              // expect a single input if we filter all inputs for the
+              // encryption script hash. Pin the perimeter (stake_cred=None,
+              // reference_script=None) so a hostile builder cannot smuggle
+              // an adversarial stake_credential through this filter (H-01).
+              expect [encryption_input]: List<Input> =
                 inputs
                   |> list.filter(
                       fn(input) {
-                        input.output.address.payment_credential == Script(
-                          encryption,
-                        )
+                        util.is_protocol_input(input, encryption)
                       },
                     )
+              let encryption_value = encryption_input.output.value
+              let output_reference = encryption_input.output_reference
               // burn this token
               let burn_token: Bool =
                 search.no_output_holds_token(outputs, this_script, pointer)
-              // expect a single input if we filter all inputs for this payment credential
+              // expect a single input for this payment credential, with the
+              // same perimeter pinning applied (H-01).
               expect [_]: List<Input> =
                 inputs
                   |> list.filter(
                       fn(input) {
-                        input.output.address.payment_credential == Script(
-                          this_script,
-                        )
+                        util.is_protocol_input(input, this_script)
                       },
                     )
               expect Some(spend_redeemer): Option<Redeemer> =
@@ -195,13 +187,10 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
 
             UpdateBidPrice(price) -> {
               // this pointer going back
-              expect Some(Output {
-                address: Address { payment_credential, .. },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                value: output_value,
-              }): Option<Output> =
+              expect Some(this_output): Option<Output> =
                 search.for_output_by_token(outputs, this_script, pointer)
+              expect InlineDatum(output_datum_data) = this_output.datum
+              let output_value = this_output.value
               // everything is constant but the new_price
               let expected_output_datum_data: Data =
                 BidDatum { ..this_datum, new_price: price }
@@ -219,17 +208,19 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
                 input_tokens == output_tokens,
                 // owner_vkh must sign
                 has(extra_signatories, owner_vkh),
-                // check if correct script hashes
-                Script(this_script) == payment_credential,
-                // script output can not have a reference script
-                reference_script == None,
+                // continuing output must pin the perimeter — closes H-01
+                // on the signed UpdateBidPrice path.
+                util.is_protocol_output(this_output, this_script),
                 // force pointer to already exist
                 assets.has_nft(this_input.output.value, this_script, pointer),
               }
             }
           }
         } else {
-          // bad datum
+          // bad datum: hyperstructure escape — any UTxO arriving at the
+          // bidding script address with a non-BidDatum shape is freely
+          // sweepable. Documented intent (H-02 carried Intentional)
+          // — entry can only happen by accident or external mis-deposit.
           True
         }
       // no datum
