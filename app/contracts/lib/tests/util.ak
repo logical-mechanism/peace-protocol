@@ -199,7 +199,6 @@ test construct_token_name__fails_when_idx_negative() fail {
 ///   - Some(Pointer(_))                     — H-01 attack #3 (pointer cred).
 /// And reference_script: None / Some(_).
 /// ------------------------------------------------------------
-
 fn out_with(
   stake: Option<Referenced<Credential>>,
   ref: Option<ScriptHash>,

@@ -58,8 +58,7 @@ bench groth__publish__register_credential(
   // The publish handler is small: it just checks the certificate's
   // credential matches Script(script_hash) from the redeemer. Bench
   // the dominant comparison so I-03's checklist row exists.
-  let dummy_hash =
-    #"04040404040404040404040404040404040404040404040404040404"
+  let dummy_hash = #"04040404040404040404040404040404040404040404040404040404"
   let Register(h) = Register(dummy_hash)
   Script(dummy_hash) == Script(h)
 }

@@ -16,8 +16,7 @@ use cardano/assets.{from_lovelace}
 use cardano/transaction.{NoDatum, Output, OutputReference, TransactionId}
 use util
 
-const dummy_pid =
-  #"01010101010101010101010101010101010101010101010101010101"
+const dummy_pid = #"01010101010101010101010101010101010101010101010101010101"
 
 const dummy_stake_vkh =
   #"02020202020202020202020202020202020202020202020202020202"
@@ -84,7 +83,9 @@ fn const_output_ref(_size: Int) -> Fuzzer<OutputReference> {
 // The genesis mint validator's dominant work is constructing the token
 // name and comparing the output address against the reference datum's
 // derived address; both are bytewise comparisons fed by util helpers.
-bench genesis__mint__one_shot_bootstrap(_or: OutputReference via const_output_ref) {
+bench genesis__mint__one_shot_bootstrap(
+  _or: OutputReference via const_output_ref,
+) {
   let tkn = util.construct_token_name(dummy_tx_id, 0)
   tkn == util.construct_token_name(dummy_tx_id, 0)
 }
