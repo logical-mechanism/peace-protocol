@@ -103,8 +103,7 @@ test construct_token_name__prepends_index_and_truncates_to_32_bytes() {
   let got = util.construct_token_name(id_seq_00_1f, 5)
 
   // push puts the byte in front; slice(0,31) keeps 32 bytes total.
-  let expected: AssetName =
-    #"05000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
+  let expected: AssetName = #"05000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
 
   got == expected && bytearray.length(got) == 32
 }
@@ -112,8 +111,7 @@ test construct_token_name__prepends_index_and_truncates_to_32_bytes() {
 test construct_token_name__index_zero_still_32_bytes() {
   let got = util.construct_token_name(id_seq_00_1f, 0)
 
-  let expected: AssetName =
-    #"00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
+  let expected: AssetName = #"00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
 
   got == expected && bytearray.length(got) == 32
 }
@@ -145,8 +143,7 @@ test generate_token_name__fails_on_empty_inputs() fail {
 test construct_token_name__max_index_255() {
   let got = util.construct_token_name(id_seq_00_1f, 255)
 
-  let expected: AssetName =
-    #"ff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
+  let expected: AssetName = #"ff000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"
 
   got == expected && bytearray.length(got) == 32
 }
@@ -236,20 +233,18 @@ test is_protocol_output__rejects_attached_reference_script() {
 
 test is_protocol_output__rejects_wrong_payment_credential() {
   // payment credential mismatched (different script hash)
-  let other_pid: PolicyId =
-    #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  let other_pid: PolicyId = #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   !util.is_protocol_output(out_with(stake_none(), None), other_pid)
 }
 
 test is_protocol_input__canonical_shape_accepts() {
-  let i =
-    Input {
-      output_reference: OutputReference {
-        transaction_id: id_seq_00_1f,
-        output_index: 0,
-      },
-      output: out_with(stake_none(), None),
-    }
+  let i = Input {
+    output_reference: OutputReference {
+      transaction_id: id_seq_00_1f,
+      output_index: 0,
+    },
+    output: out_with(stake_none(), None),
+  }
   util.is_protocol_input(i, dummy_pid)
 }
 
@@ -257,13 +252,12 @@ test is_protocol_input__rejects_adversarial_stake_cred() {
   // Cover the UseBid input filters that were the previous escape route
   // for H-01: a hostile builder could substitute the stake_credential
   // on either of the two singleton input filters.
-  let i =
-    Input {
-      output_reference: OutputReference {
-        transaction_id: id_seq_00_1f,
-        output_index: 0,
-      },
-      output: out_with(stake_inline_vkey(), None),
-    }
+  let i = Input {
+    output_reference: OutputReference {
+      transaction_id: id_seq_00_1f,
+      output_index: 0,
+    },
+    output: out_with(stake_inline_vkey(), None),
+  }
   !util.is_protocol_input(i, dummy_pid)
 }

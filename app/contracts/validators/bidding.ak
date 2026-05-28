@@ -22,15 +22,17 @@ use util
 
 validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   mint(redeemer: BidMintRedeemer, policy_id: PolicyId, self: Transaction) {
-    let Transaction {
-      inputs,
-      outputs,
-      reference_inputs,
-      mint,
-      extra_signatories,
-      validity_range,
-      ..
-    }: Transaction = self
+    let  
+        Transaction {
+          inputs,
+          outputs,
+          reference_inputs,
+          mint,
+          extra_signatories,
+          validity_range,
+          ..
+        }: Transaction
+      = self
     when redeemer is {
       EntryBidMint(schnorr_proof) -> {
         // token name is based off the first UTxO being spent in this transaction
@@ -38,34 +40,37 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
         // find the output that holds the token being minted. H-01 fix
         // (inlined): destructure the perimeter fields here so they can
         // be compared in the `and {}` block below.
-        expect Some(Output {
-          address: Address { payment_credential, stake_credential },
-          datum: InlineDatum(output_datum_data),
-          reference_script,
-          ..
-        }): Option<Output> =
-          search.for_output_by_token(outputs, policy_id, token_name)
+        expect  
+            Some(Output {
+              address: Address { payment_credential, stake_credential },
+              datum: InlineDatum(output_datum_data),
+              reference_script,
+              ..
+            }): Option<Output>
+          = search.for_output_by_token(outputs, policy_id, token_name)
         // reputation datum needs to be validated so destruct it
-        expect BidDatum {
-          owner_vkh,
-          owner_g1,
-          pointer,
-          token,
-          locked_until,
-          ..
-        }: BidDatum = output_datum_data
+        expect  
+            BidDatum { owner_vkh, owner_g1, pointer, token, locked_until, .. }: BidDatum
+          = output_datum_data
         // get encryption contract info from reference data
-        let ReferenceDatum { encryption, .. }: ReferenceDatum =
-          search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+        let ReferenceDatum { encryption, .. }: ReferenceDatum = search.for_reference_datum(
+          reference_inputs,
+          genesis_pid,
+          genesis_tkn,
+        )
         // reference the encryption utxo for the existence check
-        expect Some(_) =
-          search.for_input_by_token(reference_inputs, encryption, token)
+        expect Some(_) = search.for_input_by_token(
+          reference_inputs,
+          encryption,
+          token,
+        )
         // locked_until must be at least minimum_bid_lock from now
-        let lock_is_valid: Bool =
-          when validity_range.upper_bound.bound_type is {
-            Finite(ub) -> locked_until >= ub + bidding.minimum_bid_lock
-            _ -> False
-          }
+        let lock_is_valid: Bool = when
+          validity_range.upper_bound.bound_type
+        is {
+          Finite(ub) -> locked_until >= ub + bidding.minimum_bid_lock
+          _ -> False
+        }
         //
         and {
           // H-01 perimeter pin (inlined): payment_credential = Script(h),
@@ -101,36 +106,42 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
     when maybe_datum is {
       Some(this_datum) ->
         if this_datum is BidDatum {
-          let Transaction {
-            inputs,
-            outputs,
-            reference_inputs,
-            extra_signatories,
-            redeemers,
-            validity_range,
-            ..
-          }: Transaction = self
-          let BidDatum { owner_vkh, pointer, token, locked_until, .. } =
-            this_datum
-          expect Some(this_input): Option<Input> =
-            inputs
-              |> transaction.find_input(utxo)
-          expect Script(this_script): PaymentCredential =
-            this_input.output.address.payment_credential
+          let  
+              Transaction {
+                inputs,
+                outputs,
+                reference_inputs,
+                extra_signatories,
+                redeemers,
+                validity_range,
+                ..
+              }: Transaction
+            = self
+          let BidDatum { owner_vkh, pointer, token, locked_until, .. } = this_datum
+          expect Some(this_input): Option<Input> = inputs
+            |> transaction.find_input(utxo)
+          expect Script(this_script): PaymentCredential = this_input.output.address.payment_credential
           when redeemer is {
             RemoveBid -> {
-              let is_holding_token: Bool =
-                assets.has_nft(this_input.output.value, this_script, pointer)
+              let is_holding_token: Bool = assets.has_nft(
+                this_input.output.value,
+                this_script,
+                pointer,
+              )
               if is_holding_token {
                 // token must be burnt, so lets check that no output holds that token
-                let burn_token: Bool =
-                  search.no_output_holds_token(outputs, this_script, pointer)
+                let burn_token: Bool = search.no_output_holds_token(
+                  outputs,
+                  this_script,
+                  pointer,
+                )
                 // bid can only be removed after lock expires
-                let lock_expired: Bool =
-                  when validity_range.lower_bound.bound_type is {
-                    Finite(lb) -> lb > locked_until
-                    _ -> False
-                  }
+                let lock_expired: Bool = when
+                  validity_range.lower_bound.bound_type
+                is {
+                  Finite(lb) -> lb > locked_until
+                  _ -> False
+                }
                 //
                 and {
                   // owner_vkh must sign
@@ -151,12 +162,11 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
             UseBid -> {
               // make sure the encrpytion is being spent
               // get encryption contract info from reference data
-              let ReferenceDatum { encryption, .. }: ReferenceDatum =
-                search.for_reference_datum(
-                  reference_inputs,
-                  genesis_pid,
-                  genesis_tkn,
-                )
+              let ReferenceDatum { encryption, .. }: ReferenceDatum = search.for_reference_datum(
+                reference_inputs,
+                genesis_pid,
+                genesis_tkn,
+              )
               // expect a single input if we filter all inputs for the
               // encryption script hash. H-01 fix (inlined): pin the
               // perimeter (stake_cred=None, reference_script=None) inside
@@ -164,47 +174,49 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // an adversarial stake_credential through. The singleton
               // assertion below means the one remaining input satisfies
               // all three predicates.
-              expect [
-                Input {
-                  output_reference,
-                  output: Output { value: encryption_value, .. },
-                },
-              ]: List<Input> =
-                inputs
-                  |> list.filter(
-                      fn(input) {
-                        and {
-                          input.output.address.payment_credential == Script(
-                            encryption,
-                          ),
-                          input.output.address.stake_credential == None,
-                          input.output.reference_script == None,
-                        }
-                      },
-                    )
+              expect  
+                  [
+                    Input {
+                      output_reference,
+                      output: Output { value: encryption_value, .. },
+                    },
+                  ]: List<Input>
+                = inputs
+                |> list.filter(
+                    fn(input) {
+                      and {
+                        input.output.address.payment_credential == Script(
+                          encryption,
+                        ),
+                        input.output.address.stake_credential == None,
+                        input.output.reference_script == None,
+                      }
+                    },
+                  )
               // burn this token
-              let burn_token: Bool =
-                search.no_output_holds_token(outputs, this_script, pointer)
+              let burn_token: Bool = search.no_output_holds_token(
+                outputs,
+                this_script,
+                pointer,
+              )
               // expect a single input for this payment credential, with
               // the same H-01 perimeter pinning applied.
-              expect [_]: List<Input> =
-                inputs
-                  |> list.filter(
-                      fn(input) {
-                        and {
-                          input.output.address.payment_credential == Script(
-                            this_script,
-                          ),
-                          input.output.address.stake_credential == None,
-                          input.output.reference_script == None,
-                        }
-                      },
-                    )
-              expect Some(spend_redeemer): Option<Redeemer> =
-                search.for_spend_redeemer_by_output_reference(
-                  redeemers,
-                  output_reference,
-                )
+              expect [_]: List<Input> = inputs
+                |> list.filter(
+                    fn(input) {
+                      and {
+                        input.output.address.payment_credential == Script(
+                          this_script,
+                        ),
+                        input.output.address.stake_credential == None,
+                        input.output.reference_script == None,
+                      }
+                    },
+                  )
+              expect Some(spend_redeemer): Option<Redeemer> = search.for_spend_redeemer_by_output_reference(
+                redeemers,
+                output_reference,
+              )
               expect UseEncryption(_, _, selected_bid_token, _) = spend_redeemer
               //
               and {
@@ -225,19 +237,22 @@ validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
               // UIs MUST present "bid amount" and "declared resale price"
               // separately. See audit §I-05 / lib/types/bidding.ak.
               // this pointer going back. H-01 fix (inlined).
-              expect Some(Output {
-                address: Address { payment_credential, stake_credential },
-                datum: InlineDatum(output_datum_data),
-                reference_script,
-                value: output_value,
-              }): Option<Output> =
-                search.for_output_by_token(outputs, this_script, pointer)
+              expect  
+                  Some(Output {
+                    address: Address { payment_credential, stake_credential },
+                    datum: InlineDatum(output_datum_data),
+                    reference_script,
+                    value: output_value,
+                  }): Option<Output>
+                = search.for_output_by_token(outputs, this_script, pointer)
               // everything is constant but the new_price
-              let expected_output_datum_data: Data =
-                BidDatum { ..this_datum, new_price: price }
+              let expected_output_datum_data: Data = BidDatum {
+                ..this_datum,
+                new_price: price,
+              }
               // ensure non-ADA tokens are preserved
-              let input_tokens =
-                this_input.output.value |> assets.without_lovelace
+              let input_tokens = this_input.output.value
+                |> assets.without_lovelace
               let output_tokens = output_value |> assets.without_lovelace
               //
               and {

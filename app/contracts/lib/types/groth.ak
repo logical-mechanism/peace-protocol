@@ -187,14 +187,13 @@ pub fn verify_groth16(
   // gnark adds the commitment points D directly to vk_x (not just the wire values)
   // Since 1*IC[0] = IC[0], we start acc with IC[0] and multiply remaining ICs
   expect [head, ..tail] = vk.vkIC
-  let (base, leftover_public) =
-    derive_vk_x_combined(
-      tail,
-      public,
-      commitment_wires,
-      n_raw_public,
-      bls12_381_g1_uncompress(head),
-    )
+  let (base, leftover_public) = derive_vk_x_combined(
+    tail,
+    public,
+    commitment_wires,
+    n_raw_public,
+    bls12_381_g1_uncompress(head),
+  )
   // M-03 fix: reject any over-supplied `public` instead of silently
   // truncating. Without this, a future caller that exposes `public` to
   // user input would have an under-constrained verifier — extra entries
@@ -203,14 +202,13 @@ pub fn verify_groth16(
   expect [] = leftover_public
   let vk_x = add_commitments(proof.commitments, base)
 
-  let lhs =
+  let lhs = bls12_381_mul_miller_loop_result(
     bls12_381_mul_miller_loop_result(
-      bls12_381_mul_miller_loop_result(
-        bls12_381_miller_loop(a, b),
-        bls12_381_miller_loop(vk_x, bls12_381_g2_neg(gamma)),
-      ),
-      bls12_381_miller_loop(c, bls12_381_g2_neg(delta)),
-    )
+      bls12_381_miller_loop(a, b),
+      bls12_381_miller_loop(vk_x, bls12_381_g2_neg(gamma)),
+    ),
+    bls12_381_miller_loop(c, bls12_381_g2_neg(delta)),
+  )
   let rhs = bls12_381_miller_loop(alpha, beta)
 
   // Main Groth16 pairing check
@@ -248,19 +246,17 @@ pub fn verify_commitments(vk: SnarkVerificationKey, proof: GrothProof) -> Bool {
       let pok = bls12_381_g1_uncompress(proof.commitmentPok)
 
       // Compute sum of commitments D_sum = D_0 + D_1 + ... + D_n
-      let d_sum =
-        when proof.commitments is {
-          [] -> fail @"no commitments to sum"
-          [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
-        }
+      let d_sum = when proof.commitments is {
+        [] -> fail @"no commitments to sum"
+        [d0, ..rest] -> sum_commitments_acc(rest, bls12_381_g1_uncompress(d0))
+      }
 
       // Verify: e(D_sum, gSigmaNeg) * e(PoK, g) == 1
       // Note: Order matters! gnark's equation has gSigmaNeg paired with commitment
-      let prod =
-        bls12_381_mul_miller_loop_result(
-          bls12_381_miller_loop(d_sum, g_sigma_neg),
-          bls12_381_miller_loop(pok, g),
-        )
+      let prod = bls12_381_mul_miller_loop_result(
+        bls12_381_miller_loop(d_sum, g_sigma_neg),
+        bls12_381_miller_loop(pok, g),
+      )
 
       // Compare against identity: e(0*g1, g2) = 1 in GT
       let identity = bls12_381_miller_loop(bls12_381_g1_scalar_mul(0, d_sum), g)

@@ -21,20 +21,20 @@ validator contract(
     let Transaction { inputs, outputs, mint, .. } = self
     let token_name: AssetName = util.construct_token_name(tx_id, tx_idx)
     // if some(_input) then the tx_id#tx_idx UTxO is being spent
-    expect Some(_) =
-      inputs
-        |> transaction.find_input(
-            // just pass in the output reference for it
-            OutputReference { transaction_id: tx_id, output_index: tx_idx },
-          )
+    expect Some(_) = inputs
+      |> transaction.find_input(
+          // just pass in the output reference for it
+          OutputReference { transaction_id: tx_id, output_index: tx_idx },
+        )
     // search for the output holding this token
-    expect Some(Output {
-      address: output_address,
-      datum: InlineDatum(output_datum_data),
-      reference_script,
-      ..
-    }): Option<Output> =
-      search.for_output_by_token(outputs, policy_id, token_name)
+    expect  
+        Some(Output {
+          address: output_address,
+          datum: InlineDatum(output_datum_data),
+          reference_script,
+          ..
+        }): Option<Output>
+      = search.for_output_by_token(outputs, policy_id, token_name)
     // construct the address of the reference contract
     expect ReferenceDatum { reference, .. }: ReferenceDatum = output_datum_data
     let reference_datum_address: Address = address.from_script(reference)

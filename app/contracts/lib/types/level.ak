@@ -79,14 +79,13 @@ pub fn verify_first_half_level(
   let r4: G2Element = self.r4b |> g2.decompress
   let left = miller_loop(g1.generator, r4)
   let a = self.r1b |> hash_to_scalar
-  let b =
-    self.r1b
-      |> bytearray.concat(self.r2_g1b)
-      |> bytearray.concat(token_name)
-      |> hash_to_scalar
+  let b = self.r1b
+    |> bytearray.concat(self.r2_g1b)
+    |> bytearray.concat(token_name)
+    |> hash_to_scalar
   // level one uses h1, h2, and h3 terms
-  let exp =
-    g2.add(g2.scale(wang_h1, a), g2.scale(wang_h2, b)) |> g2.add(wang_h3)
+  let exp = g2.add(g2.scale(wang_h1, a), g2.scale(wang_h2, b))
+    |> g2.add(wang_h3)
   let right = miller_loop(self.r1b |> g1.decompress, exp)
   final_exponentiation(left, right)
 }
@@ -105,11 +104,10 @@ pub fn verify_kth_half_level(
   let left = miller_loop(g1.generator, self.r4b |> g2.decompress)
 
   let a4 = self.r1b |> hash_to_scalar
-  let b4 =
-    self.r1b
-      |> bytearray.concat(self.r2_g1b)
-      |> bytearray.concat(token_name)
-      |> hash_to_scalar
+  let b4 = self.r1b
+    |> bytearray.concat(self.r2_g1b)
+    |> bytearray.concat(token_name)
+    |> hash_to_scalar
   // level k only uses the h1 and h2 terms
   let exp = g2.add(g2.scale(wang_h1, a4), g2.scale(wang_h2, b4))
   let right = miller_loop(self.r1b |> g1.decompress, exp)
@@ -127,11 +125,10 @@ pub fn mk_kth_half_level(
 
   // R4 uses hashes of (R1) and (R1 || R2 || R3)
   let a4 = r1b |> hash_to_scalar
-  let b4 =
-    r1b
-      |> bytearray.concat(r2_g1b)
-      |> bytearray.concat(token_name)
-      |> hash_to_scalar
+  let b4 = r1b
+    |> bytearray.concat(r2_g1b)
+    |> bytearray.concat(token_name)
+    |> hash_to_scalar
 
   let base = g2.add(g2.scale(wang_h1, a4), g2.scale(wang_h2, b4))
   let r4b = base |> g2.scale(r) |> g2.compress
@@ -152,13 +149,12 @@ pub fn add_new_half_level(
   user: Register,
   proof: BindingProof,
 ) -> Bool {
-  let expected =
-    FullEncryptionLevel {
-      r1b: old_half.r1b,
-      r2_g1b: old_half.r2_g1b,
-      r2_g2b: r5,
-      r4b: old_half.r4b,
-    }
+  let expected = FullEncryptionLevel {
+    r1b: old_half.r1b,
+    r2_g1b: old_half.r2_g1b,
+    r2_g2b: r5,
+    r4b: old_half.r4b,
+  }
 
   and {
     binding_verify(user, proof, new_half.r1b, new_half.r2_g1b, token_name),
