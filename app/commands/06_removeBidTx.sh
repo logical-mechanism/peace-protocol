@@ -22,11 +22,10 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
-bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${staking_credential} ${network})
+bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} ${network})
 bidding_pid=$(cat ../contracts/hashes/bidding.hash)
 
 echo -e "\033[0;36m Gathering Bob UTxO Information  \033[0m"

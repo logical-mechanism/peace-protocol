@@ -76,17 +76,19 @@ test for_output_by_token__finds_first_match_in_order() {
 
   let o2 = mk_output(mk_value_with_genesis_nft(), InlineDatum(2))
 
-  let result =
-    search.for_output_by_token([o0, o1, o2], genesis_pid, genesis_tkn)
+  let result = search.for_output_by_token(
+    [o0, o1, o2],
+    genesis_pid,
+    genesis_tkn,
+  )
 
   expect Some(Output { datum, .. }) = result
   datum == InlineDatum(1)
 }
 
 test for_output_by_token__strict_rejects_extra_tokens() {
-  let value_bad =
-    mk_value_with_genesis_nft()
-      |> assets.add(genesis_pid, other_tkn, 1)
+  let value_bad = mk_value_with_genesis_nft()
+    |> assets.add(genesis_pid, other_tkn, 1)
 
   let o = mk_output(value_bad, NoDatum)
 
@@ -109,17 +111,15 @@ test for_input_by_token__finds_first_match_in_order() {
 
   let result = search.for_input_by_token([i0, i1, i2], genesis_pid, genesis_tkn)
 
-  expect Some(Input {
-    output_reference: OutputReference { output_index, .. },
-    ..
-  }) = result
+  expect  
+      Some(Input { output_reference: OutputReference { output_index, .. }, .. })
+    = result
   output_index == 1
 }
 
 test for_input_by_token__strict_rejects_extra_tokens() {
-  let value_bad =
-    mk_value_with_genesis_nft()
-      |> assets.add(genesis_pid, other_tkn, 1)
+  let value_bad = mk_value_with_genesis_nft()
+    |> assets.add(genesis_pid, other_tkn, 1)
 
   let i = mk_input(0, mk_output(value_bad, NoDatum))
 
@@ -130,19 +130,20 @@ test for_input_by_token__strict_rejects_extra_tokens() {
 /// Tests: for_reference_datum
 /// ------------------------------------------------------------
 test for_reference_datum__returns_reference_datum_on_happy_path() {
-  let expected: ReferenceDatum =
-    ReferenceDatum {
-      reference: #"11111111111111111111111111111111111111111111111111111111",
-      encryption: #"22222222222222222222222222222222222222222222222222222222",
-      bid: #"33333333333333333333333333333333333333333333333333333333",
-      groth: #"44444444444444444444444444444444444444444444444444444444",
-      snark_vk: mk_test_vk(),
-    }
+  let expected: ReferenceDatum = ReferenceDatum {
+    reference: #"11111111111111111111111111111111111111111111111111111111",
+    encryption: #"22222222222222222222222222222222222222222222222222222222",
+    bid: #"33333333333333333333333333333333333333333333333333333333",
+    groth: #"44444444444444444444444444444444444444444444444444444444",
+    snark_vk: mk_test_vk(),
+  }
 
   let datum_data: Data = expected
 
-  let ref_input =
-    mk_input(0, mk_output(mk_value_with_genesis_nft(), InlineDatum(datum_data)))
+  let ref_input = mk_input(
+    0,
+    mk_output(mk_value_with_genesis_nft(), InlineDatum(datum_data)),
+  )
 
   let got = search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
 
@@ -152,79 +153,86 @@ test for_reference_datum__returns_reference_datum_on_happy_path() {
 test for_reference_datum__fails_when_token_missing() fail {
   let ref_input = mk_input(0, mk_output(assets.from_lovelace(2), NoDatum))
 
-  expect _got =
-    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+  expect _got = search.for_reference_datum(
+    [ref_input],
+    genesis_pid,
+    genesis_tkn,
+  )
 }
 
 test for_reference_datum__fails_when_datum_not_inline() fail {
   let ref_input = mk_input(0, mk_output(mk_value_with_genesis_nft(), NoDatum))
 
-  expect _got =
-    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+  expect _got = search.for_reference_datum(
+    [ref_input],
+    genesis_pid,
+    genesis_tkn,
+  )
 }
 
 test for_reference_datum__fails_when_inline_datum_wrong_shape() fail {
-  let ref_input =
-    mk_input(0, mk_output(mk_value_with_genesis_nft(), InlineDatum(42)))
+  let ref_input = mk_input(
+    0,
+    mk_output(mk_value_with_genesis_nft(), InlineDatum(42)),
+  )
 
-  expect _got =
-    search.for_reference_datum([ref_input], genesis_pid, genesis_tkn)
+  expect _got = search.for_reference_datum(
+    [ref_input],
+    genesis_pid,
+    genesis_tkn,
+  )
 }
 
 /// ------------------------------------------------------------
 /// Tests: for_spend_redeemer_by_output_reference
 /// ------------------------------------------------------------
 test for_spend_redeemer_by_output_reference__empty_returns_none() {
-  expect None =
-    search.for_spend_redeemer_by_output_reference([], mk_output_reference(0))
+  expect None = search.for_spend_redeemer_by_output_reference(
+    [],
+    mk_output_reference(0),
+  )
 }
 
 test for_spend_redeemer_by_output_reference__no_match_returns_none() {
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Mint(genesis_pid), builtin.i_data(0)),
-      // different purpose
-      Pair(Spend(mk_output_reference(1)), builtin.i_data(1)),
-    ]
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Mint(genesis_pid), builtin.i_data(0)),
+    // different purpose
+    Pair(Spend(mk_output_reference(1)), builtin.i_data(1)),
+  ]
 
   // spend, but different output ref
-  expect None =
-    search.for_spend_redeemer_by_output_reference(
-      redeemers,
-      mk_output_reference(0),
-    )
+  expect None = search.for_spend_redeemer_by_output_reference(
+    redeemers,
+    mk_output_reference(0),
+  )
 }
 
 test for_spend_redeemer_by_output_reference__returns_some_on_match() {
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Mint(genesis_pid), builtin.i_data(0)),
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(42)),
-      Pair(Spend(mk_output_reference(1)), builtin.i_data(99)),
-    ]
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Mint(genesis_pid), builtin.i_data(0)),
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(42)),
+    Pair(Spend(mk_output_reference(1)), builtin.i_data(99)),
+  ]
 
-  expect Some(d) =
-    search.for_spend_redeemer_by_output_reference(
-      redeemers,
-      mk_output_reference(0),
-    )
+  expect Some(d) = search.for_spend_redeemer_by_output_reference(
+    redeemers,
+    mk_output_reference(0),
+  )
   d == builtin.i_data(42)
 }
 
 test for_spend_redeemer_by_output_reference__returns_first_when_duplicates_exist() {
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(2)),
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(3)),
-    ]
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(2)),
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(3)),
+  ]
 
   // should return the *first* match
-  expect Some(d) =
-    search.for_spend_redeemer_by_output_reference(
-      redeemers,
-      mk_output_reference(0),
-    )
+  expect Some(d) = search.for_spend_redeemer_by_output_reference(
+    redeemers,
+    mk_output_reference(0),
+  )
   d == builtin.i_data(1)
 }
 
@@ -236,50 +244,51 @@ test for_withdraw_redeemer_by_script_hash__empty_returns_none() {
 }
 
 test for_withdraw_redeemer_by_script_hash__no_match_returns_none() {
-  let other_hash: ByteArray =
-    #"02020202020202020202020202020202020202020202020202020202"
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Mint(genesis_pid), builtin.i_data(0)),
-      Pair(Withdraw(address.Script(other_hash)), builtin.i_data(1)),
-    ]
+  let other_hash: ByteArray = #"02020202020202020202020202020202020202020202020202020202"
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Mint(genesis_pid), builtin.i_data(0)),
+    Pair(Withdraw(address.Script(other_hash)), builtin.i_data(1)),
+  ]
 
-  expect None =
-    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+  expect None = search.for_withdraw_redeemer_by_script_hash(
+    redeemers,
+    genesis_pid,
+  )
 }
 
 test for_withdraw_redeemer_by_script_hash__returns_some_on_match() {
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Mint(genesis_pid), builtin.i_data(0)),
-      Pair(Withdraw(address.Script(genesis_pid)), builtin.i_data(42)),
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(99)),
-    ]
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Mint(genesis_pid), builtin.i_data(0)),
+    Pair(Withdraw(address.Script(genesis_pid)), builtin.i_data(42)),
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(99)),
+  ]
 
-  expect Some(d) =
-    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+  expect Some(d) = search.for_withdraw_redeemer_by_script_hash(
+    redeemers,
+    genesis_pid,
+  )
   d == builtin.i_data(42)
 }
 
 test for_withdraw_redeemer_by_script_hash__ignores_spend_with_same_hash() {
-  let redeemers: Pairs<ScriptPurpose, Redeemer> =
-    [
-      Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
-      Pair(Mint(genesis_pid), builtin.i_data(2)),
-    ]
+  let redeemers: Pairs<ScriptPurpose, Redeemer> = [
+    Pair(Spend(mk_output_reference(0)), builtin.i_data(1)),
+    Pair(Mint(genesis_pid), builtin.i_data(2)),
+  ]
 
   // no Withdraw purpose present, only Spend and Mint
-  expect None =
-    search.for_withdraw_redeemer_by_script_hash(redeemers, genesis_pid)
+  expect None = search.for_withdraw_redeemer_by_script_hash(
+    redeemers,
+    genesis_pid,
+  )
 }
 
 /// ------------------------------------------------------------
 /// Tests: for_output_by_token (additional edge cases)
 /// ------------------------------------------------------------
 test for_output_by_token__rejects_quantity_two() {
-  let value_bad =
-    assets.from_lovelace(2)
-      |> assets.add(genesis_pid, genesis_tkn, 2)
+  let value_bad = assets.from_lovelace(2)
+    |> assets.add(genesis_pid, genesis_tkn, 2)
 
   let o = mk_output(value_bad, NoDatum)
 
@@ -304,9 +313,8 @@ test for_input_by_token__no_match_in_populated_list() {
 }
 
 test for_input_by_token__rejects_quantity_two() {
-  let value_bad =
-    assets.from_lovelace(2)
-      |> assets.add(genesis_pid, genesis_tkn, 2)
+  let value_bad = assets.from_lovelace(2)
+    |> assets.add(genesis_pid, genesis_tkn, 2)
 
   let i = mk_input(0, mk_output(value_bad, NoDatum))
 

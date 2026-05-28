@@ -55,9 +55,12 @@ pub fn verify(user: Register, proof: SchnorrProof) -> Bool {
   let g_z: G1Element = user.generator |> g1.decompress |> g1.scale(z)
   //
   // use the fiat-shamir heuristic to calculate the challenge then convert it to an scalar
-  let c: State<Scalar> =
-    fiat_shamir_heuristic(user.generator, proof.g_r_b, user.public_value)
-      |> scalar.from_bytes
+  let c: State<Scalar> = fiat_shamir_heuristic(
+    user.generator,
+    proof.g_r_b,
+    user.public_value,
+  )
+    |> scalar.from_bytes
   //
   // the u^c computation: u^c = (g^x)^c = g^(x * c)
   let u_c: G1Element = user.public_value |> g1.decompress |> g1.scale(c)
@@ -132,9 +135,14 @@ pub fn binding_verify(
   let r1: G1Element = g1.decompress(r1_b)
   let r2: G1Element = g1.decompress(r2_b)
   // compute the challenge terms
-  let c: State<Scalar> =
-    binding_fiat_shamir_heuristic(user, proof, r1_b, r2_b, token_name)
-      |> scalar.from_bytes
+  let c: State<Scalar> = binding_fiat_shamir_heuristic(
+    user,
+    proof,
+    r1_b,
+    r2_b,
+    token_name,
+  )
+    |> scalar.from_bytes
   let r1_c: G1Element = r1 |> g1.scale(c)
   let r2_c: G1Element = r2 |> g1.scale(c)
   // compute the sigma protocol

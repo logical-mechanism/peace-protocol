@@ -24,11 +24,10 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 echo -e "\033[0;36m Gathering Alice UTxO Information  \033[0m"
@@ -62,8 +61,8 @@ first_utxo=$(jq -r 'keys[0]' ./tmp/alice_utxo.json)
 string=${first_utxo}
 IFS='#' read -ra array <<< "$string"
 
-tx_idx_cbor=$(../venv/bin/python -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
-full_tkn="${tx_idx_cbor}${array[0]}"
+tx_idx_byte=$(../venv/bin/python -c "idx=${array[1]}; assert 0 <= idx <= 255; print(bytes([idx]).hex())")  # I-08: mirror on-chain bytearray.push
+full_tkn="${tx_idx_byte}${array[0]}"
 token_name="${full_tkn:0:64}"
 echo $token_name > ../data/encryption.token
 encryption_asset="1 ${encryption_pid}.${token_name}"

@@ -11,22 +11,20 @@ use types/register.{Register}
 test a_valid_register() {
   let x: State<Scalar> = scalar.from_int(44203)
   // the user register using the g1 generator and the public value for x
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.compress,
-      public_value: g1.generator |> g1.scale(x) |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.compress,
+    public_value: g1.generator |> g1.scale(x) |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
 test an_invalid_register1() fail {
   let x: State<Scalar> = scalar.from_int(0)
   // the user register using the g1 generator and the public value for x
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.compress,
-      public_value: g1.generator |> g1.scale(x) |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.compress,
+    public_value: g1.generator |> g1.scale(x) |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
@@ -34,74 +32,67 @@ test an_invalid_register2() fail {
   let x: State<Scalar> = scalar.from_int(44203)
   let r: State<Scalar> = scalar.from_int(67)
   // the user register using the g1 generator and the public value for x
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.scale(r) |> g1.compress,
-      public_value: g1.generator |> g1.scale(x) |> g1.scale(r) |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.scale(r) |> g1.compress,
+    public_value: g1.generator |> g1.scale(x) |> g1.scale(r) |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
 test an_invalid_register3() fail {
   let x: State<Scalar> = scalar.from_int(1)
   // the user register using the g1 generator and the public value for x
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.compress,
-      public_value: g1.generator |> g1.scale(x) |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.compress,
+    public_value: g1.generator |> g1.scale(x) |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
 test an_invalid_register4() fail {
   let x: State<Scalar> = scalar.from_int(44203)
   // the user register using the g2 generator and the public value for x
-  let user: Register =
-    Register {
-      generator: g2.generator |> g2.compress,
-      public_value: g2.generator |> g2.scale(x) |> g2.compress,
-    }
+  let user: Register = Register {
+    generator: g2.generator |> g2.compress,
+    public_value: g2.generator |> g2.scale(x) |> g2.compress,
+  }
   register.is_register_valid(user)
 }
 
 // swapping generator and public value should fail
 test an_invalid_register_swapped_fields() fail {
   let x: State<Scalar> = scalar.from_int(44203)
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.scale(x) |> g1.compress,
-      public_value: g1.generator |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.scale(x) |> g1.compress,
+    public_value: g1.generator |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
 // arbitrary bytes that are not a valid G1 point should fail
 test an_invalid_register_arbitrary_bytes() fail {
-  let user: Register =
-    Register {
-      generator: #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-      public_value: #"cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe",
-    }
+  let user: Register = Register {
+    generator: #"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    public_value: #"cafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe",
+  }
   register.is_register_valid(user)
 }
 
 // both fields set to the g1 generator should fail (generator == public_value)
 test an_invalid_register_both_generator() fail {
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.compress,
-      public_value: g1.generator |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.compress,
+    public_value: g1.generator |> g1.compress,
+  }
   register.is_register_valid(user)
 }
 
 // a second valid register with a different secret
 test another_valid_register() {
   let x: State<Scalar> = scalar.from_int(9999999)
-  let user: Register =
-    Register {
-      generator: g1.generator |> g1.compress,
-      public_value: g1.generator |> g1.scale(x) |> g1.compress,
-    }
+  let user: Register = Register {
+    generator: g1.generator |> g1.compress,
+    public_value: g1.generator |> g1.scale(x) |> g1.compress,
+  }
   register.is_register_valid(user)
 }

@@ -79,11 +79,12 @@ pub fn for_reference_datum(
   genesis_pid: PolicyId,
   genesis_tkn: AssetName,
 ) -> ReferenceDatum {
-  expect Some(Input {
-    output: Output { datum: InlineDatum(reference_datum_data), .. },
-    ..
-  }): Option<Input> =
-    for_input_by_token(reference_inputs, genesis_pid, genesis_tkn)
+  expect  
+      Some(Input {
+        output: Output { datum: InlineDatum(reference_datum_data), .. },
+        ..
+      }): Option<Input>
+    = for_input_by_token(reference_inputs, genesis_pid, genesis_tkn)
   expect reference_datum: ReferenceDatum = reference_datum_data
   reference_datum
 }

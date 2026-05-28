@@ -19,11 +19,10 @@ encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 encryption_tkn=$(cat ../data/encryption.token)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} ${network})
 
 asset=${encryption_pid}${encryption_tkn}
 

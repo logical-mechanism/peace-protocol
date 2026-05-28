@@ -14,16 +14,21 @@ use types/reference.{ReferenceDatum}
 validator contract(genesis_pid: PolicyId, genesis_tkn: AssetName) {
   withdraw(redeemer: GrothWitnessRedeemer, _credential, self: Transaction) {
     // these are small enough to pass in the redeemer
-    let GrothWitnessRedeemer {
-      groth_proof,
-      groth_commitment_wire,
-      groth_public,
-      ..
-    } = redeemer
+    let  
+        GrothWitnessRedeemer {
+          groth_proof,
+          groth_commitment_wire,
+          groth_public,
+          ..
+        }
+      = redeemer
     // reference the snark vk from the reference datum
     let Transaction { reference_inputs, .. } = self
-    let ReferenceDatum { snark_vk, .. }: ReferenceDatum =
-      search.for_reference_datum(reference_inputs, genesis_pid, genesis_tkn)
+    let ReferenceDatum { snark_vk, .. }: ReferenceDatum = search.for_reference_datum(
+      reference_inputs,
+      genesis_pid,
+      genesis_tkn,
+    )
     //
     groth.verify_groth16(
       snark_vk,

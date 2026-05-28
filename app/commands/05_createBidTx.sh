@@ -24,16 +24,15 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # bidding
 bidding_script_path="../contracts/contracts/bidding_contract.plutus"
-bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} --stake-key-hash ${staking_credential} ${network})
+bidding_script_address=$(${cli} conway address build --payment-script-file ${bidding_script_path} ${network})
 bidding_pid=$(cat ../contracts/hashes/bidding.hash)
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 # reference
@@ -45,8 +44,8 @@ tx_id=$(jq -r '.genesis_tx_id' ${CONFIG_JSON})
 tx_idx=$(jq -r '.genesis_tx_idx' ${CONFIG_JSON})
 
 genesis_pid=$(cat ../contracts/hashes/genesis.hash)
-tx_idx_cbor=$(python3 -c "import cbor2;encoded=cbor2.dumps(${tx_idx});print(encoded.hex())")
-full_genesis_tkn="${tx_idx_cbor}${tx_id}"
+tx_idx_byte=$(python3 -c "idx=${tx_idx}; assert 0 <= idx <= 255; print(bytes([idx]).hex())")  # I-08: mirror on-chain bytearray.push
+full_genesis_tkn="${tx_idx_byte}${tx_id}"
 genesis_tkn="${full_genesis_tkn:0:64}"
 
 # encryption token
@@ -111,8 +110,8 @@ first_utxo=$(jq -r 'keys[0]' ./tmp/bob_utxo.json)
 string=${first_utxo}
 IFS='#' read -ra array <<< "$string"
 
-tx_idx_cbor=$(../venv/bin/python -c "import cbor2;encoded=cbor2.dumps(${array[1]});print(encoded.hex())")
-full_tkn="${tx_idx_cbor}${array[0]}"
+tx_idx_byte=$(../venv/bin/python -c "idx=${array[1]}; assert 0 <= idx <= 255; print(bytes([idx]).hex())")  # I-08: mirror on-chain bytearray.push
+full_tkn="${tx_idx_byte}${array[0]}"
 token_name="${full_tkn:0:64}"
 echo $token_name > ../data/bidding.token
 bidding_asset="1 ${bidding_pid}.${token_name}"

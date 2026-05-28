@@ -32,11 +32,10 @@ collat_address=$(cat ${collat_wallet_path}/payment.addr)
 collat_pkh=$(${cli} conway address key-hash --payment-verification-key-file ${collat_wallet_path}/payment.vkey)
 
 # stake key
-staking_credential=$(jq -r '.staking_credential' ${CONFIG_JSON})
 
 # encryption
 encryption_script_path="../contracts/contracts/encryption_contract.plutus"
-encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} --stake-key-hash ${staking_credential} ${network})
+encryption_script_address=$(${cli} conway address build --payment-script-file ${encryption_script_path} ${network})
 encryption_pid=$(cat ../contracts/hashes/encryption.hash)
 
 echo -e "\033[0;36m Gathering Alice UTxO Information  \033[0m"
